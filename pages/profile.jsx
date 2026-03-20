@@ -1,0 +1,309 @@
+import React, { useEffect, useState } from 'react'
+import AdminHeader from '../components/AdminHeader'
+import UserSidebar from '../components/UserSidebar'
+
+export default function ProfilePage(){
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({})
+  const [saveError, setSaveError] = useState(null)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' })
+  const [passwordError, setPasswordError] = useState(null)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+
+  useEffect(() => {
+    const email = typeof window !== 'undefined' ? localStorage.getItem('email') : null
+    if (!email) {
+      if (typeof window !== 'undefined') window.location.href = '/login'
+      return
+    }
+
+    async function load() {
+      setLoading(true)
+      try {
+        const res = await fetch('/api/admin/users')
+        const data = await res.json()
+        const list = data.users || []
+        const me = list.find((u) => (u.email || '').toLowerCase() === email.toLowerCase())
+        if (!me) {
+          setUser(null)
+        } else {
+          setUser(me)
+          setForm({
+            firstName: me.first_name || me.firstName || '',
+            lastName: me.last_name || me.lastName || '',
+            telephone: me.telephone || '',
+            adresse: me.address || me.adresse || '',
+            fonction: me.fonction || '',
+            ninami: me.ninami || '',
+            niss: me.niss || '',
+            bce: me.bce || '',
+            societe: me.company || me.societe || '',
+            compte: me.account || me.compte || '',
+            email: me.email || '',
+            liaisonId: me.liaison_ebrigade_id || '',
+          })
+        }
+      } catch (err) {
+        console.error('Failed to load profile', err)
+        setUser(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    load()
+  }, [])
+
+  async function save() {
+    try {
+      setSaveError(null)
+      const payload = {
+        email: user.email,
+        role: user.role,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        telephone: form.telephone,
+        adresse: form.adresse,
+        fonction: form.fonction,
+        ninami: form.ninami,
+        niss: form.niss,
+        bce: form.bce,
+        societe: form.societe,
+        compte: form.compte,
+      }
+      const resp = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!resp.ok) throw new Error('Erreur lors de la mise à jour')
+      const body = await resp.json()
+      setUser(body.user)
+      setEditing(false)
+    } catch (err) {
+      console.error('Save profile failed', err)
+      setSaveError(err.message || 'Erreur')
+    }
+  }
+
+  async function savePassword() {
+    try {
+      setPasswordError(null)
+      if (!passwordForm.oldPassword) {
+        setPasswordError('Veuillez entrer votre mot de passe actuel')
+        return
+      }
+      if (!passwordForm.newPassword) {
+        setPasswordError('Veuillez entrer un nouveau mot de passe')
+        return
+      }
+      if (!passwordForm.confirmPassword) {
+        setPasswordError('Veuillez confirmer votre nouveau mot de passe')
+        return
+      }
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        setPasswordError('Les nouveaux mots de passe ne correspondent pas')
+        return
+      }
+      if (passwordForm.newPassword.length < 6) {
+        setPasswordError('Le nouveau mot de passe doit contenir au moins 6 caractères')
+        return
+      }
+      
+      setPasswordLoading(true)
+      const resp = await fetch(`/api/admin/users/${user.id}/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          oldPassword: passwordForm.oldPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      })
+      
+      if (!resp.ok) {
+        const data = await resp.json()
+        throw new Error(data.error || 'Erreur lors de la modification du mot de passe')
+      }
+      
+      setPasswordSuccess(true)
+      setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' })
+      setTimeout(() => {
+        setShowPasswordModal(false)
+        setPasswordSuccess(false)
+      }, 1500)
+    } catch (err) {
+      console.error('Save password failed', err)
+      setPasswordError(err.message || 'Erreur')
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
+
+  if (loading) return <div className="admin-page-root"><AdminHeader onToggleSidebar={() => setSidebarOpen(v=>!v)} /><UserSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} /><div className="login-card">Chargement…</div></div>
+  if (!user) return <div className="admin-page-root"><AdminHeader onToggleSidebar={() => setSidebarOpen(v=>!v)} /><UserSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} /><div className="login-card">Profil introuvable.</div></div>
+
+  // render a responsive profile page with details and edit form
+  return (
+    <div className="admin-page-root">
+      <AdminHeader onToggleSidebar={() => setSidebarOpen(v=>!v)} />
+      <UserSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <main className="admin-content" onClick={() => { if (sidebarOpen) setSidebarOpen(false) }}>
+        <div className="admin-header">
+          <h1>Mon profil</h1>
+          <div className="small-muted">Consultez et modifiez vos informations personnelles</div>
+        </div>
+
+        <div className="profile-grid">
+          <div className="card" style={{padding:16}}>
+            <div style={{display:'grid',gridTemplateColumns:'120px 1fr',gap:20,alignItems:'flex-start'}}>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+                <div style={{width:100,height:100,borderRadius:8,background:'linear-gradient(135deg, #2563eb, #3b82f6)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:32,color:'#fff',fontWeight:700}}>
+                  {((user.first_name||user.firstName||'')[0]||'U').toUpperCase()}{((user.last_name||user.lastName||'')[0]||'')}
+                </div>
+                <div style={{fontSize:12,color:'#888',textAlign:'center',lineHeight:1.4}}>{user.email}</div>
+              </div>
+              <div>
+                {!editing ? (
+                  <div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,rowGap:14}}>
+                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>EMAIL</div><div style={{fontSize:15,fontWeight:600,color:'#111'}}>{user.email || '—'}</div></div>
+                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>PRÉNOM</div><div style={{fontSize:15,fontWeight:600,color:'#111'}}>{user.first_name || user.firstName || '—'}</div></div>
+                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>NOM</div><div style={{fontSize:15,fontWeight:600,color:'#111'}}>{user.last_name || user.lastName || '—'}</div></div>
+                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>TÉLÉPHONE</div><div style={{fontSize:14,color:'#222'}}>{user.telephone || '—'}</div></div>
+                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>FONCTION</div><div style={{fontSize:14,color:'#222'}}>{user.fonction || '—'}</div></div>
+                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>N'INAMI</div><div style={{fontSize:14,color:'#222'}}>{user.ninami || '—'}</div></div>
+                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>NISS</div><div style={{fontSize:14,color:'#222'}}>{user.niss || '—'}</div></div>
+                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>BCE</div><div style={{fontSize:14,color:'#222'}}>{user.bce || '—'}</div></div>
+                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>SOCIÉTÉ</div><div style={{fontSize:14,color:'#222'}}>{user.company || user.societe || '—'}</div></div>
+                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>COMPTE</div><div style={{fontSize:14,color:'#222'}}>{user.account || user.compte || '—'}</div></div>
+                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>LIAISON EBRIGADE</div><div style={{fontSize:14,color:'#222'}}>{user.liaison_ebrigade_id || '—'}</div></div>
+                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>RÔLE</div><div style={{fontSize:14,color:'#222'}}>{Array.isArray(user.role) ? user.role.join(', ') : user.role}</div></div>
+                      <div style={{gridColumn:'1 / -1'}}><div style={{fontSize:12,color:'#888',marginBottom:4}}>ADRESSE</div><div style={{fontSize:14,color:'#222'}}>{user.address || user.adresse || '—'}</div></div>
+                    </div>
+                    <div style={{display:'flex',justifyContent:'flex-end',marginTop:16,gap:8}}>
+                      <button className="secondary" onClick={() => setShowPasswordModal(true)}>Modifier mon mot de passe</button>
+                      <button className="primary" onClick={() => setEditing(true)}>Modifier</button>
+                    </div>
+                  </div>
+                ) : (
+                  <form className="create-user-form" onSubmit={(e) => { e.preventDefault(); save() }}>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                      <label className="form-row">
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>EMAIL</div>
+                        <input value={form.email} disabled style={{opacity:0.6}} />
+                      </label>
+                      <label className="form-row">
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>PRÉNOM</div>
+                        <input value={form.firstName} onChange={(e) => setForm({...form, firstName: e.target.value})} />
+                      </label>
+                      <label className="form-row">
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NOM</div>
+                        <input value={form.lastName} onChange={(e) => setForm({...form, lastName: e.target.value})} />
+                      </label>
+                      <label className="form-row">
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>TÉLÉPHONE</div>
+                        <input value={form.telephone} onChange={(e) => setForm({...form, telephone: e.target.value})} />
+                      </label>
+                      <label className="form-row">
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>FONCTION</div>
+                        <select value={form.fonction} onChange={(e) => setForm({...form, fonction: e.target.value})}>
+                          <option value="">— Choisir —</option>
+                          <option value="INFI">INFI</option>
+                          <option value="MED">MED</option>
+                        </select>
+                      </label>
+                      <label className="form-row">
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>N'INAMI</div>
+                        <input value={form.ninami} onChange={(e) => setForm({...form, ninami: e.target.value})} />
+                      </label>
+                      <label className="form-row">
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS</div>
+                        <input value={form.niss} onChange={(e) => setForm({...form, niss: e.target.value})} />
+                      </label>
+                      <label className="form-row">
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE</div>
+                        <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} />
+                      </label>
+                      <label className="form-row">
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>SOCIÉTÉ</div>
+                        <input value={form.societe} onChange={(e) => setForm({...form, societe: e.target.value})} />
+                      </label>
+                      <label className="form-row">
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE</div>
+                        <input value={form.compte} onChange={(e) => setForm({...form, compte: e.target.value})} />
+                      </label>
+                      <label className="form-row">
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>LIAISON EBRIGADE</div>
+                        <input value={form.liaisonId} disabled style={{opacity:0.6}} />
+                      </label>
+                      <label className="form-row" style={{gridColumn:'1 / -1'}}>
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>ADRESSE</div>
+                        <input value={form.adresse} onChange={(e) => setForm({...form, adresse: e.target.value})} />
+                      </label>
+                    </div>
+                    {saveError && <div style={{color:'#d32f2f',fontSize:13,marginTop:12}}>{saveError}</div>}
+                    <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:16}}>
+                      <button type="button" className="secondary" onClick={() => { setEditing(false); setSaveError(null) }}>Abandonner</button>
+                      <button className="primary" type="submit">Enregistrer</button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {showPasswordModal && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={() => setShowPasswordModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{maxWidth:400}}>
+            <div className="modal-header">
+              <strong>Modifier mon mot de passe</strong>
+              <button className="modal-close" onClick={() => { setShowPasswordModal(false); setPasswordError(null); setPasswordSuccess(false) }} aria-label="Fermer">×</button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={(e) => { e.preventDefault(); savePassword() }}>
+                <label className="form-row full">
+                  Mot de passe actuel
+                  <input 
+                    type="password" 
+                    value={passwordForm.oldPassword} 
+                    onChange={(e) => setPasswordForm({...passwordForm, oldPassword: e.target.value})} 
+                  />
+                </label>
+                <label className="form-row full">
+                  Nouveau mot de passe
+                  <input 
+                    type="password" 
+                    value={passwordForm.newPassword} 
+                    onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})} 
+                  />
+                </label>
+                <label className="form-row full">
+                  Confirmer le nouveau mot de passe
+                  <input 
+                    type="password" 
+                    value={passwordForm.confirmPassword} 
+                    onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})} 
+                  />
+                </label>
+                {passwordError && <div className="form-error" style={{marginTop:12}}>{passwordError}</div>}
+                {passwordSuccess && <div style={{color:'#10b981',fontSize:13,marginTop:12,fontWeight:600}}>Mot de passe modifié avec succès!</div>}
+                <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:16}}>
+                  <button type="button" className="secondary" onClick={() => { setShowPasswordModal(false); setPasswordError(null); setPasswordSuccess(false) }} disabled={passwordLoading}>Annuler</button>
+                  <button className="primary" type="submit" disabled={passwordLoading}>{passwordLoading ? 'Enregistrement…' : 'Enregistrer'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
