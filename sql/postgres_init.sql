@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS prestations (
   
   -- Comments and images
   comments TEXT DEFAULT NULL,
-  proof_image LONGTEXT DEFAULT NULL,
+  proof_image TEXT DEFAULT NULL,
   
   -- Status and management
   status VARCHAR(50) NOT NULL DEFAULT 'En attente',
