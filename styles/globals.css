@@ -1,0 +1,225 @@
+:root{
+  --bg:#f5f7fb;
+  --card:#ffffff;
+  --admin-topbar-height:110px;
+  --muted:#6b7280;
+  --accent:#2563eb;
+  --danger:#ef4444;
+  --radius:12px;
+}
+*{box-sizing:border-box}
+html,body,#__next{height:100%}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial; background:var(--bg); color:#111}
+.page-root{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px}
+.login-card{width:100%;max-width:420px;background:var(--card);padding:28px;border-radius:var(--radius);box-shadow:0 8px 30px rgba(16,24,40,0.08);display:flex;flex-direction:column;align-items:stretch}
+.logo-header{display:flex;justify-content:center;margin-bottom:18px}
+.logo-image{width:180px;height:auto}
+
+@media (max-width:480px){
+  .logo-image{width:120px}
+}
+.login-form{display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column}
+.label-text{font-size:13px;color:var(--muted);margin-bottom:6px}
+input{padding:10px 12px;border:1px solid #e6e9ef;border-radius:8px;font-size:15px}
+input:focus{outline:none;box-shadow:0 0 0 3px rgba(37,99,235,0.08);border-color:var(--accent)}
+.primary{margin-top:6px;background:var(--accent);color:#fff;padding:10px 12px;border:none;border-radius:8px;font-weight:600;cursor:pointer}
+.primary:disabled{opacity:0.6;cursor:default}
+.google-btn{display:inline-flex;gap:10px;align-items:center;justify-content:center;padding:10px 12px;border-radius:8px;border:1px solid #e6e9ef;background:#fff;cursor:pointer}
+.google-icon{margin-right:4px}
+.divider{margin:14px 0;text-align:center;color:var(--muted)}
+.form-error{background:#fff3f2;color:var(--danger);padding:8px;border-radius:8px;border:1px solid rgba(239,68,68,0.12)}
+
+@media (max-width:480px){.login-card{padding:20px;margin:6px;border-radius:10px}}
+
+/* Forgot password link styling matching page visual */
+.forgot-link{margin-top:6px;text-align:right}
+.forgot-link a{font-size:13px;color:var(--muted);text-decoration:none;padding:6px 8px;border-radius:8px;display:inline-block}
+.forgot-link a:hover{color:var(--accent);background:rgba(37,99,235,0.06)}
+
+/* secondary button for small dev helpers */
+.secondary{background:transparent;border:1px solid transparent;color:var(--muted);padding:6px 10px;border-radius:8px;font-size:13px;cursor:pointer}
+.secondary:hover{color:var(--accent);background:rgba(37,99,235,0.04)}
+
+/* Admin panel styles */
+.admin-root{padding:6px}
+.admin-header h1{margin:0 0 4px 0}
+.admin-header .muted{color:var(--muted);margin-top:6px}
+.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.card{background:var(--card);padding:12px;border-radius:8px;border:1px solid #eef2f7}
+.card h2{margin-top:0}
+.card ul{margin:8px 0 0 16px}
+
+@media (max-width:720px){.admin-grid{grid-template-columns:1fr}}
+
+/* Responsive table/cards for small screens */
+.table-responsive{width:100%;overflow:auto}
+.card table{width:100%;border-collapse:collapse}
+
+@media (max-width:720px){
+  .card table thead{display:none}
+  .card table tbody tr{display:block;margin-bottom:12px;border:1px solid #eef2f7;border-radius:8px;padding:10px;background:#fff}
+  .card table tbody tr td{display:flex;justify-content:space-between;padding:6px 0;border-bottom:none}
+  .card table tbody tr td:first-child{font-weight:600;color:#111}
+}
+
+/* Modal improvements for mobile */
+.modal{max-width:720px}
+@media (max-width:720px){
+  .modal{width:calc(100% - 20px);height:calc(100% - 40px);border-radius:10px;display:flex;flex-direction:column}
+  .modal-body{overflow:auto;padding:14px}
+  .modal .primary{width:120px;padding:10px 14px}
+}
+
+/* Edit modal grid used by PrestationsTable */
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.edit-grid{grid-template-columns:1fr}}
+
+/* Make modal form inputs full width on small screens */
+.modal-body input,.modal-body select,.modal-body textarea{width:100%;box-sizing:border-box}
+
+/* Larger touch targets */
+button{min-height:38px}
+
+/* Minimal prestation card for mobile */
+.mini-prestation-card{background:#fff;border:1px solid #eef2f7;border-radius:8px;padding:12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.mini-prestation-left{display:flex;flex-direction:column}
+.mini-prestation-date{font-weight:700;margin-bottom:6px}
+.mini-prestation-sub{color:var(--muted);font-size:13px}
+
+.admin-topbar{
+  /* full-bleed background that ignores parent's horizontal padding */
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  width:100%;
+  background:#fff;
+  border-top:1px solid #eef2f7;
+  border-bottom:1px solid #eef2f7;
+  margin-top:0;
+  z-index:1000;
+}
+
+/* inner container keeps content centered and constrained while background is full-bleed */
+.admin-topbar-inner{
+  max-width:1200px;
+  margin:0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  /* larger vertical padding; remove horizontal padding so edges are flush */
+  padding:26px 16px;
+}
+
+.admin-topbar-left{display:flex;align-items:center;position:absolute;left:0}
+.admin-topbar-logo{width:120px;height:auto;display:block;margin-right:16px}
+.admin-topbar-right{display:flex;gap:10px;align-items:center;position:absolute;right:0}
+
+@media (max-width:920px){
+  .admin-topbar-inner{max-width:calc(100% - 40px);padding:18px 16px;justify-content:space-between}
+  .admin-topbar-logo{width:100px; height:auto; transform:none; margin-left:8px}
+  .admin-topbar-left{position:static;display:flex;align-items:center;gap:8px}
+}
+
+@media (max-width:480px){
+  .admin-topbar-logo{width:80px; height:auto; transform:none; margin-left:6px}
+
+/* Increase topbar vertical space to accommodate larger logo */
+.admin-topbar{padding-top:8px;padding-bottom:8px}
+  .admin-topbar-inner{padding:14px}
+}
+.top-btn{background:transparent;border:1px solid transparent;color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer}
+.top-btn:hover{color:var(--accent);background:rgba(37,99,235,0.04)}
+.profile-btn{border-radius:999px;padding:6px 10px}
+
+/* Improved logout button visuals */
+.logout-btn{display:inline-flex;align-items:center;gap:8px;justify-content:center;background:linear-gradient(90deg,var(--accent),#4f46e5);color:#fff;border:0;padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(37,99,235,0.12);transition:transform .12s ease,box-shadow .12s ease,opacity .12s ease}
+.logout-btn:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(37,99,235,0.16)}
+.logout-btn:active{transform:translateY(0);opacity:0.95}
+.logout-btn.small{padding:6px 10px;font-size:14px;border-radius:8px;background:transparent;color:var(--muted);box-shadow:none;border:1px solid transparent}
+.logout-btn.small:hover{background:rgba(37,99,235,0.06);color:var(--accent);border-color:rgba(37,99,235,0.06)}
+
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(2,6,23,0.4);display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal{background:#fff;border-radius:10px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(16,24,40,0.12);overflow:hidden}
+.modal.create-user-modal{width:900px;max-width:calc(100% - 24px);border-radius:10px}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #f1f5f9}
+.modal-body{padding:18px}
+.modal-close{background:transparent;border:none;font-size:20px;cursor:pointer}
+
+.small-muted{color:#666;font-size:13px}
+.badge{padding:6px 8px;border-radius:999px;font-size:13px}
+.badge.success{background:#e6f7ed;color:#1a7f37;border:1px solid #c8efd0}
+
+.modal .primary{background:#0055ff;color:white;padding:8px 12px;border-radius:6px;border:0}
+.modal .secondary{background:transparent;color:#333;padding:8px 12px;border-radius:6px;border:1px solid #ddd}
+
+.create-user-form{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px;align-items:start}
+.create-user-form .full{grid-column:1 / -1}
+.create-user-form .form-row{display:flex;flex-direction:column;gap:6px}
+.create-user-form input,.create-user-form select{padding:8px 10px;border-radius:6px;border:1px solid #e1e1e1}
+.create-user-form .form-input{padding:10px 12px;border-radius:8px;border:1px solid #e6e9ef;font-size:15px}
+.create-user-form .form-input:focus{outline:none;box-shadow:0 0 0 3px rgba(37,99,235,0.06);border-color:var(--accent)}
+.create-user-form .form-textarea{padding:10px 12px;border-radius:8px;border:1px solid #e6e9ef;font-size:15px;resize:vertical;min-height:96px}
+.form-help{margin-top:6px;font-size:13px;color:var(--muted)}
+.form-error{color:#b00020;background:#fff1f1;padding:8px 10px;border-radius:6px;border:1px solid #f5c6c6}
+
+@media (max-width:780px){
+  .modal.create-user-modal{width:calc(100% - 20px)}
+  .create-user-form{grid-template-columns:1fr}
+}
+.role-list{list-style:none;padding:0;margin:6px 0 0}
+.role-item{display:block;width:100%;text-align:left;padding:10px 12px;border-radius:8px;border:1px solid #eef2f7;background:#fff;cursor:pointer}
+.role-item:hover{background:rgba(37,99,235,0.04);color:var(--accent)}
+
+/* Admin full width layout */
+.admin-page-root{min-height:100vh;padding:calc(var(--admin-topbar-height) + 20px) 32px 32px;background:var(--bg)}
+.admin-card{width:100%;max-width:none;margin:0;padding:18px}
+.admin-content{max-width:none;margin:0;padding:0 32px}
+.admin-header{padding:0 0 12px 0}
+
+/* Sidebar */
+.admin-sidebar{position:fixed;top:0;left:0;bottom:32px;width:220px;padding:calc(var(--admin-topbar-height) + 18px) 12px 18px;background:var(--card);border-right:1px solid #eef2f7;box-shadow:0 4px 18px rgba(16,24,40,0.04);z-index:900;overflow:auto}
+.sidebar-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.sidebar-btn{display:inline-block;padding:10px 14px;border-radius:8px;color:var(--muted);text-decoration:none;border:1px solid transparent}
+.sidebar-btn:hover{color:var(--accent);background:rgba(37,99,235,0.04)}
+
+.admin-content{margin-left:240px}
+
+/* Ensure admin content stretches fully to the right edge (no centered max-width) */
+.admin-content .card{width:100%}
+
+@media (max-width:920px){
+  .admin-sidebar{display:none}
+  .admin-content{margin-left:0}
+}
+
+/* Increase horizontal padding on small screens so content doesn't touch edges */
+@media (max-width:720px){
+  .admin-page-root{padding-left:16px;padding-right:16px}
+  .admin-content{padding:0 12px}
+  .admin-card{padding:14px}
+  .mini-prestation-card{padding-left:12px;padding-right:12px}
+}
+
+/* Profile page responsive grid */
+/* Profile page layout: full width stacked columns (profile, then info) */
+.profile-grid{display:grid;grid-template-columns:1fr;gap:12px;width:100%}
+
+/* Hamburger button style */
+.hamburger-btn{display:none;background:transparent;border:none;padding:8px;margin-right:8px;cursor:pointer}
+.hamburger-btn span{display:block}
+@media (max-width:920px){
+  .hamburger-btn{display:inline-block}
+}
+
+/* Sidebar overlay and open state for small screens */
+.sidebar-overlay{display:none}
+@media (max-width:920px){
+  .sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:1050;display:block}
+  .admin-sidebar{display:none}
+  .admin-sidebar.open{display:block;position:fixed;left:0;top:calc(var(--admin-topbar-height));bottom:0;width:240px;padding:18px;background:var(--card);z-index:1100;box-shadow:2px 0 18px rgba(16,24,40,0.08);overflow:auto}
+}
+

@@ -1,0 +1,406 @@
+import React, { useState, useRef, useEffect } from 'react'
+
+export default function CreateUserModal({ open, onClose, onCreate, initial }) {
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState(['INFI'])
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [ninami, setNinami] = useState('')
+  const [telephone, setTelephone] = useState('')
+  const [adresse, setAdresse] = useState('')
+  const [niss, setNiss] = useState('')
+  const [bce, setBce] = useState('')
+  const [societe, setSociete] = useState('')
+  const [compte, setCompte] = useState('')
+  const [liaisonOptions, setLiaisonOptions] = useState([])
+  const [liaisonId, setLiaisonId] = useState('none')
+  const [liaisonQuery, setLiaisonQuery] = useState('')
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchError, setSearchError] = useState(null)
+  const searchTimer = useRef(null)
+  const [hasLoadedOnOpen, setHasLoadedOnOpen] = useState(false)
+  const [fonction, setFonction] = useState('')
+
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState(null)
+
+  // fetch suggestions when liaisonQuery changes (debounced)
+  useEffect(() => {
+    if (!liaisonQuery || liaisonQuery.length < 2) {
+      setLiaisonOptions([])
+      setSearchLoading(false)
+      setSearchError(null)
+      return
+    }
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchTimer.current = setTimeout(async () => {
+      setSearchLoading(true)
+      setSearchError(null)
+      try {
+        const resp = await fetch('/api/admin/users/ebrigade-search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: liaisonQuery })
+        })
+        const data = await resp.json()
+        // expect proxy to return { remote: [...] } or similar
+        const items = (data && data.remote && Array.isArray(data.remote)) ? data.remote : (Array.isArray(data) ? data : [])
+        // map items to { id, label }
+        const opts = items.map((it) => ({ id: it.id || it.ebrigade_id || it.EBR_ID || it.code || it.ref || '', label: it.label || it.name || it.display || (it.id || it.ebrigade_id) }))
+        setLiaisonOptions(opts.filter(o => o.id))
+      } catch (err) {
+        setSearchError(err.message || 'Erreur recherche')
+        setLiaisonOptions([])
+      } finally {
+        setSearchLoading(false)
+      }
+    }, 300)
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current) }
+  }, [liaisonQuery])
+
+  // Fetch profiles explicitly (e.g. when opening the dropdown)
+  async function fetchProfiles(forceQuery) {
+    try {
+      setSearchLoading(true)
+      setSearchError(null)
+      const resp = await fetch('/api/admin/users/ebrigade-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: forceQuery || '' })
+      })
+      const data = await resp.json()
+      const items = (data && data.remote && Array.isArray(data.remote)) ? data.remote : (Array.isArray(data) ? data : [])
+      const opts = items.map((it) => ({ id: it.id || it.ebrigade_id || it.EBR_ID || it.code || it.ref || '', label: it.label || it.name || it.display || (it.id || it.ebrigade_id) }))
+      setLiaisonOptions(opts.filter(o => o.id))
+    } catch (err) {
+      setSearchError(err.message || 'Erreur recherche')
+      setLiaisonOptions([])
+    } finally {
+      setSearchLoading(false)
+      setHasLoadedOnOpen(true)
+    }
+  }
+
+  // when `initial` changes (edit), populate fields
+  React.useEffect(() => {
+    if (initial) {
+      setEmail(initial.email || '')
+      const roleRaw = initial.role || initial.roleValue || ''
+      let r = ['INFI']
+      if (roleRaw) {
+        if (Array.isArray(roleRaw)) r = roleRaw.map(String)
+        else if (typeof roleRaw === 'string') r = roleRaw.split(',').map(s => s.trim()).filter(Boolean)
+      }
+      setRole(r.length ? r : ['INFI'])
+      setFirstName(initial.first_name || initial.firstName || '')
+      setLastName(initial.last_name || initial.lastName || '')
+      setNinami(initial.ninami || '')
+      setTelephone(initial.telephone || '')
+      setAdresse(initial.address || initial.adresse || '')
+      setNiss(initial.niss || '')
+      setBce(initial.bce || '')
+      setSociete(initial.company || initial.societe || '')
+      setCompte(initial.account || initial.compte || '')
+      setLiaisonId(initial.liaison_ebrigade_id || initial.liaisonId || 'none')
+      setFonction(initial.fonction || initial.fonction || '')
+    } else {
+      // reset when creating new
+      setEmail('')
+      setRole(['user'])
+      setFirstName('')
+      setLastName('')
+      setNinami('')
+      setTelephone('')
+      setAdresse('')
+      setNiss('')
+      setBce('')
+      setSociete('')
+      setCompte('')
+      setLiaisonId('none')
+      setFonction('')
+    }
+  }, [initial])
+
+  if (!open) return null
+
+  function submit(e) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    const payload = {
+      email,
+      role,
+      firstName,
+      lastName,
+      ninami,
+      telephone,
+      adresse,
+      niss,
+      bce,
+      societe,
+      compte,
+      fonction,
+      liaisonId: liaisonId === 'none' ? null : liaisonId,
+    }
+
+    // `onCreate` should return a Promise from the parent
+    Promise.resolve(onCreate(payload, initial && initial.id ? initial.id : undefined))
+      .then(() => {
+        setSuccess(true)
+        setLoading(false)
+        // small delay so user sees success, then close
+        setTimeout(() => {
+          setSuccess(false)
+          onClose()
+        }, 900)
+      })
+      .catch((err) => {
+        setError(err && err.message ? err.message : 'Erreur')
+        setLoading(false)
+      })
+  }
+  function handleLiaisonSelect(id, label) {
+    setLiaisonId(id || 'none')
+    setLiaisonQuery(label || id || '')
+  }
+
+  const isEdit = initial && (initial.id || initial.id === 0)
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" style={{backdropFilter:'blur(4px)'}}>
+      <div className="modal create-user-modal" style={{maxWidth:'600px',maxHeight:'90vh',overflow:'auto'}}>
+        <div className="modal-header" style={{background:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',color:'white',borderBottomLeftRadius:0,borderBottomRightRadius:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div style={{fontSize:24}}>👤</div>
+            <div>
+              <strong style={{fontSize:18,display:'block'}}>{isEdit ? 'Modifier utilisateur' : 'Créer un utilisateur'}</strong>
+              <small style={{opacity:0.9}}>{isEdit ? 'Mettez à jour les informations' : 'Nouveau collaborateur'}</small>
+            </div>
+            {loading && <span style={{marginLeft:'auto',fontSize:12,background:'rgba(255,255,255,0.3)',padding:'4px 8px',borderRadius:4}}>⏳ Envoi…</span>}
+            {success && <span style={{marginLeft:'auto',fontSize:12,background:'#10b981',padding:'4px 8px',borderRadius:4}}>✅ {isEdit ? 'Enregistré' : 'Créé'}</span>}
+          </div>
+          <button className="modal-close" onClick={onClose} aria-label="Fermer" style={{color:'white',fontSize:28}}>×</button>
+        </div>
+
+        <div className="modal-body" style={{padding:'24px'}}>
+          <form className="create-user-form" onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:24}}>
+            
+            {/* Section: Login */}
+            <div style={{borderLeft:'3px solid #667eea',paddingLeft:16}}>
+              <label style={{display:'block',marginBottom:12}}>
+                <strong style={{display:'block',marginBottom:4,color:'#1f2937',fontSize:14}}>📧 Email (Identifiant)</strong>
+                <input 
+                  type="email" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  required 
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                />
+              </label>
+            </div>
+
+            {/* Section: Liaison eBrigade */}
+            <div style={{borderLeft:'3px solid #10b981',paddingLeft:16}}>
+              <strong style={{display:'block',marginBottom:12,color:'#1f2937',fontSize:14}}>🔗 Liaison eBrigade</strong>
+              <input
+                placeholder="Rechercher dans eBrigade (nom, prénom...)"
+                value={liaisonQuery}
+                onChange={(e) => { setLiaisonQuery(e.target.value); if (e.target.value === '') setLiaisonId('none') }}
+                onFocus={() => { if (!hasLoadedOnOpen && !liaisonOptions.length) fetchProfiles() }}
+                style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,marginBottom:8}}
+              />
+              <button 
+                type="button" 
+                onClick={() => fetchProfiles()} 
+                disabled={searchLoading}
+                style={{padding:'6px 12px',background:'#f3f4f6',border:'1px solid #d1d5db',borderRadius:6,fontSize:12,cursor:'pointer'}}
+              >
+                {searchLoading ? '⏳ Recherche...' : 'Charger profils'}
+              </button>
+              {searchError && <div style={{marginTop:8,padding:8,background:'#fee2e2',color:'#991b1b',borderRadius:4,fontSize:12}}>{searchError}</div>}
+              {liaisonOptions.length > 0 && (
+                <div style={{marginTop:12}}>
+                  <label style={{display:'block',marginBottom:6,fontSize:12,color:'#6b7280'}}>Sélectionner un profil</label>
+                  <select
+                    value={liaisonId === 'none' ? '' : liaisonId}
+                    onChange={(e) => handleLiaisonSelect(e.target.value, e.target.selectedOptions[0] && e.target.selectedOptions[0].textContent)}
+                    size={Math.min(5, liaisonOptions.length)}
+                    style={{width:'100%',padding:'8px',border:'1px solid #d1d5db',borderRadius:6,fontSize:13,background:'white'}}
+                  >
+                    <option value="">-- Choisir un profil --</option>
+                    {liaisonOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id}>{opt.label || opt.id}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Section: Informations personnelles */}
+            <div style={{borderLeft:'3px solid #f59e0b',paddingLeft:16}}>
+              <strong style={{display:'block',marginBottom:12,color:'#1f2937',fontSize:14}}>👤 Informations personnelles</strong>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+                <label style={{display:'block'}}>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Prénom</small>
+                  <input 
+                    value={firstName} 
+                    onChange={(e) => setFirstName(e.target.value)} 
+                    required 
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                  />
+                </label>
+                <label style={{display:'block'}}>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Nom</small>
+                  <input 
+                    value={lastName} 
+                    onChange={(e) => setLastName(e.target.value)} 
+                    required 
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                  />
+                </label>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <label style={{display:'block'}}>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Téléphone</small>
+                  <input 
+                    value={telephone} 
+                    onChange={(e) => setTelephone(e.target.value)} 
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                  />
+                </label>
+                <label style={{display:'block'}}>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>N'inami</small>
+                  <input 
+                    value={ninami} 
+                    onChange={(e) => setNinami(e.target.value)} 
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                  />
+                </label>
+              </div>
+              <label style={{display:'block',marginTop:12}}>
+                <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Adresse</small>
+                <input 
+                  value={adresse} 
+                  onChange={(e) => setAdresse(e.target.value)} 
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                />
+              </label>
+            </div>
+
+            {/* Section: Informations professionnelles */}
+            <div style={{borderLeft:'3px solid #8b5cf6',paddingLeft:16}}>
+              <strong style={{display:'block',marginBottom:12,color:'#1f2937',fontSize:14}}>💼 Informations professionnelles</strong>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+                <label style={{display:'block'}}>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Société</small>
+                  <input 
+                    value={societe} 
+                    onChange={(e) => setSociete(e.target.value)} 
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                  />
+                </label>
+                <label style={{display:'block'}}>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Fonction</small>
+                  <input 
+                    value={fonction} 
+                    onChange={(e) => setFonction(e.target.value)} 
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                  />
+                </label>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+                <label style={{display:'block'}}>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>NISS</small>
+                  <input 
+                    value={niss} 
+                    onChange={(e) => setNiss(e.target.value)} 
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                  />
+                </label>
+                <label style={{display:'block'}}>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>BCE</small>
+                  <input 
+                    value={bce} 
+                    onChange={(e) => setBce(e.target.value)} 
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                  />
+                </label>
+                <label style={{display:'block'}}>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Compte</small>
+                  <input 
+                    value={compte} 
+                    onChange={(e) => setCompte(e.target.value)} 
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Section: Rôles */}
+            <div style={{borderLeft:'3px solid #ec4899',paddingLeft:16}}>
+              <strong style={{display:'block',marginBottom:12,color:'#1f2937',fontSize:14}}>🔐 Rôles et permissions</strong>
+              <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
+                {['INFI','MED','admin','moderator'].map((r) => (
+                  <label key={r} style={{display:'inline-flex',alignItems:'center',gap:8,cursor:'pointer',padding:'8px',borderRadius:6,transition:'background 0.2s',background:'transparent'}}>
+                    <input
+                      type="checkbox"
+                      value={r}
+                      checked={Array.isArray(role) ? role.includes(r) : role === r}
+                      onChange={(e) => {
+                        const checked = e.target.checked
+                        setRole((prev) => {
+                          const arr = Array.isArray(prev) ? prev.slice() : [prev]
+                          if (checked) {
+                            if (!arr.includes(r)) arr.push(r)
+                          } else {
+                            const idx = arr.indexOf(r)
+                            if (idx !== -1) arr.splice(idx, 1)
+                          }
+                          return arr.length ? arr : []
+                        })
+                      }}
+                      style={{width:18,height:18,cursor:'pointer'}}
+                    />
+                    <span style={{fontSize:13,color:'#374151'}}>{r}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {error && (
+              <div style={{padding:12,background:'#fee2e2',border:'1px solid #fecaca',color:'#991b1b',borderRadius:6,fontSize:13}}>
+                <strong>❌ Erreur :</strong> {error}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{display:'flex',gap:12,justifyContent:'flex-end',paddingTop:12,borderTop:'1px solid #e5e7eb'}}>
+              <button 
+                type="button" 
+                onClick={onClose} 
+                disabled={loading}
+                style={{padding:'10px 20px',background:'#f3f4f6',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,fontWeight:600,cursor:'pointer',transition:'all 0.2s'}}
+                onMouseEnter={(e) => !loading && (e.target.style.background = '#e5e7eb')}
+                onMouseLeave={(e) => !loading && (e.target.style.background = '#f3f4f6')}
+              >
+                Annuler
+              </button>
+              <button 
+                className="primary" 
+                type="submit" 
+                disabled={loading}
+                style={{padding:'10px 24px',background:loading ? '#d1d5db' : '#667eea',color:'white',border:'none',borderRadius:6,fontSize:14,fontWeight:600,cursor:loading ? 'not-allowed' : 'pointer',transition:'all 0.2s'}}
+                onMouseEnter={(e) => !loading && (e.target.style.background = '#5568d3')}
+                onMouseLeave={(e) => !loading && (e.target.style.background = '#667eea')}
+              >
+                {loading ? (isEdit ? '⏳ Enregistrement...' : '⏳ Création...') : (isEdit ? '💾 Enregistrer' : '✨ Créer utilisateur')}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
