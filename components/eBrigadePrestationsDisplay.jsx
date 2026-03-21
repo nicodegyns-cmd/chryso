@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 
+// eBrigade Prestations Display Component
 export default function eBrigadePrestationsDisplay({ email }) {
   const [prestations, setPrestations] = useState([])
   const [loading, setLoading] = useState(true)
