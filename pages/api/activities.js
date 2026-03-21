@@ -18,9 +18,10 @@ export default async function handler(req, res){
           a.created_at 
         FROM activities a 
         LEFT JOIN analytics an ON a.analytic_id = an.id 
-        WHERE a.date >= CURDATE() 
+        WHERE a.date >= CURRENT_DATE
         ORDER BY a.date ASC, a.created_at DESC
       `)
+      console.log('Activities query result:', rows)
       return res.status(200).json({ activities: rows })
     }
 
@@ -28,6 +29,6 @@ export default async function handler(req, res){
     res.status(405).end('Method Not Allowed')
   }catch(err){
     console.error('activities API error', err)
-    res.status(500).json({ error: 'internal' })
+    res.status(500).json({ error: 'internal', message: err.message })
   }
 }

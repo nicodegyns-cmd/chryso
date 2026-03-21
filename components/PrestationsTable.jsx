@@ -57,10 +57,13 @@ export default function PrestationsTable({ email }) {
           if (!prestRes.ok) throw new Error('Échec de la récupération des prestations')
           const prestData = await prestRes.json()
           const prestations = prestData.prestations || []
+          console.log('Prestations loaded:', prestations)
 
           // Fetch available activities
           const actRes = await fetch('/api/activities')
+          if (!actRes.ok) throw new Error(`Échec activities API: ${actRes.status}`)
           const actData = await actRes.json()
+          console.log('Activities API response:', actData)
           const activities = (actData.activities || []).map(a => ({
             ...a,
             isActivity: true,  // Mark as activity to distinguish from prestation
@@ -68,6 +71,7 @@ export default function PrestationsTable({ email }) {
             id: `act_${a.id}`,  // Prefix ID to avoid collisions
             originalActivityId: a.id
           }))
+          console.log('Activities mapped:', activities)
 
           // Combine and sort by date (newest first)
           const combined = [...activities, ...prestations].sort((a, b) => {
@@ -75,6 +79,7 @@ export default function PrestationsTable({ email }) {
             const dateB = new Date(b.date || 0)
             return dateB - dateA
           })
+          console.log('Combined items:', combined)
 
           setItems(combined)
         } else if (clientRole === 'admin') {
@@ -86,6 +91,7 @@ export default function PrestationsTable({ email }) {
           setError('Utilisateur non connecté')
         }
       } catch (err) {
+        console.error('Load error:', err)
         setError(err.message || 'Erreur')
       } finally {
         setLoading(false)
