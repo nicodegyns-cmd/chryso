@@ -1,4 +1,4 @@
-const { getPool } = require('../../../services/db')
+import { getPool } from '../../../services/db'
 
 /**
  * GET endpoint to fetch user's eBrigade participations/prestations
@@ -62,12 +62,20 @@ export default async function handler(req, res) {
     const base = process.env.EBRIGADE_URL || 'http://127.0.0.1/ebrigade'
     const participationUrl = `${base.replace(/\/$/, '')}/api/export/participation.php`
 
+    // Pass liaison_ebrigade_id to filter results on eBrigade side
     const payload = {
       token: process.env.EBRIGADE_TOKEN,
       dDebut,
       dFin,
-      // Optional: filter by user liaison_ebrigade_id if eBrigade API supports it
+      user_id: userRow.liaison_ebrigade_id // Use liaison_ebrigade_id to filter for this user
     }
+
+    console.log('[api/user/ebrigade-prestations] Calling eBrigade with:', {
+      url: participationUrl,
+      dDebut,
+      dFin,
+      user_id: userRow.liaison_ebrigade_id
+    })
 
     const fetchResponse = await fetch(participationUrl, {
       method: 'POST',
@@ -76,6 +84,9 @@ export default async function handler(req, res) {
     })
 
     const text = await fetchResponse.text()
+    
+    console.log('[api/user/ebrigade-prestations] Raw eBrigade response:', text.substring(0, 500))
+
     let data
     try {
       data = JSON.parse(text)
@@ -86,20 +97,13 @@ export default async function handler(req, res) {
       })
     }
 
-    // Filter prestations for this user (if needed)
-    // eBrigade API might return all users' data, so filter by liaison_ebrigade_id
-    let prestations = Array.isArray(data) ? data : data.data || data.participations || []
+    // Extract prestations array from response
+    // eBrigade returns array directly or nested in data/participations
+    let prestations = Array.isArray(data) ? data : data.data || data.participations || data.results || []
     
-    // Filter by user's liaison_ebrigade_id if the data contains user info
-    prestations = prestations.filter(p => {
-      // If prestation has user identifier, match it
-      if (p.liaison_ebrigade_id && p.liaison_ebrigade_id !== userRow.liaison_ebrigade_id) {
-        return false
-      }
-      if (p.user_id && p.user_id !== user.id) {
-        return false
-      }
-      return true
+    console.log('[api/user/ebrigade-prestations] Extracted prestations:', {
+      count: prestations.length,
+      sample: prestations.length > 0 ? prestations[0] : null
     })
 
     console.log('[api/user/ebrigade-prestations] Fetched prestations:', {
