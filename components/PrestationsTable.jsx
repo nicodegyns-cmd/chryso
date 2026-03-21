@@ -60,7 +60,7 @@ export default function PrestationsTable({ email }) {
           console.log('Prestations loaded:', prestations)
 
           // Fetch available activities
-          const actRes = await fetch('/api/activities')
+          const actRes = await fetch(`/api/activities?email=${encodeURIComponent(email)}`)
           if (!actRes.ok) throw new Error(`Échec activities API: ${actRes.status}`)
           const actData = await actRes.json()
           console.log('Activities API response:', actData)

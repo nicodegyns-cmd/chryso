@@ -1,11 +1,35 @@
+import { getPool } from '../../services/db'
+
 export default async function handler(req, res){
   try{
     if (req.method === 'GET'){
-      // Fetch available activities (participations sans heures) from eBrigade
+      // Fetch available activities (participations sans heures) from eBrigade for the logged-in user
       
+      // Get user email from query
+      const { email } = req.query
+      if (!email) {
+        return res.status(401).json({ error: 'Email required' })
+      }
+
       // Check if EBRIGADE_TOKEN is configured
       if (!process.env.EBRIGADE_TOKEN || !process.env.EBRIGADE_URL) {
         console.log('eBrigade not configured, returning empty')
+        return res.status(200).json({ activities: [] })
+      }
+
+      // Get pool and fetch user by email to get liaison_ebrigade_id
+      const pool = getPool()
+      const [[userRow]] = await pool.query(
+        'SELECT id, email, liaison_ebrigade_id FROM users WHERE email = ? LIMIT 1',
+        [email]
+      )
+
+      if (!userRow) {
+        return res.status(404).json({ error: 'User not found' })
+      }
+
+      if (!userRow.liaison_ebrigade_id) {
+        // User not linked to eBrigade, return empty
         return res.status(200).json({ activities: [] })
       }
 
@@ -26,7 +50,12 @@ export default async function handler(req, res){
         dFin
       }
 
-      console.log('[api/activities] Calling eBrigade participation API with:', { dDebut, dFin })
+      console.log('[api/activities] Calling eBrigade participation API for user:', {
+        email,
+        liaison_ebrigade_id: userRow.liaison_ebrigade_id,
+        dDebut,
+        dFin
+      })
 
       const fetchResponse = await fetch(participationUrl, {
         method: 'POST',
@@ -51,16 +80,22 @@ export default async function handler(req, res){
         total: allParticipations.length
       })
 
+      // Filter to only participations for THIS user (P_ID matches liaison_ebrigade_id)
+      const userParticipations = allParticipations.filter(p => {
+        return p.P_ID && p.P_ID.toString() === userRow.liaison_ebrigade_id.toString()
+      })
+
       // Filter to only participations that don't have hours filled yet
       // Consider empty if: no hours_actual and no remuneration amounts
-      const activities = allParticipations.filter(p => {
+      const activities = userParticipations.filter(p => {
         const hasHours = p.hours_actual || p.hours_garde || p.hours_permanence || p.hours_total
         const hasRemuneration = p.remuneration_infi || p.remuneration_med || p.amount_total
         return !hasHours && !hasRemuneration
       })
 
-      console.log('[api/activities] Filtered unfilled activities:', {
+      console.log('[api/activities] Filtered unfilled activities for user:', {
         total: allParticipations.length,
+        userParticipations: userParticipations.length,
         unfilled: activities.length
       })
 
