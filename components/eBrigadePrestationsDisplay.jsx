@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 
-export default function eBrigadePrestationsDisplay({ email }) {
+export default function EBrigadePrestationsDisplay({ email }) {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {

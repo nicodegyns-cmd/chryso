@@ -3,6 +3,7 @@ import AdminHeader from '../components/AdminHeader'
 import UserSidebar from '../components/UserSidebar'
 import PrestationsTable from '../components/PrestationsTable'
 import PrestationsStats from '../components/PrestationsStats'
+import EBrigadePrestationsDisplay from '../components/eBrigadePrestationsDisplay'
 
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
@@ -21,6 +22,7 @@ export default function DashboardPage() {
           <div className="admin-card card">
             <p>Bienvenue — ci-dessous la liste de vos prestations.</p>
           </div>
+          <EBrigadePrestationsDisplay email={typeof window !== 'undefined' ? localStorage.getItem('email') : ''} />
           <PrestationsStats email={typeof window !== 'undefined' ? localStorage.getItem('email') : ''} />
           <PrestationsTable email={typeof window !== 'undefined' ? localStorage.getItem('email') : ''} />
         </div>
