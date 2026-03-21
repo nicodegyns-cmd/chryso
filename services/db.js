@@ -1,5 +1,9 @@
 const { Pool } = require('pg')
-require('dotenv').config()
+
+// Only load dotenv in development, not in production (Vercel sets env vars automatically)
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config()
+}
 
 const DATABASE_URL = process.env.DATABASE_URL
 
