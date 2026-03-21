@@ -1,185 +1,127 @@
 import React, { useEffect, useState } from 'react'
 
-// eBrigade Prestations Display Component
 export default function eBrigadePrestationsDisplay({ email }) {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
   const [prestations, setPrestations] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const [initialized, setInitialized] = useState(false)
+  const [dateFrom, setDateFrom] = useState('2026-03-21')
+  const [dateTo, setDateTo] = useState('2026-03-28')
 
+  // Initialize on mount
   useEffect(() => {
-    setMounted(true)
-    console.log('[eBrigadePrestationsDisplay] Mounted')
+    const today = new Date()
+    const inSevenDays = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const fmt = (d) => d.toISOString().split('T')[0]
+    setDateFrom(fmt(today))
+    setDateTo(fmt(inSevenDays))
+    console.log('[eBrigade] Component mounted, dates initialized')
   }, [])
 
-  // Initialize dates on mount
+  // Auto-load when dates are set (only once after init)
   useEffect(() => {
-    if (mounted && !initialized) {
-      console.log('[eBrigadePrestationsDisplay] Initializing dates, mounted:', mounted, 'initialized:', initialized)
-      const today = new Date()
-      const inSevenDays = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-      const formatDate = (d) => d.toISOString().split('T')[0]
-      setDateFrom(formatDate(today))
-      setDateTo(formatDate(inSevenDays))
-      setInitialized(true)
+    if (dateFrom && dateTo) {
+      console.log('[eBrigade] Loading with dates:', dateFrom, dateTo)
+      loadPrestations()
     }
-  }, [mounted, initialized])
+  }, [])
 
-  // Load data when dates are set
-  useEffect(() => {
-    if (initialized && dateFrom && dateTo) {
-      loadEBrigadePrestations()
-    }
-  }, [dateFrom, dateTo, initialized])
-
-  async function loadEBrigadePrestations() {
+  async function loadPrestations() {
     setLoading(true)
     setError(null)
-    console.log('[eBrigadePrestationsDisplay] Loading prestations', {dateFrom, dateTo})
+    
     try {
-      // Ensure we're on client side
-      if (typeof window === 'undefined') {
-        const errMsg = 'Erreur: composant doit être côté client'
-        console.error('[eBrigadePrestationsDisplay]', errMsg)
-        setError(errMsg)
-        setLoading(false)
-        return
-      }
-
-      const url = new URL('/api/user/ebrigade-prestations', window.location.origin)
-      if (dateFrom) url.searchParams.set('dDebut', dateFrom)
-      if (dateTo) url.searchParams.set('dFin', dateTo)
-      
-      // Get email from localStorage (same way LoginForm stores it)
-      const userEmail = localStorage.getItem('email')
+      const userEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : null
       if (!userEmail) {
-        const errMsg = 'Email non trouvé - reconnectez-vous'
-        console.error('[eBrigadePrestationsDisplay]', errMsg)
-        setError(errMsg)
+        setError('Email not found in localStorage')
         setLoading(false)
         return
       }
-      url.searchParams.set('email', userEmail)
 
-      console.log('[eBrigadePrestationsDisplay] Fetching from:', url.toString())
+      const url = `/api/user/ebrigade-prestations?email=${encodeURIComponent(userEmail)}&dDebut=${dateFrom}&dFin=${dateTo}`
+      console.log('[eBrigade] Fetching:', url)
 
-      const r = await fetch(url.toString(), { credentials: 'include' })
-      console.log('[eBrigadePrestationsDisplay] Response status:', r.status)
-      
-      if (r.status === 401) {
-        setError('Non authentifié')
-        setPrestations([])
+      const res = await fetch(url, { credentials: 'include' })
+      console.log('[eBrigade] Response:', res.status)
+
+      if (!res.ok) {
+        if (res.status === 400) {
+          setError('Not linked to eBrigade')
+        } else if (res.status === 401) {
+          setError('Not authenticated')
+        } else {
+          setError(`Error ${res.status}`)
+        }
+        setLoading(false)
         return
       }
-      if (r.status === 400) {
-        setError('Vous n\'avez pas lié votre profil eBrigade')
-        setPrestations([])
-        return
-      }
-      if (!r.ok) throw new Error(`Erreur ${r.status}`)
 
-      const data = await r.json()
-      console.log('[eBrigadePrestationsDisplay] Response data:', data)
-      
-      if (data.success && Array.isArray(data.prestations)) {
+      const data = await res.json()
+      console.log('[eBrigade] Data:', data)
+
+      if (data.prestations && Array.isArray(data.prestations)) {
         setPrestations(data.prestations)
-      } else {
-        setError('Format de réponse invalide')
-        setPrestations([])
       }
     } catch (err) {
-      console.error('[eBrigadePrestationsDisplay] Error:', err)
-      setError(err.message || 'Erreur')
-      setPrestations([])
+      console.error('[eBrigade] Error:', err)
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  if (!mounted) {
-    return null
-  }
-
-  if (error) {
-    return (
-      <div className="admin-card card">
-        <div style={{color:'#dc2626',padding:12}}>
-          <strong>Données eBrigade:</strong> {error}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="admin-card card">
-      <div>
-        <h3 style={{marginTop:0,marginBottom:12}}>Vos gardes eBrigade</h3>
-        
-        <div style={{display:'flex',gap:8,marginBottom:16}}>
-          <input 
-            type="date" 
-            value={dateFrom} 
-            onChange={(e) => setDateFrom(e.target.value)}
-            placeholder="Du"
-            style={{flex:1,padding:'8px 12px',border:'1px solid #ccc',borderRadius:4}}
-          />
-          <input 
-            type="date" 
-            value={dateTo} 
-            onChange={(e) => setDateTo(e.target.value)}
-            placeholder="Au"
-            style={{flex:1,padding:'8px 12px',border:'1px solid #ccc',borderRadius:4}}
-          />
-          <button 
-            onClick={loadEBrigadePrestations}
-            style={{padding:'8px 16px',background:'#0366d6',color:'white',border:'none',borderRadius:4,cursor:'pointer'}}
-          >
-            Charger
-          </button>
-        </div>
+      <h3 style={{ marginTop: 0, marginBottom: 12 }}>Vos gardes eBrigade</h3>
 
-        {loading && <div style={{color:'#666',padding:12}}>Chargement...</div>}
-
-        {!loading && prestations.length === 0 && (
-          <div style={{color:'#999',padding:12}}>Aucune prestation trouvée pour cette période</div>
-        )}
-
-        {!loading && prestations.length > 0 && (
-          <div style={{overflowX:'auto'}}>
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead>
-                <tr style={{borderBottom:'2px solid #ddd'}}>
-                  <th style={{padding:12,textAlign:'left',fontWeight:600}}>Date</th>
-                  <th style={{padding:12,textAlign:'left',fontWeight:600}}>Activité</th>
-                  <th style={{padding:12,textAlign:'left',fontWeight:600}}>Heure début</th>
-                  <th style={{padding:12,textAlign:'left',fontWeight:600}}>Heure fin</th>
-                  <th style={{padding:12,textAlign:'left',fontWeight:600}}>Durée (h)</th>
-                  <th style={{padding:12,textAlign:'left',fontWeight:600}}>Grade</th>
-                </tr>
-              </thead>
-              <tbody>
-                {prestations.map((p) => (
-                  <tr key={p.id} style={{borderBottom:'1px solid #eee'}}>
-                    <td style={{padding:12}}>{p.date}</td>
-                    <td style={{padding:12,fontSize:12}}>{p.activity}</td>
-                    <td style={{padding:12}}>{p.startTime}</td>
-                    <td style={{padding:12}}>{p.endTime}</td>
-                    <td style={{padding:12}}>{p.duration}h</td>
-                    <td style={{padding:12}}>{p.personnel?.grade}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          style={{ flex: 1, padding: '8px 12px', border: '1px solid #ccc', borderRadius: 4 }}
+        />
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          style={{ flex: 1, padding: '8px 12px', border: '1px solid #ccc', borderRadius: 4 }}
+        />
+        <button
+          onClick={loadPrestations}
+          style={{ padding: '8px 16px', background: '#0366d6', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+        >
+          Charger
+        </button>
       </div>
+
+      {error && <div style={{ color: '#dc2626', padding: 12, marginBottom: 12 }}>Erreur: {error}</div>}
+      {loading && <div style={{ color: '#666', padding: 12 }}>Chargement...</div>}
+      {!loading && prestations.length === 0 && !error && <div style={{ color: '#999', padding: 12 }}>Aucune prestation</div>}
+
+      {!loading && prestations.length > 0 && (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #ddd' }}>
+              <th style={{ padding: 10, textAlign: 'left' }}>Date</th>
+              <th style={{ padding: 10, textAlign: 'left' }}>Activité</th>
+              <th style={{ padding: 10, textAlign: 'left' }}>Début</th>
+              <th style={{ padding: 10, textAlign: 'left' }}>Fin</th>
+              <th style={{ padding: 10, textAlign: 'left' }}>Durée</th>
+            </tr>
+          </thead>
+          <tbody>
+            {prestations.map((p, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: 10 }}>{p.date}</td>
+                <td style={{ padding: 10, fontSize: 12 }}>{p.activity}</td>
+                <td style={{ padding: 10 }}>{p.startTime}</td>
+                <td style={{ padding: 10 }}>{p.endTime}</td>
+                <td style={{ padding: 10 }}>{p.duration}h</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   )
 }
