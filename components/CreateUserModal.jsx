@@ -26,6 +26,8 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   const [error, setError] = useState(null)
   const [resendingEmail, setResendingEmail] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
+  const [linkingEbrigade, setLinkingEbrigade] = useState(false)
+  const [ebrigadeLinked, setEbrigadeLinked] = useState(false)
 
   // fetch suggestions when liaisonQuery changes (debounced)
   useEffect(() => {
@@ -193,6 +195,31 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
     }
   }
 
+  async function handleLinkEbrigade() {
+    if (!initial || !initial.id) return
+    if (liaisonId === 'none' || !liaisonId) return
+
+    setLinkingEbrigade(true)
+    try {
+      const r = await fetch(`/api/admin/users/${initial.id}/link-liaison-ebrigade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ liaison_ebrigade_id: liaisonId })
+      })
+      if (!r.ok) {
+        const data = await r.json()
+        throw new Error(data.error || 'Erreur lors de la liaison')
+      }
+      const data = await r.json()
+      setEbrigadeLinked(true)
+      setTimeout(() => setEbrigadeLinked(false), 2000)
+    } catch (err) {
+      alert('Erreur: ' + (err.message || 'Impossible de lier le profil eBrigade'))
+    } finally {
+      setLinkingEbrigade(false)
+    }
+  }
+
   const isEdit = initial && (initial.id || initial.id === 0)
 
   return (
@@ -231,6 +258,22 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
             {/* Section: Liaison eBrigade */}
             <div style={{borderLeft:'3px solid #10b981',paddingLeft:16}}>
               <strong style={{display:'block',marginBottom:12,color:'#1f2937',fontSize:14}}>🔗 Liaison eBrigade</strong>
+              
+              {/* Show current link if editing existing user */}
+              {isEdit && initial && initial.liaison_ebrigade_id && (
+                <div style={{
+                  marginBottom: 12,
+                  padding: 10,
+                  background: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  color: '#065f46'
+                }}>
+                  ✅ Lié à: <strong>{initial.liaison_ebrigade_id}</strong>
+                </div>
+              )}
+              
               <input
                 placeholder="Rechercher dans eBrigade (nom, prénom...)"
                 value={liaisonQuery}
@@ -238,14 +281,35 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
                 onFocus={() => { if (!hasLoadedOnOpen && !liaisonOptions.length) fetchProfiles() }}
                 style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,marginBottom:8}}
               />
-              <button 
-                type="button" 
-                onClick={() => fetchProfiles()} 
-                disabled={searchLoading}
-                style={{padding:'6px 12px',background:'#f3f4f6',border:'1px solid #d1d5db',borderRadius:6,fontSize:12,cursor:'pointer'}}
-              >
-                {searchLoading ? '⏳ Recherche...' : 'Charger profils'}
-              </button>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
+                <button 
+                  type="button" 
+                  onClick={() => fetchProfiles()} 
+                  disabled={searchLoading}
+                  style={{padding:'6px 12px',background:'#f3f4f6',border:'1px solid #d1d5db',borderRadius:6,fontSize:12,cursor:'pointer'}}
+                >
+                  {searchLoading ? '⏳ Recherche...' : 'Charger profils'}
+                </button>
+                {isEdit && (
+                  <button 
+                    type="button" 
+                    onClick={handleLinkEbrigade} 
+                    disabled={linkingEbrigade || liaisonId === 'none' || !liaisonId}
+                    style={{
+                      padding: '6px 12px',
+                      background: ebrigadeLinked ? '#86efac' : '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      opacity: (linkingEbrigade || liaisonId === 'none' || !liaisonId) ? 0.5 : 1
+                    }}
+                  >
+                    {ebrigadeLinked ? '✅ Lié!' : (linkingEbrigade ? '⏳ Liaison...' : '🔗 Lier')}
+                  </button>
+                )}
+              </div>
               {searchError && <div style={{marginTop:8,padding:8,background:'#fee2e2',color:'#991b1b',borderRadius:4,fontSize:12}}>{searchError}</div>}
               {liaisonOptions.length > 0 && (
                 <div style={{marginTop:12}}>

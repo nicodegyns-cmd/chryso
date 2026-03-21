@@ -129,12 +129,23 @@ Si vous n'avez pas demandé la création de ce compte, veuillez ignorer cet emai
       return { sent: false, error: 'SMTP not configured - logged to console only' }
     }
 
+    const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'noreply@sirona-consult.be'
+    
     const info = await mailer.sendMail({
-      from: process.env.SMTP_FROM || process.env.GMAIL_USER || 'noreply@chryso.app',
+      from: {
+        name: appName,
+        address: fromEmail
+      },
       to: email,
       subject: `Bienvenue sur ${appName} - Vos identifiants de connexion`,
       html: htmlContent,
       text: textContent,
+      headers: {
+        'X-Mailer': 'Chryso',
+        'X-Priority': '3',
+        'Importance': 'normal',
+        'Reply-To': fromEmail
+      }
     })
 
     console.log('[EmailService] Email sent:', { email, messageId: info.messageId })
@@ -171,11 +182,22 @@ async function sendPasswordChangeEmail(email, firstName) {
       return { sent: false, error: 'SMTP not configured' }
     }
 
+    const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'noreply@sirona-consult.be'
+
     const info = await mailer.sendMail({
-      from: process.env.SMTP_FROM || process.env.GMAIL_USER || 'noreply@chryso.app',
+      from: {
+        name: appName,
+        address: fromEmail
+      },
       to: email,
       subject: `${appName} - Mot de passe modifié`,
       html: htmlContent,
+      headers: {
+        'X-Mailer': 'Chryso',
+        'X-Priority': '3',
+        'Importance': 'normal',
+        'Reply-To': fromEmail
+      }
     })
 
     console.log('[EmailService] Password change email sent:', { email, messageId: info.messageId })

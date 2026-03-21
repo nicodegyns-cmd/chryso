@@ -9,8 +9,13 @@ export default async function handler(req, res){
   }
 
   let body = req.body || {}
-  // inject server-side token if available to avoid exposing it to clients
-  if (!body.token && process.env.EBRIGADE_TOKEN) body = Object.assign({}, body, { token: process.env.EBRIGADE_TOKEN })
+  // Inject server-side token (always required, never exposed to clients)
+  if (!process.env.EBRIGADE_TOKEN) {
+    return res.status(500).json({ error: 'EBRIGADE_TOKEN not configured' })
+  }
+  const token = process.env.EBRIGADE_TOKEN
+  // Merge body with token (body tokens are ignored for security)
+  body = Object.assign({}, body, { token })
   // prefer server env EBRIGADE_URL if set, otherwise local default
   const base = process.env.EBRIGADE_URL || 'http://127.0.0.1/ebrigade'
   const url = `${base.replace(/\/$/, '')}/api/export/search.php`
