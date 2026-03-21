@@ -73,6 +73,28 @@ export default function UserTable() {
       })
   }
 
+  function handleDeleteUser(userId, userEmail) {
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer ${userEmail} ? Cette action est irréversible.`)) {
+      setLoading(true)
+      fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error('Failed to delete user')
+          return r.json()
+        })
+        .then(() => {
+          loadUsers()
+        })
+        .catch((err) => {
+          console.error('delete user failed', err)
+          alert('Erreur lors de la suppression')
+          setLoading(false)
+        })
+    }
+  }
+
   const displayed = users.filter((u) => {
     const q = query.trim().toLowerCase()
     if (!q) return true
@@ -211,39 +233,59 @@ export default function UserTable() {
                     )}
                   </td>
                   <td style={{padding:'16px',textAlign:'center'}}>
-                    <button 
-                      onClick={async () => {
-                        try {
-                          setLoading(true)
-                          const resp = await fetch(`/api/admin/users/${u.id}`)
-                          if (!resp.ok) throw new Error('failed to fetch user')
-                          const body = await resp.json()
-                          setEditing(body.user)
-                          setOpen(true)
-                        } catch (err) {
-                          console.error('Failed to load user for edit', err)
-                          setEditing(u)
-                          setOpen(true)
-                        } finally {
-                          setLoading(false)
-                        }
-                      }}
-                      style={{
-                        padding:'8px 16px',
-                        background:'#667eea',
-                        color:'white',
-                        border:'none',
-                        borderRadius:6,
-                        fontSize:12,
-                        fontWeight:600,
-                        cursor:'pointer',
-                        transition:'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.target.style.background = '#5568d3'}
-                      onMouseLeave={(e) => e.target.style.background = '#667eea'}
-                    >
-                      ✏️ Éditer
-                    </button>
+                    <div style={{display:'flex',gap:8,justifyContent:'center'}}>
+                      <button 
+                        onClick={async () => {
+                          try {
+                            setLoading(true)
+                            const resp = await fetch(`/api/admin/users/${u.id}`)
+                            if (!resp.ok) throw new Error('failed to fetch user')
+                            const body = await resp.json()
+                            setEditing(body.user)
+                            setOpen(true)
+                          } catch (err) {
+                            console.error('Failed to load user for edit', err)
+                            setEditing(u)
+                            setOpen(true)
+                          } finally {
+                            setLoading(false)
+                          }
+                        }}
+                        style={{
+                          padding:'8px 16px',
+                          background:'#667eea',
+                          color:'white',
+                          border:'none',
+                          borderRadius:6,
+                          fontSize:12,
+                          fontWeight:600,
+                          cursor:'pointer',
+                          transition:'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.background = '#5568d3'}
+                        onMouseLeave={(e) => e.target.style.background = '#667eea'}
+                      >
+                        ✏️ Éditer
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteUser(u.id, u.email)}
+                        style={{
+                          padding:'8px 16px',
+                          background:'#ef4444',
+                          color:'white',
+                          border:'none',
+                          borderRadius:6,
+                          fontSize:12,
+                          fontWeight:600,
+                          cursor:'pointer',
+                          transition:'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.background = '#dc2626'}
+                        onMouseLeave={(e) => e.target.style.background = '#ef4444'}
+                      >
+                        🗑️ Supprimer
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
