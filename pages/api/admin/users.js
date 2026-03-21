@@ -1,4 +1,16 @@
 const { getPool } = require('../../../services/db')
+const bcrypt = require('bcryptjs')
+const { sendUserCreationEmail } = require('../../../services/emailService')
+
+// Generate a random password (8 characters: mix of letters, numbers, special chars)
+function generateRandomPassword() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%'
+  let password = ''
+  for (let i = 0; i < 10; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return password
+}
 
 export default async function handler(req, res) {
   const pool = getPool()
@@ -35,13 +47,14 @@ export default async function handler(req, res) {
     }
     const roleValue = normalizeRoles(role)
 
-    // create a setup token so the user can set their password later
-    const setupToken = Math.random().toString(36).slice(2, 12)
+    // Generate a random password and hash it
+    const plainPassword = generateRandomPassword()
+    const passwordHash = await bcrypt.hash(plainPassword, 10)
 
     try {
       const [result] = await pool.query(
-        `INSERT INTO users (email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, password_reset_token, password_reset_sent_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        `INSERT INTO users (email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, password_hash)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           (email || '').toLowerCase(),
           roleValue,
@@ -56,7 +69,7 @@ export default async function handler(req, res) {
           compte || null,
           fonction || null,
           liaisonId || null,
-          setupToken,
+          passwordHash,
         ]
       )
 
@@ -64,8 +77,25 @@ export default async function handler(req, res) {
       const [rows] = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction FROM users WHERE id = ?', [insertedId])
       const user = rows && rows[0] ? rows[0] : null
 
-      console.log('[api/admin/users] Created user, setup token:', { email, setupToken })
-      return res.status(201).json({ user, emailSent: true })
+      console.log('[api/admin/users] Created user with auto-generated password:', { email })
+
+      // Send welcome email with credentials
+      const emailResult = await sendUserCreationEmail(
+        email,
+        plainPassword,
+        firstName || null
+      )
+
+      // Return the plain password AND email status
+      return res.status(201).json({
+        user,
+        plainPassword,
+        emailSent: emailResult.sent,
+        emailError: emailResult.error || null,
+        message: emailResult.sent
+          ? 'User created and email sent successfully'
+          : 'User created but email failed to send (check logs)',
+      })
     } catch (err) {
       console.error('[api/admin/users] POST error', err)
       return res.status(500).json({ error: 'db_error', detail: err.message })

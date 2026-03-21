@@ -4,7 +4,7 @@ async function main() {
   const email = 'nicodegyns@gmail.com'
   const password = '1234'
   try {
-    const existing = findUserByEmail(email)
+    const existing = await findUserByEmail(email)
     if (existing) {
       console.log('Admin already exists:', existing.email)
       return
@@ -13,7 +13,11 @@ async function main() {
     console.log('Admin created:', user.email)
   } catch (err) {
     console.error('Error creating admin:', err.message)
+    console.error('Stack:', err.stack)
   }
 }
 
-main()
+main().catch(e => {
+  console.error('Promise rejection:', e.message, e.stack)
+  process.exit(1)
+})
