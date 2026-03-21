@@ -15,30 +15,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Get user from session
-    const { user } = req.session || {}
-    if (!user || !user.id) {
+    // Get user from email parameter (passed from frontend localStorage)
+    let { email, dDebut, dFin } = req.query
+    if (!email) {
       return res.status(401).json({ error: 'Not authenticated' })
     }
 
-    // Get date range from query
-    let { dDebut, dFin } = req.query
-    
-    // Default to current month if not provided
+    // Default to 7 days from today if not provided
     if (!dDebut || !dFin) {
       const now = new Date()
-      const year = now.getFullYear()
-      const month = String(now.getMonth() + 1).padStart(2, '0')
-      dDebut = dDebut || `${year}-${month}-01`
-      const lastDay = new Date(year, now.getMonth() + 1, 0).getDate()
-      dFin = dFin || `${year}-${month}-${String(lastDay).padStart(2, '0')}`
+      const formatDate = (d) => d.toISOString().split('T')[0]
+      dDebut = dDebut || formatDate(now)
+      const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+      dFin = dFin || formatDate(sevenDaysLater)
     }
 
-    // Get pool and fetch user's liaison_ebrigade_id
+    // Get pool and fetch user by email
     const pool = getPool()
     const [[userRow]] = await pool.query(
-      'SELECT id, email, liaison_ebrigade_id FROM users WHERE id = ? LIMIT 1',
-      [user.id]
+      'SELECT id, email, liaison_ebrigade_id FROM users WHERE email = ? LIMIT 1',
+      [email]
     )
 
     if (!userRow) {

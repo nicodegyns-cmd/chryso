@@ -35,6 +35,10 @@ export default function eBrigadePrestationsDisplay({ email }) {
       const url = new URL('/api/user/ebrigade-prestations', window.location.origin)
       if (dateFrom) url.searchParams.set('dDebut', dateFrom)
       if (dateTo) url.searchParams.set('dFin', dateTo)
+      
+      // Get email from localStorage (same way LoginForm stores it)
+      const userEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : ''
+      if (userEmail) url.searchParams.set('email', userEmail)
 
       const r = await fetch(url.toString(), { credentials: 'include' })
       if (r.status === 401) {
