@@ -36,7 +36,7 @@ export default function eBrigadePrestationsDisplay({ email }) {
       if (dateFrom) url.searchParams.set('dDebut', dateFrom)
       if (dateTo) url.searchParams.set('dFin', dateTo)
 
-      const r = await fetch(url.toString())
+      const r = await fetch(url.toString(), { credentials: 'include' })
       if (r.status === 401) {
         setError('Non authentifié')
         setPrestations([])
