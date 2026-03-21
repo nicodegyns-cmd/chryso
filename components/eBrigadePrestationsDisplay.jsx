@@ -1,25 +1,31 @@
 import React, { useEffect, useState } from 'react'
 
 export default function eBrigadePrestationsDisplay({ email }) {
-  // Initialize with today and next 7 days
-  const getDefaultDates = () => {
-    const today = new Date()
-    const tomorrow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-    const formatDate = (d) => d.toISOString().split('T')[0]
-    return { from: formatDate(today), to: formatDate(tomorrow) }
-  }
-  
-  const defaults = typeof window !== 'undefined' ? getDefaultDates() : { from: '', to: '' }
-  
   const [prestations, setPrestations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [dateFrom, setDateFrom] = useState(defaults.from)
-  const [dateTo, setDateTo] = useState(defaults.to)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [initialized, setInitialized] = useState(false)
 
+  // Initialize dates on mount
   useEffect(() => {
-    loadEBrigadePrestations()
-  }, [dateFrom, dateTo])
+    if (!initialized) {
+      const today = new Date()
+      const inSevenDays = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+      const formatDate = (d) => d.toISOString().split('T')[0]
+      setDateFrom(formatDate(today))
+      setDateTo(formatDate(inSevenDays))
+      setInitialized(true)
+    }
+  }, [initialized])
+
+  // Load data when dates are set
+  useEffect(() => {
+    if (initialized && dateFrom && dateTo) {
+      loadEBrigadePrestations()
+    }
+  }, [dateFrom, dateTo, initialized])
 
   async function loadEBrigadePrestations() {
     setLoading(true)
