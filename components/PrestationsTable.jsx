@@ -19,6 +19,13 @@ export default function PrestationsTable({ email }) {
   // read role from localStorage into reactive state so updates are picked up
   const [clientRole, setClientRole] = useState(typeof window !== 'undefined' ? localStorage.getItem('role') : null)
 
+  // Handle closing the modal
+  const handleCloseModal = () => {
+    setEditing(null)
+    setConfirmOpen(false)
+    setConfirmPreview(null)
+  }
+
   useEffect(()=>{
     if (typeof window === 'undefined') return
     const val = localStorage.getItem('role')
@@ -39,24 +46,45 @@ export default function PrestationsTable({ email }) {
   const editingIsAPS = _editPayLower.includes('aps')
 
   useEffect(() => {
-    // If `email` provided -> fetch user prestations; else if admin -> fetch all admin prestations
+    // Fetch both prestations and available activities
     async function load() {
       setLoading(true)
       setError(null)
       try {
-          if (email) {
-            const r = await fetch(`/api/prestations?email=${encodeURIComponent(email)}`)
-            if (!r.ok) throw new Error('Échec de la récupération')
-            const data = await r.json()
-            setItems(data.prestations || [])
-          } else if (clientRole === 'admin') {
-            const r = await fetch('/api/admin/prestations')
-            if (!r.ok) throw new Error('Échec de la récupération (admin)')
-            const data = await r.json()
-            setItems(data.items || [])
-          } else {
-            setError('Utilisateur non connecté')
-          }
+        if (email) {
+          // Fetch user prestations
+          const prestRes = await fetch(`/api/prestations?email=${encodeURIComponent(email)}`)
+          if (!prestRes.ok) throw new Error('Échec de la récupération des prestations')
+          const prestData = await prestRes.json()
+          const prestations = prestData.prestations || []
+
+          // Fetch available activities
+          const actRes = await fetch('/api/activities')
+          const actData = await actRes.json()
+          const activities = (actData.activities || []).map(a => ({
+            ...a,
+            isActivity: true,  // Mark as activity to distinguish from prestation
+            status: 'À saisir',  // Default status for activities
+            id: `act_${a.id}`,  // Prefix ID to avoid collisions
+            originalActivityId: a.id
+          }))
+
+          // Combine and sort by date (newest first)
+          const combined = [...activities, ...prestations].sort((a, b) => {
+            const dateA = new Date(a.date || 0)
+            const dateB = new Date(b.date || 0)
+            return dateB - dateA
+          })
+
+          setItems(combined)
+        } else if (clientRole === 'admin') {
+          const r = await fetch('/api/admin/prestations')
+          if (!r.ok) throw new Error('Échec de la récupération (admin)')
+          const data = await r.json()
+          setItems(data.items || [])
+        } else {
+          setError('Utilisateur non connecté')
+        }
       } catch (err) {
         setError(err.message || 'Erreur')
       } finally {
@@ -99,14 +127,40 @@ export default function PrestationsTable({ email }) {
   const today = new Date().toISOString().slice(0,10)
   const filtered = items.filter((p) => {
     if (statusFilter && p.status !== statusFilter) return false
-    if (showUpcoming){ if (!p.date || p.date <= today) return false }
+    // showUpcoming now filters to show only items that need hours to be declared (not filled)
+    if (showUpcoming){ if (isFilled(p)) return false }
     if (dateFrom){ if (!p.date || p.date < dateFrom) return false }
     if (dateTo){ if (!p.date || p.date > dateTo) return false }
     return true
   })
 
   async function openEdit(p){
-    // Ensure invoice/request references exist and are persisted so the modal can show them
+    // If this is an activity (not a prestation), create a new prestation from it
+    if (p.isActivity) {
+      setEditing({
+        id: null,
+        analytic_id: p.analytic_id,
+        analytic_name: p.analytic_name,
+        analytic_code: p.analytic_code,
+        pay_type: p.pay_type,
+        date: p.date,
+        remuneration_infi: p.remuneration_infi,
+        remuneration_med: p.remuneration_med,
+        hours_actual: null,
+        garde_hours: null,
+        sortie_hours: null,
+        overtime_hours: null,
+        status: 'A saisir',
+        user_email: email,
+        expense_amount: null,
+        expense_comment: null,
+        comments: null,
+        proof_image: null
+      })
+      return
+    }
+
+    // For existing prestations, ensure invoice/request references exist
     try{
       if (!p.invoice_number && !p.request_ref){
         const resp = await fetch('/api/prestations/generate_invoice_number', {
@@ -136,7 +190,14 @@ export default function PrestationsTable({ email }) {
   }, [])
 
   async function saveEdit(confirmed = false){
-    if (!editing || !editing.id) return
+    if (!editing) return
+    
+    // For new prestations (from activities), check we have required fields
+    const isNewPrestation = !editing.id
+    if (isNewPrestation && !editing.date) {
+      alert('Veuillez sélectionner une date pour cette activité.')
+      return
+    }
 
     // Prevent saving if status is "En attente d'envoie"
     if (editing.status === "En attente d'envoie") {
@@ -268,17 +329,36 @@ export default function PrestationsTable({ email }) {
         delete effective.remuneration_med
       }
 
-      const r = await fetch(`/api/admin/prestations/${effective.id}`, {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(effective)
-      })
+      // Handle new prestation (POST) vs updating existing one (PATCH)
+      let r
+      if (isNewPrestation) {
+        // Create new prestation
+        r = await fetch('/api/admin/prestations', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(effective)
+        })
+      } else {
+        // Update existing prestation
+        r = await fetch(`/api/admin/prestations/${effective.id}`, {
+          method: 'PATCH',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(effective)
+        })
+      }
+      
       if (!r.ok) throw new Error('Échec enregistrement')
       const updated = await r.json()
-      setItems((cur)=>cur.map(it=> it.id === updated.id ? {...it, ...updated} : it))
-      setEditing(null)
-      setConfirmOpen(false)
-      setConfirmPreview(null)
+      
+      if (isNewPrestation) {
+        // Add new prestation to list
+        setItems((cur)=>[...cur, updated])
+      } else {
+        // Update existing prestation
+        setItems((cur)=>cur.map(it=> it.id === updated.id ? {...it, ...updated} : it))
+      }
+      
+      handleCloseModal()
     }catch(e){
       console.error('save failed', e)
       alert(e.message || 'Erreur')
@@ -347,67 +427,99 @@ export default function PrestationsTable({ email }) {
         <h3>Mes prestations</h3>
         {filtered.length === 0 ? (
           <div className="small-muted">Aucune prestation trouvée.</div>
-        ) : isMobile ? (
-          <div>
+        ) : (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))',gap:12}}>
             {filtered.map((p) => (
-              <div key={p.id} className="mini-prestation-card" onClick={()=>openEdit(p)} style={{opacity: p.status === "En attente d'envoie" ? 0.6 : 1, cursor: p.status === "En attente d'envoie" ? 'not-allowed' : 'pointer'}}>
-                <div className="mini-prestation-left">
-                  <div className="mini-prestation-date">{p.date || '-'}</div>
-                  <div className="mini-prestation-sub">{p.pay_type || '-'}</div>
+              <div
+                key={p.id}
+                onClick={() => p.status !== "En attente d'envoie" && openEdit(p)}
+                style={{
+                  background:'#fff',
+                  border:'2px solid #e5e7eb',
+                  borderRadius:12,
+                  padding:16,
+                  cursor:p.status === "En attente d'envoie" ? 'not-allowed' : 'pointer',
+                  transition:'all 0.3s ease',
+                  display:'flex',
+                  flexDirection:'column',
+                  gap:12,
+                  boxShadow:'0 1px 3px rgba(0,0,0,0.1)',
+                  opacity:p.status === "En attente d'envoie" ? 0.7 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (p.status !== "En attente d'envoie") {
+                    e.currentTarget.style.borderColor = '#0366d6'
+                    e.currentTarget.style.boxShadow = '0 10px 25px rgba(3, 102, 214, 0.15)'
+                    e.currentTarget.style.transform = 'translateY(-4px)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e5e7eb'
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                }}
+              >
+                {/* Header: Date et Type */}
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'start'}}>
+                  <div>
+                    <div style={{fontSize:12,color:'#6b7280',fontWeight:600}}>DATE</div>
+                    <div style={{fontSize:18,fontWeight:700,color:'#1f2937'}}>
+                      {p.date ? new Date(p.date).toLocaleDateString('fr-FR', {month:'short', day:'numeric'}) : '—'}
+                    </div>
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:4}}>STATUT</div>
+                    {renderStatusBadge(p.status)}
+                  </div>
                 </div>
+
+                {/* Type et Analytique */}
                 <div>
-                  {renderStatusBadge(p.status)}
-                  {p.status === "En attente d'envoie" && <div style={{marginTop:6, fontSize:12, color:'#9ca3af', fontWeight:600}}>🔒 Bloqué</div>}
+                  <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:4}}>TYPE</div>
+                  <div style={{fontSize:14,fontWeight:600,color:'#1f2937'}}>{p.pay_type || '—'}</div>
                 </div>
+
+                <div>
+                  <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:4}}>ANALYTIQUE</div>
+                  <div style={{fontSize:14,fontWeight:600,color:'#0366d6'}}>
+                    {p.analytic_name || p.analytic_code || '—'}
+                  </div>
+                </div>
+
+                {/* Heures et Montants si remplis */}
+                {isFilled(p) && (
+                  <div style={{padding:12,background:'#eff6ff',borderRadius:8,border:'1px solid #bfdbfe'}}>
+                    <div style={{fontSize:11,color:'#0366d6',fontWeight:600,marginBottom:6}}>📋 DONNÉES SAISIES</div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,fontSize:12}}>
+                      {p.hours_actual != null && <div><div style={{color:'#6b7280'}}>Heures réelles</div><div style={{fontWeight:600,color:'#1f2937'}}>{p.hours_actual}h</div></div>}
+                      {p.garde_hours != null && <div><div style={{color:'#6b7280'}}>Heures garde</div><div style={{fontWeight:600,color:'#1f2937'}}>{p.garde_hours}h</div></div>}
+                      {p.sortie_hours != null && <div><div style={{color:'#6b7280'}}>Heures sortie</div><div style={{fontWeight:600,color:'#1f2937'}}>{p.sortie_hours}h</div></div>}
+                      {p.overtime_hours != null && <div><div style={{color:'#6b7280'}}>Heures supp</div><div style={{fontWeight:600,color:'#1f2937'}}>{p.overtime_hours}h</div></div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div style={{display:'flex',gap:8,marginTop:'auto'}}>
+                  {p.pdf_url && (
+                    <a href={p.pdf_url} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:4,padding:'8px 12px',borderRadius:6,background:'#dbeafe',color:'#0366d6',textDecoration:'none',cursor:'pointer',fontSize:13,fontWeight:600,border:'1px solid #93c5fd',transition:'all 0.2s'}} onMouseEnter={(e)=>{e.currentTarget.style.background='#bfdbfe';e.currentTarget.style.borderColor='#60a5fa'}} onMouseLeave={(e)=>{e.currentTarget.style.background='#dbeafe';e.currentTarget.style.borderColor='#93c5fd'}}>
+                      <span>📄</span> PDF
+                    </a>
+                  )}
+                  <button
+                    onClick={(e)=>{ e.stopPropagation(); openEdit(p) }}
+                    style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:4,padding:'8px 12px',borderRadius:6,background:p.isActivity ? '#dbeafe' : (p.status === "En attente d'envoie" ? '#f3f4f6' : '#e0e7ff'),color:p.isActivity ? '#0366d6' : (p.status === "En attente d'envoie" ? '#9ca3af' : '#4f46e5'),border:p.isActivity ? '1px solid #93c5fd' : (p.status === "En attente d'envoie" ? '1px solid #e5e7eb' : '1px solid #c7d2fe'),cursor:'pointer',fontSize:13,fontWeight:600,transition:'all 0.2s',opacity:p.status === "En attente d'envoie" && !p.isActivity ? 0.8 : 1}}
+                    onMouseEnter={(e)=>{if(p.status !== "En attente d'envoie"){e.currentTarget.style.background=p.isActivity ? '#bfdbfe' : '#c7d2fe';e.currentTarget.style.borderColor=p.isActivity ? '#60a5fa' : '#a5b4fc'}}}
+                    onMouseLeave={(e)=>{if(p.status !== "En attente d'envoie"){e.currentTarget.style.background=p.isActivity ? '#dbeafe' : '#e0e7ff';e.currentTarget.style.borderColor=p.isActivity ? '#93c5fd' : '#c7d2fe'}}}
+                  >
+                    <span>{p.isActivity ? '✏️' : (p.status === "En attente d'envoie" ? '👁️' : '✏️')}</span> {p.isActivity ? 'Déclarer heures' : (p.status === "En attente d'envoie" ? 'Consulter' : 'Voir')}
+                  </button>
+                </div>
+
+                {/* Blocage warning */}
+                {p.status === "En attente d'envoie" && <div style={{marginTop:6, fontSize:12, color:'#9ca3af', fontWeight:600, textAlign:'center'}}>🔒 En attente d'envoie</div>}
               </div>
             ))}
-          </div>
-        ) : (
-          <div className="table-responsive">
-            <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
-            <thead>
-              <tr style={{background:'#f3f4f6',borderBottom:'2px solid #e5e7eb'}}>
-                <th style={{textAlign:'left',padding:'12px 8px',fontWeight:700,color:'#374151'}}>Date</th>
-                {!email && <th style={{textAlign:'left',padding:'12px 8px',fontWeight:700,color:'#374151'}}>Analytique</th>}
-                <th style={{textAlign:'left',padding:'12px 8px',fontWeight:700,color:'#374151'}}>Activité</th>
-                <th style={{textAlign:'left',padding:'12px 8px',fontWeight:700,color:'#374151'}}>Type</th>
-                  <th style={{textAlign:'left',padding:'12px 8px',fontWeight:700,color:'#374151'}}>Statut</th>
-                  <th style={{textAlign:'center',padding:'12px 8px',fontWeight:700,color:'#374151'}}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((p, idx) => (
-                  <tr key={p.id} style={{borderBottom:'1px solid #e5e7eb',background:idx%2===0?'#fff':'#f9fafb',hover:{background:'#f3f4f6'},transition:'background 0.15s'}} onMouseEnter={(e)=>e.currentTarget.style.background='#eff6ff'} onMouseLeave={(e)=>e.currentTarget.style.background=idx%2===0?'#fff':'#f9fafb'}>
-                    <td style={{padding:'12px 8px',color:'#111827',fontWeight:500}}>{p.date || '-'}</td>
-                    {!email && <td style={{padding:'12px 8px',color:'#6b7280'}}>{p.analytic_name || p.analytic_code || '-'}</td>}
-                    <td style={{padding:'12px 8px'}}>
-                      {p.analytic_id ? (
-                        <span style={{color:'#111827'}}>{p.analytic_name || p.analytic_code || `#${p.analytic_id}`}</span>
-                      ) : (
-                        <span style={{color:'#9ca3af'}}>-</span>
-                      )}
-                    </td>
-                    <td style={{padding:'12px 8px',color:'#6b7280'}}>{p.pay_type || '-'}</td>
-                    <td style={{padding:'12px 8px'}}>{renderStatusBadge(p.status)}</td>
-                    <td style={{padding:'12px 8px',display:'flex',gap:6,alignItems:'center',justifyContent:'center'}}>
-                      {p.pdf_url && (
-                        <a href={p.pdf_url} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'6px 12px',borderRadius:6,background:'#dbeafe',color:'#0366d6',textDecoration:'none',cursor:'pointer',fontSize:13,fontWeight:600,border:'1px solid #93c5fd',transition:'all 0.2s'}} onMouseEnter={(e)=>{e.currentTarget.style.background='#bfdbfe';e.currentTarget.style.borderColor='#60a5fa'}} onMouseLeave={(e)=>{e.currentTarget.style.background='#dbeafe';e.currentTarget.style.borderColor='#93c5fd'}}>
-                          <span>📄</span> PDF
-                        </a>
-                      )}
-                      <button
-                        onClick={(e)=>{ e.stopPropagation(); openEdit(p) }}
-                        style={{display:'inline-flex',alignItems:'center',gap:4,padding:'6px 12px',borderRadius:6,background:p.status === "En attente d'envoie" ? '#f3f4f6' : '#e0e7ff',color:p.status === "En attente d'envoie" ? '#9ca3af' : '#4f46e5',border:p.status === "En attente d'envoie" ? '1px solid #e5e7eb' : '1px solid #c7d2fe',cursor:'pointer',fontSize:13,fontWeight:600,transition:'all 0.2s',opacity:p.status === "En attente d'envoie" ? 0.8 : 1}}
-                        onMouseEnter={(e)=>{if(p.status !== "En attente d'envoie"){e.currentTarget.style.background='#c7d2fe';e.currentTarget.style.borderColor='#a5b4fc'} else {e.currentTarget.style.background='#e5e7eb'}}}
-                        onMouseLeave={(e)=>{if(p.status !== "En attente d'envoie"){e.currentTarget.style.background='#e0e7ff';e.currentTarget.style.borderColor='#c7d2fe'} else {e.currentTarget.style.background='#f3f4f6'}}}
-                      >
-                        <span>{p.status === "En attente d'envoie" ? '👁️' : '👁️'}</span> {p.status === "En attente d'envoie" ? 'Consulter' : 'Voir'}
-                      </button>
-                    </td>
-                  </tr>
-              ))}
-            </tbody>
-            </table>
           </div>
         )}
       </div>
@@ -419,6 +531,8 @@ export default function PrestationsTable({ email }) {
             <div style={{padding:24,borderBottom:'1px solid #e5e7eb'}}>
               <h3 style={{margin:0,fontSize:20,fontWeight:700,color:'#1f2937'}}>{
                 (() => {
+                  // For new prestations (activities)
+                  if (!editing.id) return `✏️ Déclarer mes heures`
                   // Prefer showing the prestation reference (`request_ref`) as a 5-digit code when available
                   const ref = editing.request_ref || editing.invoice_number || ('#'+editing.id)
                   if (role === 'admin') return `📋 Détails demande ${ref}`
@@ -704,7 +818,7 @@ export default function PrestationsTable({ email }) {
             )}
 
                 <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:12}}>
-              <button onClick={()=>{ setEditing(null); setConfirmOpen(false); setConfirmPreview(null); }} disabled={saving}>{role === 'admin' || editing.status === "En attente d'envoie" ? 'Fermer' : 'Annuler'}</button>
+              <button onClick={handleCloseModal} disabled={saving}>{role === 'admin' || editing.status === "En attente d'envoie" ? 'Fermer' : 'Annuler'}</button>
               {role !== 'admin' && editing.status !== "En attente d'envoie" && !confirmOpen && <button onClick={()=>saveEdit(false)} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer'}</button>}
               {role !== 'admin' && confirmOpen && (
                 <>

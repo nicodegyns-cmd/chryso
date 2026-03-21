@@ -7,6 +7,7 @@ import EBrigadePrestationsDisplay from '../components/eBrigadePrestationsDisplay
 
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
+  const userEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : ''
 
   return (
     <div className="admin-page-root">
@@ -20,11 +21,11 @@ export default function DashboardPage() {
 
         <div style={{display:'grid',gridTemplateColumns:'1fr',gap:12}}>
           <div className="admin-card card">
-            <p>Bienvenue — ci-dessous la liste de vos prestations.</p>
+            <p>Bienvenue — ci-dessous la liste de vos prestations et activités disponibles.</p>
           </div>
-          <EBrigadePrestationsDisplay email={typeof window !== 'undefined' ? localStorage.getItem('email') : ''} />
-          <PrestationsStats email={typeof window !== 'undefined' ? localStorage.getItem('email') : ''} />
-          <PrestationsTable email={typeof window !== 'undefined' ? localStorage.getItem('email') : ''} />
+          <EBrigadePrestationsDisplay email={userEmail} />
+          <PrestationsStats email={userEmail} />
+          <PrestationsTable email={userEmail} />
         </div>
       </main>
     </div>
