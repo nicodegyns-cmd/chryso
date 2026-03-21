@@ -18,9 +18,9 @@ L'application est configurée pour utiliser **one.com** avec l'adresse `no-reply
 
 ```
 EMAIL_PROVIDER=smtp
-SMTP_HOST=smtp.one.com
-SMTP_PORT=587
-SMTP_SECURE=false
+SMTP_HOST=send.one.com
+SMTP_PORT=465
+SMTP_SECURE=true
 SMTP_USER=no-reply@sirona-consult.be
 SMTP_PASSWORD=[TON_MOT_DE_PASSE_ONE_COM]
 SMTP_FROM=no-reply@sirona-consult.be
@@ -47,9 +47,9 @@ Pour tester la configuration one.com en local :
 1. Modifie `.env` et ajoute le mot de passe one.com :
 ```
 EMAIL_PROVIDER=smtp
-SMTP_HOST=smtp.one.com
-SMTP_PORT=587
-SMTP_SECURE=false
+SMTP_HOST=send.one.com
+SMTP_PORT=465
+SMTP_SECURE=true
 SMTP_USER=no-reply@sirona-consult.be
 SMTP_PASSWORD=ton-mot-de-passe-one-com
 SMTP_FROM=no-reply@sirona-consult.be

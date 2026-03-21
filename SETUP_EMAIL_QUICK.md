@@ -27,9 +27,9 @@ L'application envoie maintenant automatiquement des emails lors :
 ```
 NAME                VALUE
 EMAIL_PROVIDER      smtp
-SMTP_HOST           smtp.one.com
-SMTP_PORT           587
-SMTP_SECURE         false
+SMTP_HOST           send.one.com
+SMTP_PORT           465
+SMTP_SECURE         true
 SMTP_USER           no-reply@sirona-consult.be
 SMTP_PASSWORD       [Le mot de passe copié d'étape 1]
 SMTP_FROM           no-reply@sirona-consult.be
