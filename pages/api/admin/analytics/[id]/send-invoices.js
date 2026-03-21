@@ -142,7 +142,7 @@ export default async function handler(req, res){
 
     // Record the send in database
     try{
-      const [insertResult] = await pool.query(
+      const [insertResult] = await pool.execute(
         `INSERT INTO pdf_sends (analytic_id, analytic_code, analytic_name, recipient_emails, prestation_count, first_prestation_date, last_prestation_date, filename, status, error_message, sent_by)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [

@@ -36,7 +36,13 @@ class MySQLCompatiblePool {
   // Executes INSERT/UPDATE/DELETE statements (returns result with insertId if applicable)
   async execute(sql, params = []) {
     try {
-      const { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
+      let { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
+      
+      // For PostgreSQL INSERTs without RETURNING, add RETURNING id
+      if (convertedSql.trim().toUpperCase().startsWith('INSERT') && !convertedSql.toUpperCase().includes('RETURNING')) {
+        convertedSql = convertedSql.trim().replace(/;?\s*$/, ' RETURNING id')
+      }
+      
       const result = await this.pgPool.query(convertedSql, convertedParams)
       
       // Return in mysql2 format: [{ insertId, affectedRows }, fields]

@@ -49,7 +49,7 @@ export default async function handler(req, res) {
       const distArr = Array.isArray(distribution) ? distribution : (typeof distribution === 'string' ? distribution.split(/[,;\n]+/).map(s=>s.trim()).filter(Boolean) : [])
 
       try {
-        const [result] = await pool.query(
+        const [result] = await pool.execute(
           'INSERT INTO analytics (name, analytic_type, code, entite, distribution, description) VALUES (?, ?, ?, ?, ?, ?)',
           [name, analytic || 'PDF', cleanedCode, entite || null, distArr.length ? JSON.stringify(distArr) : null, description || null]
         )

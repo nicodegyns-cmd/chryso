@@ -52,7 +52,7 @@ export default async function handler(req, res) {
     const passwordHash = await bcrypt.hash(plainPassword, 10)
 
     try {
-      const [result] = await pool.query(
+      const [result] = await pool.execute(
         `INSERT INTO users (email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, password_hash)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [

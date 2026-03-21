@@ -26,7 +26,7 @@ export default async function handler(req, res){
     // If analyticId is found, set it on the prestation so it links to analytic/activity context.
         const sql = `INSERT INTO prestations (user_id, analytic_id, activity_id, date, pay_type, remuneration_infi, status, created_at)
              VALUES (?, ?, ?, ?, ?, NULL, 'A saisir', NOW())`
-        const [result] = await pool.query(sql, [user_id, analyticId, activity_id || null, date, type])
+        const [result] = await pool.execute(sql, [user_id, analyticId, activity_id || null, date, type])
     const id = result.insertId
 
     const [rows] = await pool.query('SELECT * FROM prestations WHERE id = ? LIMIT 1', [id])
