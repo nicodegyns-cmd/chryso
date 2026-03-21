@@ -2,16 +2,25 @@ import React, { useEffect, useState } from 'react'
 
 // eBrigade Prestations Display Component
 export default function eBrigadePrestationsDisplay({ email }) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   const [prestations, setPrestations] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [initialized, setInitialized] = useState(false)
 
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   // Initialize dates on mount
   useEffect(() => {
-    if (!initialized) {
+    if (mounted && !initialized) {
       const today = new Date()
       const inSevenDays = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
       const formatDate = (d) => d.toISOString().split('T')[0]
@@ -19,7 +28,7 @@ export default function eBrigadePrestationsDisplay({ email }) {
       setDateTo(formatDate(inSevenDays))
       setInitialized(true)
     }
-  }, [initialized])
+  }, [mounted, initialized])
 
   // Load data when dates are set
   useEffect(() => {
@@ -78,6 +87,10 @@ export default function eBrigadePrestationsDisplay({ email }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!mounted) {
+    return null
   }
 
   if (error) {
