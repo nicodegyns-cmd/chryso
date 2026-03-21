@@ -49,7 +49,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
     if (remuInfi !== '' && (isNaN(infi) || infi < 0)) { setError('Montant rémunération infi invalide'); return }
     if (remuMed !== '' && (isNaN(med) || med < 0)) { setError('Montant rémunération med invalide'); return }
 
-    const selected = analytics.find(a => a.id === Number(analyticId))
+    const selected = analytics.find(a => Number(a.id) === Number(analyticId))
     const payload = {
       analytic_id: Number(analyticId),
       analytic_name: selected ? selected.name : '',
