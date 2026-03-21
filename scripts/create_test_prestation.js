@@ -38,7 +38,7 @@ async function main(){
     const vals = keys.map(k => insert[k])
     const placeholders = keys.map(_=> '?').join(', ')
     const sql = `INSERT INTO prestations (${keys.join(',')}) VALUES (${placeholders})`
-    const [res] = await pool.query(sql, vals)
+    const [res] = await pool.execute(sql, vals)
     console.log('Inserted prestation id', res.insertId)
     process.exit(0)
   }catch(e){
