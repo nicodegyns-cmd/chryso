@@ -24,6 +24,8 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState(null)
+  const [resendingEmail, setResendingEmail] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
 
   // fetch suggestions when liaisonQuery changes (debounced)
   useEffect(() => {
@@ -84,6 +86,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
 
   // when `initial` changes (edit), populate fields
   React.useEffect(() => {
+    setEmailSent(false) // Reset email sent state
     if (initial) {
       setEmail(initial.email || '')
       const roleRaw = initial.role || initial.roleValue || ''
@@ -164,6 +167,30 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   function handleLiaisonSelect(id, label) {
     setLiaisonId(id || 'none')
     setLiaisonQuery(label || id || '')
+  }
+
+  async function handleResendWelcomeEmail() {
+    if (!initial || !initial.id) return
+
+    setResendingEmail(true)
+    try {
+      const r = await fetch(`/api/admin/users/${initial.id}/resend-welcome-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      if (!r.ok) {
+        const data = await r.json()
+        throw new Error(data.error || 'Erreur lors de l\'envoi')
+      }
+      const data = await r.json()
+      setEmailSent(true)
+      // Reset after 2 seconds
+      setTimeout(() => setEmailSent(false), 2000)
+    } catch (err) {
+      alert('Erreur: ' + (err.message || 'Impossible d\'envoyer l\'email'))
+    } finally {
+      setResendingEmail(false)
+    }
   }
 
   const isEdit = initial && (initial.id || initial.id === 0)
@@ -377,6 +404,19 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
 
             {/* Actions */}
             <div style={{display:'flex',gap:12,justifyContent:'flex-end',paddingTop:12,borderTop:'1px solid #e5e7eb'}}>
+              {isEdit && (
+                <button 
+                  type="button" 
+                  onClick={handleResendWelcomeEmail}
+                  disabled={resendingEmail}
+                  title="Renvoyer l'email de bienvenue avec un nouveau mot de passe temporaire"
+                  style={{padding:'10px 20px',background:emailSent ? '#10b981' : '#f0f9ff',border:'1px solid ' + (emailSent ? '#10b981' : '#7dd3fc'),borderRadius:6,fontSize:14,fontWeight:600,cursor:resendingEmail ? 'not-allowed' : 'pointer',transition:'all 0.2s',color: emailSent ? 'white' : '#0369a1'}}
+                  onMouseEnter={(e) => !resendingEmail && !emailSent && (e.target.style.background = '#e0f2fe')}
+                  onMouseLeave={(e) => !resendingEmail && !emailSent && (e.target.style.background = '#f0f9ff')}
+                >
+                  {emailSent ? '✅ Email envoyé' : (resendingEmail ? '⏳ Envoi...' : '📧 Renvoyer email')}
+                </button>
+              )}
               <button 
                 type="button" 
                 onClick={onClose} 
