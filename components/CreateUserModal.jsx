@@ -45,13 +45,16 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
         const resp = await fetch('/api/admin/users/ebrigade-search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: liaisonQuery })
+          body: JSON.stringify({ lastname: liaisonQuery })
         })
         const data = await resp.json()
         // expect proxy to return { remote: [...] } or similar
         const items = (data && data.remote && Array.isArray(data.remote)) ? data.remote : (Array.isArray(data) ? data : [])
-        // map items to { id, label }
-        const opts = items.map((it) => ({ id: it.id || it.ebrigade_id || it.EBR_ID || it.code || it.ref || '', label: it.label || it.name || it.display || (it.id || it.ebrigade_id) }))
+        // map items to { id, label } - use firstname+lastname for label
+        const opts = items.map((it) => ({ 
+          id: String(it.id || it.ebrigade_id || it.EBR_ID || it.code || '').trim(), 
+          label: `${it.firstname || ''} ${it.lastname || ''}`.trim() || `${it.id || it.ebrigade_id}`
+        }))
         setLiaisonOptions(opts.filter(o => o.id))
       } catch (err) {
         setSearchError(err.message || 'Erreur recherche')
@@ -71,11 +74,14 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       const resp = await fetch('/api/admin/users/ebrigade-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: forceQuery || '' })
+        body: JSON.stringify({ lastname: forceQuery || '' })
       })
       const data = await resp.json()
       const items = (data && data.remote && Array.isArray(data.remote)) ? data.remote : (Array.isArray(data) ? data : [])
-      const opts = items.map((it) => ({ id: it.id || it.ebrigade_id || it.EBR_ID || it.code || it.ref || '', label: it.label || it.name || it.display || (it.id || it.ebrigade_id) }))
+      const opts = items.map((it) => ({ 
+        id: String(it.id || it.ebrigade_id || it.EBR_ID || it.code || '').trim(), 
+        label: `${it.firstname || ''} ${it.lastname || ''}`.trim() || `${it.id || it.ebrigade_id}`
+      }))
       setLiaisonOptions(opts.filter(o => o.id))
     } catch (err) {
       setSearchError(err.message || 'Erreur recherche')
