@@ -16,11 +16,13 @@ export default function eBrigadePrestationsDisplay({ email }) {
 
   useEffect(() => {
     setMounted(true)
+    console.log('[eBrigadePrestationsDisplay] Mounted')
   }, [])
 
   // Initialize dates on mount
   useEffect(() => {
     if (mounted && !initialized) {
+      console.log('[eBrigadePrestationsDisplay] Initializing dates, mounted:', mounted, 'initialized:', initialized)
       const today = new Date()
       const inSevenDays = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
       const formatDate = (d) => d.toISOString().split('T')[0]
@@ -40,10 +42,13 @@ export default function eBrigadePrestationsDisplay({ email }) {
   async function loadEBrigadePrestations() {
     setLoading(true)
     setError(null)
+    console.log('[eBrigadePrestationsDisplay] Loading prestations', {dateFrom, dateTo})
     try {
       // Ensure we're on client side
       if (typeof window === 'undefined') {
-        setError('Erreur: composant doit être côté client')
+        const errMsg = 'Erreur: composant doit être côté client'
+        console.error('[eBrigadePrestationsDisplay]', errMsg)
+        setError(errMsg)
         setLoading(false)
         return
       }
@@ -55,13 +60,19 @@ export default function eBrigadePrestationsDisplay({ email }) {
       // Get email from localStorage (same way LoginForm stores it)
       const userEmail = localStorage.getItem('email')
       if (!userEmail) {
-        setError('Email non trouvé - reconnectez-vous')
+        const errMsg = 'Email non trouvé - reconnectez-vous'
+        console.error('[eBrigadePrestationsDisplay]', errMsg)
+        setError(errMsg)
         setLoading(false)
         return
       }
       url.searchParams.set('email', userEmail)
 
+      console.log('[eBrigadePrestationsDisplay] Fetching from:', url.toString())
+
       const r = await fetch(url.toString(), { credentials: 'include' })
+      console.log('[eBrigadePrestationsDisplay] Response status:', r.status)
+      
       if (r.status === 401) {
         setError('Non authentifié')
         setPrestations([])
@@ -75,6 +86,8 @@ export default function eBrigadePrestationsDisplay({ email }) {
       if (!r.ok) throw new Error(`Erreur ${r.status}`)
 
       const data = await r.json()
+      console.log('[eBrigadePrestationsDisplay] Response data:', data)
+      
       if (data.success && Array.isArray(data.prestations)) {
         setPrestations(data.prestations)
       } else {
@@ -82,6 +95,7 @@ export default function eBrigadePrestationsDisplay({ email }) {
         setPrestations([])
       }
     } catch (err) {
+      console.error('[eBrigadePrestationsDisplay] Error:', err)
       setError(err.message || 'Erreur')
       setPrestations([])
     } finally {
