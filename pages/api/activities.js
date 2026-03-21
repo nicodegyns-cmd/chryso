@@ -1,5 +1,3 @@
-const fetch = require('node-fetch-polyfill')
-
 export default async function handler(req, res){
   try{
     if (req.method === 'GET'){
