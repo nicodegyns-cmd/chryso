@@ -32,13 +32,25 @@ export default function eBrigadePrestationsDisplay({ email }) {
     setLoading(true)
     setError(null)
     try {
+      // Ensure we're on client side
+      if (typeof window === 'undefined') {
+        setError('Erreur: composant doit être côté client')
+        setLoading(false)
+        return
+      }
+
       const url = new URL('/api/user/ebrigade-prestations', window.location.origin)
       if (dateFrom) url.searchParams.set('dDebut', dateFrom)
       if (dateTo) url.searchParams.set('dFin', dateTo)
       
       // Get email from localStorage (same way LoginForm stores it)
-      const userEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : ''
-      if (userEmail) url.searchParams.set('email', userEmail)
+      const userEmail = localStorage.getItem('email')
+      if (!userEmail) {
+        setError('Email non trouvé - reconnectez-vous')
+        setLoading(false)
+        return
+      }
+      url.searchParams.set('email', userEmail)
 
       const r = await fetch(url.toString(), { credentials: 'include' })
       if (r.status === 401) {
