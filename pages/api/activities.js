@@ -77,7 +77,8 @@ export default async function handler(req, res){
       let allParticipations = Array.isArray(data) ? data : data.data || data.participations || data.results || []
       
       console.log('[api/activities] Received from eBrigade:', {
-        total: allParticipations.length
+        total: allParticipations.length,
+        sample: allParticipations[0] ? JSON.stringify(allParticipations[0], null, 2) : 'No data'
       })
 
       // Filter to only participations for THIS user (P_ID matches liaison_ebrigade_id)
@@ -101,12 +102,15 @@ export default async function handler(req, res){
 
       // Transform eBrigade format to our format
       const transformed = activities.map(p => ({
-        id: p.id || p.P_ID,
+        id: `${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`,
         analytic_id: null,
-        analytic_name: p.analytic_name || p.name || p.projet || '',
-        analytic_code: p.analytic_code || p.code || '',
-        pay_type: p.pay_type || p.type || 'GARDE',
-        date: p.date || p.date_start || p.start_date,
+        analytic_name: p.E_LIBELLE || p.name || p.projet || '',  // e.g., "Garde WEEK-END | 10h - 20h"
+        analytic_code: p.E_CODE || p.code || '',
+        pay_type: p.TE_LIBELLE || p.type || 'GARDE',  // "Garde", "Permanence", "APS", etc.
+        date: p.EH_DATE_DEBUT || p.date || p.date_start || p.start_date,
+        startTime: p.EH_DEBUT,  // e.g., "10:00:00"
+        endTime: p.EH_FIN,      // e.g., "20:00:00"
+        duration: p.EP_DUREE,   // hours
         remuneration_infi: p.remuneration_infi || p.rate_infi || null,
         remuneration_med: p.remuneration_med || p.rate_med || null,
         created_at: new Date().toISOString(),
