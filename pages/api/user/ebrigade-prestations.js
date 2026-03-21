@@ -62,19 +62,19 @@ export default async function handler(req, res) {
     const base = process.env.EBRIGADE_URL || 'http://127.0.0.1/ebrigade'
     const participationUrl = `${base.replace(/\/$/, '')}/api/export/participation.php`
 
-    // Pass liaison_ebrigade_id to filter results on eBrigade side
+    // eBrigade API returns all users' participations, so we request all data
+    // and filter by P_ID (liaison_ebrigade_id) client-side
     const payload = {
       token: process.env.EBRIGADE_TOKEN,
       dDebut,
-      dFin,
-      user_id: userRow.liaison_ebrigade_id // Use liaison_ebrigade_id to filter for this user
+      dFin
     }
 
     console.log('[api/user/ebrigade-prestations] Calling eBrigade with:', {
       url: participationUrl,
       dDebut,
       dFin,
-      user_id: userRow.liaison_ebrigade_id
+      liaison_ebrigade_id: userRow.liaison_ebrigade_id
     })
 
     const fetchResponse = await fetch(participationUrl, {
@@ -85,7 +85,7 @@ export default async function handler(req, res) {
 
     const text = await fetchResponse.text()
     
-    console.log('[api/user/ebrigade-prestations] Raw eBrigade response:', text.substring(0, 500))
+    console.log('[api/user/ebrigade-prestations] Raw eBrigade response length:', text.length)
 
     let data
     try {
@@ -98,11 +98,22 @@ export default async function handler(req, res) {
     }
 
     // Extract prestations array from response
-    // eBrigade returns array directly or nested in data/participations
-    let prestations = Array.isArray(data) ? data : data.data || data.participations || data.results || []
+    // eBrigade returns array directly
+    let allPrestations = Array.isArray(data) ? data : data.data || data.participations || data.results || []
     
-    console.log('[api/user/ebrigade-prestations] Extracted prestations:', {
-      count: prestations.length,
+    console.log('[api/user/ebrigade-prestations] Received from eBrigade:', {
+      total: allPrestations.length
+    })
+
+    // Filter prestations to only those for this user (P_ID matches liaison_ebrigade_id)
+    const prestations = allPrestations.filter(p => {
+      return p.P_ID && p.P_ID.toString() === userRow.liaison_ebrigade_id.toString()
+    })
+    
+    console.log('[api/user/ebrigade-prestations] Filtered prestations:', {
+      total: allPrestations.length,
+      filtered: prestations.length,
+      liaison_ebrigade_id: userRow.liaison_ebrigade_id,
       sample: prestations.length > 0 ? prestations[0] : null
     })
 
@@ -113,12 +124,32 @@ export default async function handler(req, res) {
       dFin
     })
 
+    // Map eBrigade prestations to our format
+    const mappedPrestations = prestations.map(p => ({
+      id: `${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`, // Unique ID for this prestation
+      date: p.EH_DATE_DEBUT,
+      dateEnd: p.EH_DATE_FIN,
+      startTime: p.EH_DEBUT,
+      endTime: p.EH_FIN,
+      duration: p.EP_DUREE, // hours
+      activity: p.E_LIBELLE, // e.g., "Garde WEEK-END | 10h - 20h"
+      activityType: p.TE_LIBELLE, // e.g., "Garde"
+      activityCode: p.E_CODE,
+      personnel: {
+        id: p.P_ID,
+        phone: p.P_PHONE,
+        nom: p.P_NOM,
+        prenom: p.P_PRENOM,
+        grade: p.P_GRADE
+      }
+    }))
+
     return res.status(200).json({
       success: true,
       dDebut,
       dFin,
-      prestations,
-      count: prestations.length
+      prestations: mappedPrestations,
+      count: mappedPrestations.length
     })
   } catch (err) {
     console.error('[api/user/ebrigade-prestations] error', err)
