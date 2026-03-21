@@ -2,7 +2,7 @@ const { getPool } = require('../../../services/db')
 const bcrypt = require('bcryptjs')
 const { sendUserCreationEmail } = require('../../../services/emailService')
 
-// Generate a random password (8 characters: mix of letters, numbers, special chars)
+// Generate a random password (10 characters: mix of letters, numbers, special chars)
 function generateRandomPassword() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%'
   let password = ''
