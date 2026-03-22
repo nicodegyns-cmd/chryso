@@ -113,17 +113,17 @@ button{min-height:38px}
 }
 
 .admin-topbar-left{display:flex;align-items:center;position:absolute;left:0}
-.admin-topbar-logo{width:120px;height:auto;display:block;margin-right:16px}
+.admin-topbar-logo{width:110px;height:auto;max-height:40px;display:block;margin-right:16px;object-fit:contain}
 .admin-topbar-right{display:flex;gap:10px;align-items:center;position:absolute;right:0}
 
 @media (max-width:920px){
   .admin-topbar-inner{max-width:calc(100% - 40px);padding:18px 16px;justify-content:space-between}
-  .admin-topbar-logo{width:100px; height:auto; transform:none; margin-left:8px}
+  .admin-topbar-logo{width:95px;height:auto;max-height:35px;transform:none;margin-left:8px;object-fit:contain}
   .admin-topbar-left{position:static;display:flex;align-items:center;gap:8px}
 }
 
 @media (max-width:480px){
-  .admin-topbar-logo{width:80px; height:auto; transform:none; margin-left:6px}
+  .admin-topbar-logo{width:75px;height:auto;max-height:30px;transform:none;margin-left:6px;object-fit:contain}
 
 /* Increase topbar vertical space to accommodate larger logo */
 .admin-topbar{padding-top:8px;padding-bottom:8px}
