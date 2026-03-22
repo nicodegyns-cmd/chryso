@@ -33,12 +33,13 @@ export default async function handler(req, res){
         return res.status(200).json({ activities: [] })
       }
 
-      // Get date range: 7 days from today
+      // Get date range: from 2 years ago to 1 year in the future (shows all activities past and future)
       const today = new Date()
-      const sevenDaysLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+      const twoYearsAgo = new Date(today.getFullYear() - 2, today.getMonth(), today.getDate())
+      const oneYearLater = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
       const formatDate = (d) => d.toISOString().split('T')[0]
-      const dDebut = formatDate(today)
-      const dFin = formatDate(sevenDaysLater)
+      const dDebut = formatDate(twoYearsAgo)
+      const dFin = formatDate(oneYearLater)
 
       // Call eBrigade API for participations
       const base = process.env.EBRIGADE_URL || 'http://127.0.0.1/ebrigade'
