@@ -113,7 +113,7 @@ export default async function handler(req, res){
         })
 
         const mailOptions = {
-          from: process.env.SMTP_FROM || 'noreply@chryso.local',
+          from: process.env.SMTP_FROM || 'noreply@fenix.local',
           to: actualRecipients.join(', '),
           subject: `Factures ${analytic.analytic_code || analytic.analytic_name} - ${new Date().toLocaleDateString('fr-FR')}`,
           html: `

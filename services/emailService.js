@@ -66,7 +66,7 @@ async function sendUserCreationEmail(email, plainPassword, firstName) {
   try {
     const mailer = getTransporter()
 
-    const appName = process.env.APP_NAME || 'Chryso'
+    const appName = process.env.APP_NAME || 'Fénix'
     const appUrl = process.env.APP_URL || 'https://www.sirona-consult.be'
 
     const htmlContent = `
@@ -173,14 +173,14 @@ Si vous n'avez pas demandé la création de ce compte, veuillez ignorer cet emai
       text: textContent,
       replyTo: fromEmail,
       headers: {
-        'X-Mailer': 'Chryso/1.0',
+        'X-Mailer': 'Fénix/1.0',
         'X-Priority': '3 (Normal)',
         'Importance': 'normal',
         'Reply-To': fromEmail,
         'Content-Type': 'text/html; charset=UTF-8',
         'MIME-Version': '1.0',
         'Precedence': 'bulk',
-        'List-ID': `<chryso-notifications.${domainFromEmail}>`,
+        'List-ID': `<fenix-notifications.${domainFromEmail}>`,
         'List-Help': `<mailto:${fromEmail}?subject=help>`,
         'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
         'Auto-Submitted': 'auto-generated',
@@ -205,7 +205,7 @@ Si vous n'avez pas demandé la création de ce compte, veuillez ignorer cet emai
 async function sendPasswordChangeEmail(email, firstName) {
   try {
     const mailer = getTransporter()
-    const appName = process.env.APP_NAME || 'Chryso'
+    const appName = process.env.APP_NAME || 'Fénix'
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -265,14 +265,14 @@ async function sendPasswordChangeEmail(email, firstName) {
       html: htmlContent,
       replyTo: fromEmail,
       headers: {
-        'X-Mailer': 'Chryso/1.0',
+        'X-Mailer': 'Fénix/1.0',
         'X-Priority': '3 (Normal)',
         'Importance': 'normal',
         'Reply-To': fromEmail,
         'Content-Type': 'text/html; charset=UTF-8',
         'MIME-Version': '1.0',
         'Precedence': 'bulk',
-        'List-ID': `<chryso-notifications.${domainFromEmail}>`,
+        'List-ID': `<fenix-notifications.${domainFromEmail}>`,
         'List-Help': `<mailto:${fromEmail}?subject=help>`,
         'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
         'Auto-Submitted': 'auto-generated',

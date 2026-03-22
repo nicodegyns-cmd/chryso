@@ -1,4 +1,4 @@
--- PostgreSQL Migration for Chryso
+-- PostgreSQL Migration for Fénix
 -- Complete schema setup from all migration files
 -- Converted from MySQL to PostgreSQL syntax
 

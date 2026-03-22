@@ -2,7 +2,7 @@
 
 ## Résumé de la fonctionnalité
 
-L'application Chryso envoie automatiquement :
+L'application Fénix envoie automatiquement :
 1. **Email de bienvenue** quand un admin crée un nouvel utilisateur (avec mot de passe temporaire)
 2. **Email de confirmation** quand un utilisateur change son mot de passe
 
@@ -12,7 +12,7 @@ L'application est configurée pour utiliser **one.com** avec l'adresse `no-reply
 
 ### Étapes de configuration one.com :
 
-1. **Va sur** https://vercel.com/projects → Chryso → Settings → Environment Variables
+1. **Va sur** https://vercel.com/projects → Fénix → Settings → Environment Variables
 
 2. **Ajoute ces variables d'environnement :**
 
@@ -69,7 +69,7 @@ SMTP_FROM=no-reply@sirona-consult.be
 EMAIL_PROVIDER=gmail
 GMAIL_USER=your-email@gmail.com
 GMAIL_PASSWORD=xxxx xxxx xxxx xxxx
-APP_NAME=Chryso
+APP_NAME=Fénix
 APP_URL=https://www.sirona-consult.be
 ```
 
@@ -85,7 +85,7 @@ APP_URL=https://www.sirona-consult.be
 ```
 EMAIL_PROVIDER=sendgrid
 SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxx
-APP_NAME=Chryso
+APP_NAME=Fénix
 APP_URL=https://www.sirona-consult.be
 ```
 
@@ -105,7 +105,7 @@ SMTP_SECURE=false
 SMTP_USER=admin@company.com
 SMTP_PASSWORD=your-password
 SMTP_FROM=noreply@company.com
-APP_NAME=Chryso
+APP_NAME=Fénix
 APP_URL=https://www.sirona-consult.be
 ```
 

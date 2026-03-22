@@ -1,4 +1,4 @@
-# Guide de Déploiement - Chryso sur Vercel + Supabase
+# Guide de Déploiement - Fénix sur Vercel + Supabase
 
 ## 📋 Vue d'ensemble
 Ce projet est configuré pour être déployé sur :
@@ -33,7 +33,7 @@ Ce projet est configuré pour être déployé sur :
 
 1. **Accéder au SQL Editor de Supabase**:
    - Aller sur https://app.supabase.com
-   - Sélectionner le projet "chryso"
+   - Sélectionner le projet "fenix"
    - Cliquer sur "SQL Editor" dans la sidebar gauche
 
 2. **Exécuter le script de migration**:
@@ -73,18 +73,18 @@ Ce projet est configuré pour être déployé sur :
 3. **Déployer**:
    - Vercel va automatiquement déployer depuis la branche `main`
    - Attendre le succès du build
-   - Votre site sera accessible à `https://chryso.vercel.app`
+   - Votre site sera accessible à `https://fenix.vercel.app`
 
 ### Étape 3: Tester la Connexion
 
 Une fois déployé sur Vercel, tester que tout fonctionne:
 
 1. **Test du login**:
-   - Aller sur `https://chryso.vercel.app/login`
+   - Aller sur `https://fenix.vercel.app/login`
    - Essayer de se connecter (la base de données est vide initialement)
 
 2. **Test de l'API**:
-   - Aller sur `https://chryso.vercel.app/api/ping`
+   - Aller sur `https://fenix.vercel.app/api/ping`
    - Vous devriez voir une réponse JSON
 
 3. **Créer un utilisateur admin** (pour données de test):

@@ -15,7 +15,7 @@
 Les changements appliqués ajoutent ces headers critiques:
 
 ```headers
-List-ID: <chryso-notifications.sirona-consult.be>
+List-ID: <fenix-notifications.sirona-consult.be>
 Auto-Submitted: auto-generated
 X-Auto-Response-Suppress: All
 List-Help: <mailto:no-reply@sirona-consult.be?subject=help>
@@ -101,7 +101,7 @@ Le code a réduit cela mais les mots de passe sont nécessaires...
 Au lieu de: no-reply@sirona-consult.be
 Essayer: notifications@sirona-consult.be
 Ou:      admin@sirona-consult.be
-Ou:      chryso@sirona-consult.be
+Ou:      fenix@sirona-consult.be
 
 Les filtres réagissent mieux aux emails d'une personne
 plutôt qu'un compte "no-reply"

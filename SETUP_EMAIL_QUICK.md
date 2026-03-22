@@ -20,7 +20,7 @@ L'application envoie maintenant automatiquement des emails lors :
 ### 2️⃣ Ajouter dans Vercel
 
 1. Va sur **https://vercel.com/projects**
-2. Clique sur **Chryso**
+2. Clique sur **Fénix**
 3. Va dans **Settings** → **Environment Variables**
 4. Ajoute ces 9 variables :
 
@@ -33,7 +33,7 @@ SMTP_SECURE         true
 SMTP_USER           no-reply@sirona-consult.be
 SMTP_PASSWORD       [Le mot de passe copié d'étape 1]
 SMTP_FROM           no-reply@sirona-consult.be
-APP_NAME            Chryso
+APP_NAME            Fénix
 APP_URL             https://www.sirona-consult.be
 ```
 
@@ -61,7 +61,7 @@ Les emails s'enverront maintenant :
 ### Email pas reçus ?
 - ✅ Vérifies le spam/courrier indésirable
 - ✅ Assure-toi que le mot de passe one.com est correct
-- ✅ Va voir les logs Vercel : https://vercel.com/projects/chryso → Deployments → current → Logs
+- ✅ Va voir les logs Vercel : https://vercel.com/projects/fenix → Deployments → current → Logs
 
 ### Erreur "Invalid credentials" ?
 - Le mot de passe one.com est peut-être incorrect

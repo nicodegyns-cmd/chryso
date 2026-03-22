@@ -1,4 +1,4 @@
-# Test de Connexion PostgreSQL - Chryso
+# Test de Connexion PostgreSQL - Fénix
 
 Ce script teste la connexion à Supabase PostgreSQL et vérifie que les tables ont été créées correctement.
 
