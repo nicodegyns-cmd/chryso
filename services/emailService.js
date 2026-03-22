@@ -160,6 +160,7 @@ Si vous n'avez pas demandé la création de ce compte, veuillez ignorer cet emai
     }
 
     const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'no-reply@sirona-consult.be'
+    const domainFromEmail = fromEmail.split('@')[1] || 'sirona-consult.be'
     
     const info = await mailer.sendMail({
       from: {
@@ -179,7 +180,11 @@ Si vous n'avez pas demandé la création de ce compte, veuillez ignorer cet emai
         'Content-Type': 'text/html; charset=UTF-8',
         'MIME-Version': '1.0',
         'Precedence': 'bulk',
-        'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`
+        'List-ID': `<chryso-notifications.${domainFromEmail}>`,
+        'List-Help': `<mailto:${fromEmail}?subject=help>`,
+        'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
+        'Auto-Submitted': 'auto-generated',
+        'X-Auto-Response-Suppress': 'All'
       }
     })
 
@@ -248,6 +253,7 @@ async function sendPasswordChangeEmail(email, firstName) {
     }
 
     const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'no-reply@sirona-consult.be'
+    const domainFromEmail = fromEmail.split('@')[1] || 'sirona-consult.be'
 
     const info = await mailer.sendMail({
       from: {
@@ -266,7 +272,11 @@ async function sendPasswordChangeEmail(email, firstName) {
         'Content-Type': 'text/html; charset=UTF-8',
         'MIME-Version': '1.0',
         'Precedence': 'bulk',
-        'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`
+        'List-ID': `<chryso-notifications.${domainFromEmail}>`,
+        'List-Help': `<mailto:${fromEmail}?subject=help>`,
+        'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
+        'Auto-Submitted': 'auto-generated',
+        'X-Auto-Response-Suppress': 'All'
       }
     })
 
