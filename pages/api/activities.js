@@ -123,16 +123,58 @@ export default async function handler(req, res){
 
       // Transform eBrigade format to our format, enriching with local activity data
       const transformed = activities.map(p => {
-        // Get the activity type from eBrigade (e.g., "Permanence", "Garde", "APS")
-        const activityType = (p.TE_LIBELLE || p.type || 'GARDE').toLowerCase()
+        // Debug: Log all fields from eBrigade participation
+        console.log(`[api/activities] eBrigade participation fields:`, {
+          E_LIBELLE: p.E_LIBELLE,
+          TE_LIBELLE: p.TE_LIBELLE,
+          E_CODE: p.E_CODE,
+          type: p.type,
+          activity_type: p.activity_type,
+          EH_DATE_DEBUT: p.EH_DATE_DEBUT,
+          allKeys: Object.keys(p)
+        })
+
+        // Get the activity type from eBrigade
+        // Try multiple sources: TE_LIBELLE, type, E_LIBELLE (extract from project name)
+        let activityType = ''
+        
+        // First try TE_LIBELLE 
+        if (p.TE_LIBELLE) {
+          activityType = p.TE_LIBELLE.toLowerCase().trim()
+        }
+        // Try type field
+        else if (p.type) {
+          activityType = p.type.toLowerCase().trim()
+        }
+        // Try activity_type field
+        else if (p.activity_type) {
+          activityType = p.activity_type.toLowerCase().trim()
+        }
+        // Extract from E_LIBELLE if it contains the type (e.g., "Permanence INFI | 10h-17h")
+        else if (p.E_LIBELLE) {
+          const libelle = p.E_LIBELLE.toLowerCase()
+          if (libelle.includes('permanence')) activityType = 'permanence'
+          else if (libelle.includes('garde')) activityType = 'garde'
+          else if (libelle.includes('aps')) activityType = 'aps'
+          else activityType = 'garde' // Default fallback
+        }
+        else {
+          activityType = 'garde' // Default fallback
+        }
+
+        console.log(`[api/activities] Detected activity type: "${activityType}"`, {
+          source: p.TE_LIBELLE ? 'TE_LIBELLE' : p.type ? 'type' : p.activity_type ? 'activity_type' : p.E_LIBELLE ? 'E_LIBELLE extraction' : 'default',
+          ebrigade: p.TE_LIBELLE || p.type || p.activity_type || p.E_LIBELLE || 'unknown'
+        })
+
         const localActivityList = localActivitiesMap[activityType] || []
         const localActivity = localActivityList[0] // Use first matching activity for this type
         
-        console.log(`[api/activities] Matching eBrigade type "${activityType}" with local activities:`, {
-          ebrigadeType: p.TE_LIBELLE,
-          foundLocal: localActivity ? 'yes' : 'no',
+        console.log(`[api/activities] Matching "${activityType}" with local activities:`, {
+          found: localActivity ? 'yes' : 'no',
           localId: localActivity?.id,
-          localPayType: localActivity?.pay_type
+          localPayType: localActivity?.pay_type,
+          availableLocal: Object.keys(localActivitiesMap)
         })
         
         return {
