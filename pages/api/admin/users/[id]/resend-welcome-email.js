@@ -1,5 +1,6 @@
 const { getPool } = require('../../../../../services/db')
 const { sendUserCreationEmail } = require('../../../../../services/emailService')
+const bcrypt = require('bcryptjs')
 
 export default async function handler(req, res) {
   const pool = getPool()
@@ -30,6 +31,10 @@ export default async function handler(req, res) {
     if (!emailResult.sent) {
       return res.status(500).json({ error: emailResult.error || 'Erreur lors de l\'envoi de l\'email' })
     }
+
+    // Hash the new password and update it in the database
+    const passwordHash = await bcrypt.hash(tempPassword, 10)
+    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, id])
 
     return res.status(200).json({
       success: true,
