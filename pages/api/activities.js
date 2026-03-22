@@ -101,23 +101,45 @@ export default async function handler(req, res){
         unfilled: activities.length
       })
 
-      // Transform eBrigade format to our format
-      const transformed = activities.map(p => ({
-        id: `${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`,
-        analytic_id: null,
-        analytic_name: p.E_LIBELLE || p.name || p.projet || '',  // e.g., "Garde WEEK-END | 10h - 20h"
-        analytic_code: p.E_CODE || p.code || '',
-        pay_type: p.TE_LIBELLE || p.type || 'GARDE',  // "Garde", "Permanence", "APS", etc.
-        date: p.EH_DATE_DEBUT || p.date || p.date_start || p.start_date,
-        startTime: p.EH_DEBUT,  // e.g., "10:00:00"
-        endTime: p.EH_FIN,      // e.g., "20:00:00"
-        duration: p.EP_DUREE,   // hours
-        remuneration_infi: p.remuneration_infi || p.rate_infi || null,
-        remuneration_med: p.remuneration_med || p.rate_med || null,
-        created_at: new Date().toISOString(),
-        // Keep original eBrigade data for reference
-        _ebrigade_raw: p
-      }))
+      // Fetch local activities from database to enrich with remuneration data
+      const [[localActivities]] = await pool.query(
+        'SELECT id, analytic_id, analytic_name, analytic_code, pay_type, remuneration_infi, remuneration_med FROM activities LIMIT 100'
+      )
+      const localActivitiesMap = {}
+      if (Array.isArray(localActivities)) {
+        localActivities.forEach(act => {
+          const key = (act.pay_type || '').toLowerCase()
+          if (!localActivitiesMap[key]) {
+            localActivitiesMap[key] = []
+          }
+          localActivitiesMap[key].push(act)
+        })
+      }
+
+      // Transform eBrigade format to our format, enriching with local activity data
+      const transformed = activities.map(p => {
+        const activityType = (p.TE_LIBELLE || p.type || 'GARDE').toLowerCase()
+        const localActivityList = localActivitiesMap[activityType] || []
+        const localActivity = localActivityList[0] // Use first matching activity
+        
+        return {
+          id: `${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`,
+          analytic_id: localActivity?.analytic_id || null,
+          analytic_name: p.E_LIBELLE || p.name || p.projet || '',  // e.g., "Garde WEEK-END | 10h - 20h"
+          analytic_code: p.E_CODE || p.code || '',
+          pay_type: p.TE_LIBELLE || p.type || 'GARDE',  // "Garde", "Permanence", "APS", etc.
+          date: p.EH_DATE_DEBUT || p.date || p.date_start || p.start_date,
+          startTime: p.EH_DEBUT,  // e.g., "10:00:00"
+          endTime: p.EH_FIN,      // e.g., "20:00:00"
+          duration: p.EP_DUREE,   // hours
+          // Use local activity remuneration if available, otherwise use eBrigade data
+          remuneration_infi: localActivity?.remuneration_infi || p.remuneration_infi || p.rate_infi || null,
+          remuneration_med: localActivity?.remuneration_med || p.remuneration_med || p.rate_med || null,
+          created_at: new Date().toISOString(),
+          // Keep original eBrigade data for reference
+          _ebrigade_raw: p
+        }
+      })
 
       return res.status(200).json({ activities: transformed })
     }
