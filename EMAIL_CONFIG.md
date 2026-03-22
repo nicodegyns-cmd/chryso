@@ -120,6 +120,66 @@ APP_URL=https://www.sirona-consult.be
 
 ## Dépannage
 
+### ⚠️ PROBLÈME CRITIQUE : Les emails vont au SPAM
+
+**La raison principale :** Les records DNS pour **SPF**, **DKIM** et **DMARC** ne sont pas configurés !
+
+Ce sont les records DNS qui authentifient tes emails. Sans eux, les fournisseurs email (Gmail, Outlook, etc) marquent tes emails comme suspects.
+
+### Solution : Configurer SPF/DKIM/DMARC chez one.com
+
+#### 1. **Configurer SPF** (le plus important)
+
+Chez **one.com** :
+1. Va sur https://one.com/admin
+2. Menu **Domaines** → sirona-consult.be → **DNS**
+3. Crée un record texte avec:
+   - **Nom**: `sirona-consult.be` (ou laisse vide selon l'interface)
+   - **Type**: TXT
+   - **Valeur**: `v=spf1 include:sendmail.one.com ~all`
+
+Cela dit aux serveurs email : "Les emails de sendmail.one.com sont autorisés pour ce domaine"
+
+#### 2. **Configurer DKIM** (fortement recommandé)
+
+One.com **génère généralement DKIM automatiquement** pour les emails:
+1. Va dans les paramètres non-reply@sirona-consult.be chez one.com
+2. Cherche "DKIM" ou "Clé DKIM"
+3. S'il n'est pas activé, active-le et copie la clé publique
+4. Crée un record DNS TXT chez one.com avec cette clé (one.com guide toi normalement)
+
+#### 3. **Configurer DMARC** (recommandé)
+
+Crée un record DNS TXT chez one.com:
+   - **Nom**: `_dmarc.sirona-consult.be`
+   - **Type**: TXT
+   - **Valeur**: `v=DMARC1; p=quarantine; rua=mailto:admin@sirona-consult.be`
+
+Cela dit: "Les emails non-authentifiés vont en quarantine, envoie moi un rapport"
+
+### ✅ Vérifier que c'est configuré
+
+1. Va sur https://mxtoolbox.com
+2. Tape `sirona-consult.be`
+3. Clique sur **Check SPF** → devrait montrer: "Syntax OK"
+4. Clique sur **Check DKIM** → devrait montrer: "Public Key Found"
+5. Clique sur **Find DMARC** → devrait montrer ton record DMARC
+
+### Résumé des changements de code
+
+Le code `emailService.js` a été amélioré avec:
+- ✅ Headers MIME corrects (Content-Type, MIME-Version)
+- ✅ Headers anti-spam (Precedence: bulk, List-Unsubscribe)
+- ✅ X-Mailer identifié correctement
+- ✅ Templates HTML bien formatés et validés
+- ✅ Adresses email corrigées (`no-reply@` au lieu de `noreply@`)
+
+Mais **l'étape DNS (SPF/DKIM/DMARC) est OBLIGATOIRE** pour que les emails ne vont pas au spam !
+
+---
+
+## Dépannage
+
 ### "SMTP not configured - logged to console only"
 → Tu n'as pas configuré SMTP_HOST, SMTP_USER, ou SMTP_PASSWORD dans Vercel
 
