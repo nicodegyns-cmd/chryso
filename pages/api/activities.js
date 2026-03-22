@@ -102,8 +102,8 @@ export default async function handler(req, res){
       })
 
       // Fetch local activities from database to enrich with remuneration data
-      const [[localActivities]] = await pool.query(
-        'SELECT id, analytic_id, analytic_name, analytic_code, pay_type, remuneration_infi, remuneration_med FROM activities LIMIT 100'
+      const [localActivities] = await pool.query(
+        'SELECT id, analytic_id, analytic_name, analytic_code, pay_type, remuneration_infi, remuneration_med FROM activities'
       )
       const localActivitiesMap = {}
       if (Array.isArray(localActivities)) {
@@ -116,11 +116,24 @@ export default async function handler(req, res){
         })
       }
 
+      console.log('[api/activities] Local activities map:', {
+        types: Object.keys(localActivitiesMap),
+        sample: Object.entries(localActivitiesMap).slice(0, 3)
+      })
+
       // Transform eBrigade format to our format, enriching with local activity data
       const transformed = activities.map(p => {
+        // Get the activity type from eBrigade (e.g., "Permanence", "Garde", "APS")
         const activityType = (p.TE_LIBELLE || p.type || 'GARDE').toLowerCase()
         const localActivityList = localActivitiesMap[activityType] || []
-        const localActivity = localActivityList[0] // Use first matching activity
+        const localActivity = localActivityList[0] // Use first matching activity for this type
+        
+        console.log(`[api/activities] Matching eBrigade type "${activityType}" with local activities:`, {
+          ebrigadeType: p.TE_LIBELLE,
+          foundLocal: localActivity ? 'yes' : 'no',
+          localId: localActivity?.id,
+          localPayType: localActivity?.pay_type
+        })
         
         return {
           id: `${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`,
@@ -133,8 +146,8 @@ export default async function handler(req, res){
           endTime: p.EH_FIN,      // e.g., "20:00:00"
           duration: p.EP_DUREE,   // hours
           // Use local activity remuneration if available, otherwise use eBrigade data
-          remuneration_infi: localActivity?.remuneration_infi || p.remuneration_infi || p.rate_infi || null,
-          remuneration_med: localActivity?.remuneration_med || p.remuneration_med || p.rate_med || null,
+          remuneration_infi: localActivity?.remuneration_infi ?? p.remuneration_infi ?? p.rate_infi ?? null,
+          remuneration_med: localActivity?.remuneration_med ?? p.remuneration_med ?? p.rate_med ?? null,
           created_at: new Date().toISOString(),
           // Keep original eBrigade data for reference
           _ebrigade_raw: p
