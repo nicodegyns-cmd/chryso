@@ -221,9 +221,17 @@ export default function PrestationsTable({ email }) {
     // Non-admin users require confirmation modal before actual save
     if (!confirmed && role !== 'admin'){
       // prepare preview: list hours and an estimated total
+      const payLower = (editing.pay_type || '').toLowerCase()
+      let gardeHoursForPreview = editing.garde_hours || 0
+      
+      // For Garde activities: auto-calculate garde_hours from total duration - sortie_hours
+      if (payLower.includes('garde') && editing.ebrigade_duration_hours && editing.sortie_hours !== null && editing.sortie_hours !== undefined) {
+        gardeHoursForPreview = editing.ebrigade_duration_hours - editing.sortie_hours
+      }
+      
       const preview = {
         hours_actual: editing.hours_actual || 0,
-        garde_hours: editing.garde_hours || 0,
+        garde_hours: gardeHoursForPreview,
         sortie_hours: editing.sortie_hours || 0,
         overtime_hours: editing.overtime_hours || 0,
         expense_amount: editing.expense_amount || 0
@@ -340,6 +348,11 @@ export default function PrestationsTable({ email }) {
       if (payLower.includes('permanence')){
         delete effective.remuneration_infi
         delete effective.remuneration_med
+      }
+      
+      // For Garde activities: auto-calculate garde_hours from total duration - sortie_hours
+      if (payLower.includes('garde') && effective.ebrigade_duration_hours && effective.sortie_hours !== null && effective.sortie_hours !== undefined) {
+        effective.garde_hours = effective.ebrigade_duration_hours - effective.sortie_hours
       }
 
       // Handle new prestation (POST) vs updating existing one (PATCH)
@@ -685,42 +698,64 @@ export default function PrestationsTable({ email }) {
                 {/* Section Heures */}
                 <div style={{padding:12,border:'1px solid #e5e7eb',borderRadius:8,background:'#f9fafb'}}>
                   <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#1f2937'}}>📊 Heures de travail</div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                    { !editingIsGarde && (
+                  
+                  {/* For Garde activities: show eBrigade calculated hours and user inputs */}
+                  {editingIsGarde && (
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                      {/* Read-only: Total hours from eBrigade */}
+                      {editing.ebrigade_duration_hours && (
+                        <div style={{padding:10,background:'#eff6ff',borderRadius:6,border:'1px solid #bfdbfe'}}>
+                          <div style={{fontSize:12,color:'#0366d6',fontWeight:600,marginBottom:6}}>📅 HEURES TOTALES (eBrigade)</div>
+                          <div style={{fontSize:16,fontWeight:700,color:'#0366d6'}}>{editing.ebrigade_duration_hours}h</div>
+                          <div style={{fontSize:11,color:'#0366d6',marginTop:4}}>Calculé depuis {editing.ebrigade_start_time || '—'} à {editing.ebrigade_end_time || '—'}</div>
+                        </div>
+                      )}
+                      
+                      {/* User inputs */}
+                      <label style={{display:'flex',flexDirection:'column'}}>
+                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SORTIE</div>
+                        <input type="number" value={editing.sortie_hours ?? ''} onChange={e=>{ setEditing({...editing, sortie_hours: e.target.value ? Number(e.target.value) : null}); }} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
+                        <div style={{fontSize:11,color:'#10b981',marginTop:6,fontWeight:600}}>💰 {ratePreview && ratePreview.rates && ratePreview.rates.detailed ? (ratePreview.rates.detailed.sortie_infi ? ratePreview.rates.detailed.sortie_infi+' €/h (infi) • '+ratePreview.rates.detailed.sortie_med+' €/h (med)' : ratePreview.rates.infi+' €/h • '+ratePreview.rates.med+' €/h') : '—'}</div>
+                      </label>
+                      
+                      <label style={{display:'flex',flexDirection:'column'}}>
+                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SUPPLÉMENTAIRES</div>
+                        <input type="number" value={editing.overtime_hours ?? ''} onChange={e=>{ setEditing({...editing, overtime_hours: e.target.value ? Number(e.target.value) : null}); }} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
+                        <div style={{fontSize:11,color:'#10b981',marginTop:6,fontWeight:600}}>💰 {ratePreview && ratePreview.rates ? (ratePreview.rates.detailed && ratePreview.rates.detailed.sortie_med ? ratePreview.rates.detailed.sortie_med+' €/h (med) • '+ratePreview.rates.detailed.sortie_infi+' €/h (infi)' : ratePreview.rates.med+' €/h • '+ratePreview.rates.infi+' €/h') : '—'}</div>
+                      </label>
+                      
+                      {/* Auto-calculated garde hours */}
+                      {editing.ebrigade_duration_hours && editing.sortie_hours && (
+                        <div style={{padding:10,background:'#f0fdf4',borderRadius:6,border:'1px solid #bbf7d0'}}>
+                          <div style={{fontSize:12,color:'#15803d',fontWeight:600,marginBottom:6}}>🧮 HEURES GARDE (Calculées)</div>
+                          <div style={{fontSize:16,fontWeight:700,color:'#15803d'}}>{(editing.ebrigade_duration_hours - (editing.sortie_hours || 0)).toFixed(2)}h</div>
+                          <div style={{fontSize:11,color:'#15803d',marginTop:4}}>= {editing.ebrigade_duration_hours}h (total) − {editing.sortie_hours}h (sortie)</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* For other activity types */}
+                  {!editingIsGarde && (
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                       <label style={{display:'flex',flexDirection:'column'}}>
                         <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES RÉELLES</div>
                         <input type="number" value={editing.hours_actual ?? ''} onChange={e=>setEditing({...editing, hours_actual: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
                       </label>
-                    ) }
-                    {/* If prestation is a garde-type show garde-specific fields */}
-                    { editingIsGarde ? (
-                      <>
-                        <label style={{display:'flex',flexDirection:'column'}}>
-                          <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES GARDE</div>
-                          <input type="number" value={editing.garde_hours ?? ''} onChange={e=>{ setEditing({...editing, garde_hours: e.target.value ? Number(e.target.value) : null}); }} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
-                          <div style={{fontSize:11,color:'#10b981',marginTop:6,fontWeight:600}}>💰 {ratePreview && ratePreview.rates && ratePreview.rates.detailed ? (ratePreview.rates.detailed.garde_infi ? ratePreview.rates.detailed.garde_infi+' €/h (infi) • '+ratePreview.rates.detailed.garde_med+' €/h (med)' : ratePreview.rates.infi+' €/h • '+ratePreview.rates.med+' €/h') : '—'}</div>
-                        </label>
-                        <label style={{display:'flex',flexDirection:'column'}}>
-                          <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SORTIE</div>
-                          <input type="number" value={editing.sortie_hours ?? ''} onChange={e=>{ setEditing({...editing, sortie_hours: e.target.value ? Number(e.target.value) : null}); }} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
-                          <div style={{fontSize:11,color:'#10b981',marginTop:6,fontWeight:600}}>💰 {ratePreview && ratePreview.rates && ratePreview.rates.detailed ? (ratePreview.rates.detailed.sortie_infi ? ratePreview.rates.detailed.sortie_infi+' €/h (infi) • '+ratePreview.rates.detailed.sortie_med+' €/h (med)' : ratePreview.rates.infi+' €/h • '+ratePreview.rates.med+' €/h') : '—'}</div>
-                        </label>
-                      </>
-                    ) : (
-                      // If not garde and not permanence and not APS, allow optional garde_hours input
-                      !editingIsPermanence && !editingIsAPS && (
+                      {/* If not garde and not permanence and not APS, allow optional garde_hours input */}
+                      {!editingIsPermanence && !editingIsAPS && (
                         <label style={{display:'flex',flexDirection:'column'}}>
                           <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES GARDE (si applicable)</div>
                           <input type="number" value={editing.garde_hours ?? ''} onChange={e=>setEditing({...editing, garde_hours: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
                         </label>
-                      )
-                    )}
-                    <label style={{display:'flex',flexDirection:'column'}}>
-                      <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SUPPLÉMENTAIRES</div>
-                      <input type="number" value={editing.overtime_hours ?? ''} onChange={e=>{ setEditing({...editing, overtime_hours: e.target.value ? Number(e.target.value) : null}); }} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
-                      <div style={{fontSize:11,color:'#10b981',marginTop:6,fontWeight:600}}>💰 {ratePreview && ratePreview.rates ? (ratePreview.rates.detailed && ratePreview.rates.detailed.sortie_med ? ratePreview.rates.detailed.sortie_med+' €/h (med) • '+ratePreview.rates.detailed.sortie_infi+' €/h (infi)' : ratePreview.rates.med+' €/h • '+ratePreview.rates.infi+' €/h') : '—'}</div>
-                    </label>
-                  </div>
+                      )}
+                      <label style={{display:'flex',flexDirection:'column'}}>
+                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SUPPLÉMENTAIRES</div>
+                        <input type="number" value={editing.overtime_hours ?? ''} onChange={e=>{ setEditing({...editing, overtime_hours: e.target.value ? Number(e.target.value) : null}); }} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
+                        <div style={{fontSize:11,color:'#10b981',marginTop:6,fontWeight:600}}>💰 {ratePreview && ratePreview.rates ? (ratePreview.rates.detailed && ratePreview.rates.detailed.sortie_med ? ratePreview.rates.detailed.sortie_med+' €/h (med) • '+ratePreview.rates.detailed.sortie_infi+' €/h (infi)' : ratePreview.rates.med+' €/h • '+ratePreview.rates.infi+' €/h') : '—'}</div>
+                      </label>
+                    </div>
+                  )}
                 </div>
 
                 {/* Section Montants */}

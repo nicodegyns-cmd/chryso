@@ -204,6 +204,10 @@ export default async function handler(req, res){
           // Use local activity remuneration if available
           remuneration_infi: localActivity?.remuneration_infi ?? p.remuneration_infi ?? p.rate_infi ?? null,
           remuneration_med: localActivity?.remuneration_med ?? p.remuneration_med ?? p.rate_med ?? null,
+          // From eBrigade: hours that will be auto-calculated from duration
+          ebrigade_duration_hours: p.EP_DUREE ? parseFloat(p.EP_DUREE) : null,
+          ebrigade_start_time: p.EH_DEBUT,
+          ebrigade_end_time: p.EH_FIN,
           created_at: new Date().toISOString(),
           _ebrigade_raw: p
         }
