@@ -144,6 +144,12 @@ export default function PrestationsTable({ email }) {
   async function openEdit(p){
     // If this is an activity (not a prestation), create a new prestation from it
     if (p.isActivity) {
+      console.log('[PrestationsTable] Opening activity:', { 
+        id: p.id, 
+        analytic_name: p.analytic_name, 
+        pay_type: p.pay_type,
+        original_p: p
+      })
       setEditing({
         id: null,
         analytic_id: p.analytic_id,
