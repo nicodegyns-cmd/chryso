@@ -150,31 +150,49 @@ export default async function handler(req, res){
           activityType = p.activity_type.toLowerCase().trim()
         }
         
-        // ENHANCEMENT: If type is generic "garde", try to extract the real type from the activity name
-        // This handles eBrigade classification mismatch where type is "Garde" but name contains the real type
-        if (activityType === 'garde' && p.E_LIBELLE) {
-          const eLibelleLower = p.E_LIBELLE.toLowerCase().trim()
+        // ENHANCEMENT: If type is generic "garde", try to extract the real type
+        // This handles eBrigade classification mismatch where type is "Garde" but another field has the real type
+        if (activityType === 'garde') {
+          let typeSource = null
           
-          // FIRST PRIORITY: Extract main code before hyphen or space
-          // This handles cases like "RMP- Bordet", "APS- Charleroi", etc.
-          const mainCode = eLibelleLower.split(/[-\s]/)[0].trim()
-          if (mainCode && mainCode !== 'garde' && localActivitiesByType[mainCode]) {
-            // Found a match with extracted code
-            activityType = mainCode
-          } else {
-            // SECOND PRIORITY: Check for specific keywords
-            if (eLibelleLower.includes('permanence')) {
-              activityType = 'permanence'
-            } else if (eLibelleLower.includes('aps')) {
-              activityType = 'aps'
-            } else if (eLibelleLower.includes('sortie')) {
-              activityType = 'sortie'
-            } else if (eLibelleLower.includes('formation')) {
-              activityType = 'formation'
-            } else if (eLibelleLower.includes('réunion')) {
-              activityType = 'réunion'
+          // FIRST: Check for "Type de garde" field (the specific field shown in eBrigade admin)
+          // Could be named: TE_TYPE_GARDE, TYPE_GARDE, TE_LIB_TYPE_GARDE, etc.
+          if (p.TE_TYPE_GARDE) {
+            typeSource = p.TE_TYPE_GARDE
+          } else if (p.TYPE_GARDE) {
+            typeSource = p.TYPE_GARDE
+          } else if (p.TE_LIB_TYPE_GARDE) {
+            typeSource = p.TE_LIB_TYPE_GARDE
+          }
+          // FALLBACK: Extract from activity name if type field not available
+          else if (p.E_LIBELLE) {
+            typeSource = p.E_LIBELLE
+          }
+          
+          if (typeSource) {
+            const typeLower = String(typeSource).toLowerCase().trim()
+            
+            // FIRST PRIORITY: Extract main code before hyphen or space
+            // This handles cases like "RMP - Bordet", "APS - Charleroi", etc.
+            const mainCode = typeLower.split(/[-\s]/)[0].trim()
+            if (mainCode && mainCode !== 'garde' && localActivitiesByType[mainCode]) {
+              // Found a match with extracted code
+              activityType = mainCode
+            } else {
+              // SECOND PRIORITY: Check for specific keywords
+              if (typeLower.includes('permanence')) {
+                activityType = 'permanence'
+              } else if (typeLower.includes('aps')) {
+                activityType = 'aps'
+              } else if (typeLower.includes('sortie')) {
+                activityType = 'sortie'
+              } else if (typeLower.includes('formation')) {
+                activityType = 'formation'
+              } else if (typeLower.includes('réunion')) {
+                activityType = 'réunion'
+              }
+              // If none of the above keywords found, keep the original type (garde)
             }
-            // If none of the above keywords found, keep the original type (garde)
           }
         }
         
