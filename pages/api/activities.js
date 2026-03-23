@@ -104,53 +104,33 @@ export default async function handler(req, res){
       // Fetch local activities from database to enrich with remuneration data
       let localActivities = []
       try {
-        // Try to fetch with ebrigade_activity_type column (after migration 013)
+        // Fetch without ebrigade_activity_type - use only pay_type for now
         const [rows] = await pool.query(
-          'SELECT id, analytic_id, analytic_name, analytic_code, pay_type, ebrigade_activity_type, remuneration_infi, remuneration_med FROM activities'
+          'SELECT id, analytic_id, analytic_name, analytic_code, pay_type, remuneration_infi, remuneration_med FROM activities'
         )
         localActivities = rows || []
       } catch (err) {
-        // If column doesn't exist yet, fetch without it
-        console.log('[api/activities] ebrigade_activity_type column not available, fetching without it')
-        try {
-          const [rows] = await pool.query(
-            'SELECT id, analytic_id, analytic_name, analytic_code, pay_type, remuneration_infi, remuneration_med FROM activities'
-          )
-          localActivities = (rows || []).map(r => ({ ...r, ebrigade_activity_type: null }))
-        } catch (err2) {
-          console.error('[api/activities] Could not fetch activities:', err2.message)
-          localActivities = []
-        }
+        console.error('[api/activities] Could not fetch activities:', err.message)
+        localActivities = []
       }
       
-      // Create two maps: one by ebrigade_activity_type (new field) and one by pay_type (fallback for old activities)
-      const localActivitiesByEbrigadeType = {}
-      const localActivitiesByPayType = {}
+      // Create single map by pay_type (only source of truth for activity type)
+      const localActivitiesByType = {}
       if (Array.isArray(localActivities)) {
         localActivities.forEach(act => {
-          // Map by explicit ebrigade_activity_type if available
-          if (act.ebrigade_activity_type) {
-            const key = act.ebrigade_activity_type.toLowerCase().trim()
-            if (!localActivitiesByEbrigadeType[key]) {
-              localActivitiesByEbrigadeType[key] = []
-            }
-            localActivitiesByEbrigadeType[key].push(act)
-          }
-          
-          // Also map by pay_type as fallback (for backward compatibility with old activities)
           if (act.pay_type) {
             const key = act.pay_type.toLowerCase().trim()
-            if (!localActivitiesByPayType[key]) {
-              localActivitiesByPayType[key] = []
+            if (!localActivitiesByType[key]) {
+              localActivitiesByType[key] = []
             }
-            localActivitiesByPayType[key].push(act)
+            localActivitiesByType[key].push(act)
           }
         })
       }
 
-      console.log('[api/activities] Local activities mapping:', {
-        byEbrigadeType: Object.entries(localActivitiesByEbrigadeType).map(([type, acts]) => ({ type, count: acts.length })),
-        byPayType: Object.entries(localActivitiesByPayType).map(([type, acts]) => ({ type, count: acts.length }))
+      console.log('[api/activities] Local activities by pay_type:', {
+        types: Object.keys(localActivitiesByType),
+        data: Object.entries(localActivitiesByType).map(([type, acts]) => ({ type, count: acts.length }))
       })
 
       // Transform eBrigade format to our format, enriching with local activity data
@@ -187,22 +167,13 @@ export default async function handler(req, res){
           EH_DATE_DEBUT: p.EH_DATE_DEBUT
         })
 
-        // Find matching local activity
-        // First try to match by explicit ebrigade_activity_type
-        let localActivity = (localActivitiesByEbrigadeType[activityType] || [])[0]
-        
-        // If not found, fallback to matching by pay_type (for backward compatibility with old activities)
-        if (!localActivity) {
-          localActivity = (localActivitiesByPayType[activityType] || [])[0]
-        }
+        // Find matching local activity by pay_type
+        let localActivity = (localActivitiesByType[activityType] || [])[0]
         
         console.log(`[api/activities] Matching "${activityType}":`, {
-          foundByEbrigadeType: localActivitiesByEbrigadeType[activityType] ? 'yes' : 'no',
-          foundByPayType: localActivitiesByPayType[activityType] ? 'yes' : 'no',
-          matched: localActivity ? 'yes' : 'no',
+          found: localActivity ? 'yes' : 'no',
           localId: localActivity?.id,
-          availableEbrigadeTypes: Object.keys(localActivitiesByEbrigadeType),
-          availablePayTypes: Object.keys(localActivitiesByPayType)
+          availableTypes: Object.keys(localActivitiesByType)
         })
         
         return {
@@ -212,8 +183,6 @@ export default async function handler(req, res){
           analytic_code: p.E_CODE || p.code || '',
           // Use local activity pay_type if matched, otherwise use eBrigade value
           pay_type: localActivity?.pay_type || p.TE_LIBELLE || p.type || 'Garde',
-          // Use local activity ebrigade_activity_type if matched, otherwise use detected type OR eBrigade value
-          ebrigade_activity_type: localActivity?.ebrigade_activity_type || p.TE_LIBELLE || p.type || 'Garde',
           date: p.EH_DATE_DEBUT || p.date || p.date_start || p.start_date,
           startTime: p.EH_DEBUT,
           endTime: p.EH_FIN,

@@ -40,13 +40,11 @@ export default function PrestationsTable({ email }) {
   const role = clientRole || null
 
   // Derived flags for the edit modal rendering
-  // Use ebrigade_activity_type if available (explicit), otherwise fall back to pay_type
-  const _editTypeSourceLower = (editing && (editing.ebrigade_activity_type || editing.pay_type)) 
-    ? String(editing.ebrigade_activity_type || editing.pay_type).toLowerCase() 
-    : ''
-  const editingIsGarde = _editTypeSourceLower.includes('garde')
-  const editingIsPermanence = _editTypeSourceLower.includes('permanence')
-  const editingIsAPS = _editTypeSourceLower.includes('aps')
+  // Use pay_type to determine which fields to show
+  const _editPayTypeLower = (editing && editing.pay_type) ? String(editing.pay_type).toLowerCase() : ''
+  const editingIsGarde = _editPayTypeLower.includes('garde')
+  const editingIsPermanence = _editPayTypeLower.includes('permanence')
+  const editingIsAPS = _editPayTypeLower.includes('aps')
 
   useEffect(() => {
     // Fetch both prestations and available activities
@@ -297,11 +295,10 @@ export default function PrestationsTable({ email }) {
       const R_INF = 20
       const R_MED = 30
       const OT_MULT = 1.5
-      // Use ebrigade_activity_type if available, otherwise pay_type
-      const typeForEstimate = (editing.ebrigade_activity_type || editing.pay_type || '').toLowerCase()
+      const payLower = (editing.pay_type || '').toLowerCase()
       let estInfi = 0
       let estMed = 0
-      if (typeForEstimate.includes('garde')) {
+      if (payLower.includes('garde')) {
         const gh = Number(preview.garde_hours || 0)
         const sh = Number(preview.sortie_hours || 0)
         const oh = Number(preview.overtime_hours || 0)
@@ -333,9 +330,8 @@ export default function PrestationsTable({ email }) {
       if (!role || (role !== 'admin' && role !== 'moderator')){
         effective.status = "En attente d'approbation"
       }
-      // Use ebrigade_activity_type if available, otherwise pay_type
-      const typeForSave = (effective.ebrigade_activity_type || effective.pay_type || '').toLowerCase()
-      if (typeForSave.includes('permanence')){
+      const payLower = (effective.pay_type || '').toLowerCase()
+      if (payLower.includes('permanence')){
         delete effective.remuneration_infi
         delete effective.remuneration_med
       }
