@@ -221,11 +221,11 @@ export default function PrestationsTable({ email }) {
     // Non-admin users require confirmation modal before actual save
     if (!confirmed && role !== 'admin'){
       // prepare preview: list hours and an estimated total
-      const payLower = (editing.pay_type || '').toLowerCase()
+      const payLowerForPreview = (editing.pay_type || '').toLowerCase()
       let gardeHoursForPreview = editing.garde_hours || 0
       
       // For Garde activities: auto-calculate garde_hours from total duration - sortie_hours
-      if (payLower.includes('garde') && editing.ebrigade_duration_hours && editing.sortie_hours !== null && editing.sortie_hours !== undefined) {
+      if (payLowerForPreview.includes('garde') && editing.ebrigade_duration_hours && editing.sortie_hours !== null && editing.sortie_hours !== undefined) {
         gardeHoursForPreview = editing.ebrigade_duration_hours - editing.sortie_hours
       }
       
