@@ -149,21 +149,35 @@ export default async function handler(req, res){
         else if (p.activity_type) {
           activityType = p.activity_type.toLowerCase().trim()
         }
-        // Last resort: extract from E_LIBELLE if it contains the type
-        else if (p.E_LIBELLE) {
+        
+        // ENHANCEMENT: If type is generic "garde" but activity name contains more specific keywords,
+        // parse the name to get the real type. This handles cases where eBrigade's type field is
+        // set to "Garde" (default) but the actual activity description is more specific.
+        if ((activityType === 'garde' || activityType === '') && p.E_LIBELLE) {
           const libelle = p.E_LIBELLE.toLowerCase()
-          if (libelle.includes('permanence')) activityType = 'permanence'
-          else if (libelle.includes('garde')) activityType = 'garde'
-          else if (libelle.includes('aps')) activityType = 'aps'
-          else if (libelle.includes('sortie')) activityType = 'sortie'
-          else if (libelle.includes('formation')) activityType = 'formation'
-          else if (libelle.includes('réunion')) activityType = 'réunion'
+          if (libelle.includes('permanence')) {
+            activityType = 'permanence'
+          } else if (libelle.includes('aps')) {
+            activityType = 'aps'
+          } else if (libelle.includes('sortie')) {
+            activityType = 'sortie'
+          } else if (libelle.includes('formation')) {
+            activityType = 'formation'
+          } else if (libelle.includes('réunion')) {
+            activityType = 'réunion'
+          }
+          // If none of the above keywords found, keep the original type (garde)
+        }
+        
+        // Final fallback: if still empty, default to garde
+        if (!activityType) {
+          activityType = 'garde'
         }
 
         console.log(`[api/activities] eBrigade participation:`, {
           ebrigadeType: p.TE_LIBELLE || p.type || p.activity_type || 'unknown',
-          normalizedType: activityType,
           E_LIBELLE: p.E_LIBELLE,
+          parsedType: activityType,
           EH_DATE_DEBUT: p.EH_DATE_DEBUT
         })
 
