@@ -186,7 +186,6 @@ export default async function handler(req, res){
           _ebrigade_raw: p
         }
       })
-      })
 
       return res.status(200).json({ activities: transformed })
     }
