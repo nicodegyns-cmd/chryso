@@ -210,7 +210,10 @@ export default async function handler(req, res){
           analytic_id: localActivity?.analytic_id || null,
           analytic_name: p.E_LIBELLE || p.name || p.projet || '',
           analytic_code: p.E_CODE || p.code || '',
-          pay_type: p.TE_LIBELLE || p.type || 'GARDE',
+          // Use local activity pay_type if matched, otherwise use eBrigade value
+          pay_type: localActivity?.pay_type || p.TE_LIBELLE || p.type || 'Garde',
+          // Use local activity ebrigade_activity_type if matched, otherwise use detected type OR eBrigade value
+          ebrigade_activity_type: localActivity?.ebrigade_activity_type || p.TE_LIBELLE || p.type || 'Garde',
           date: p.EH_DATE_DEBUT || p.date || p.date_start || p.start_date,
           startTime: p.EH_DEBUT,
           endTime: p.EH_FIN,
