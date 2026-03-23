@@ -18,7 +18,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
     if (initial) {
       setAnalyticId(initial.analytic_id ? String(initial.analytic_id) : (initial.analytic_id === 0 ? '0' : ''))
       setPayType(initial.pay_type || 'Permanence')
-      setEbrigadeType(initial.ebrigade_activity_type || 'Permanence')  // NEW
+      setEbrigadeType(initial.ebrigade_activity_type || initial.pay_type || 'Permanence')  // NEW: sync with pay_type if available
       setDate(initial.date || '')
       setRemuInfi(typeof initial.remuneration_infi !== 'undefined' && initial.remuneration_infi !== null ? String(initial.remuneration_infi) : '')
       setRemuMed(typeof initial.remuneration_med !== 'undefined' && initial.remuneration_med !== null ? String(initial.remuneration_med) : '')
@@ -27,7 +27,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       // reset when modal closed
       setAnalyticId('')
       setPayType('Permanence')
-      setEbrigadeType('Permanence')  // NEW
+      setEbrigadeType('Permanence')
       setDate('')
       setRemuInfi('')
       setRemuMed('')
@@ -107,18 +107,22 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
               </label>
             </div>
 
-            {/* Section: Lien eBrigade */}
+            {/* Section: Lien eBrigade - NOW CONTROLS BOTH TYPES */}
             <div style={{borderLeft:'3px solid #8b5cf6',paddingLeft:16}}>
               <label style={{display:'block',marginBottom:12}}>
-                <strong style={{display:'block',marginBottom:4,color:'#1f2937',fontSize:14}}>🔗 Lien eBrigade</strong>
+                <strong style={{display:'block',marginBottom:4,color:'#1f2937',fontSize:14}}>🔗 Type d'Activité</strong>
                 <select 
                   value={ebrigadeType} 
-                  onChange={e=>setEbrigadeType(e.target.value)}
+                  onChange={e=> {
+                    // Synchronize both ebrigade type AND pay type
+                    setEbrigadeType(e.target.value)
+                    setPayType(e.target.value)
+                  }}
                   style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
                 >
                   {EBRIGADE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
-                <small style={{display:'block',marginTop:6,color:'#6b7280'}}>Sélectionnez le type d'activité eBrigade correspondant</small>
+                <small style={{display:'block',marginTop:6,color:'#6b7280'}}>Détermine le type de prestation et les champs de saisie</small>
               </label>
             </div>
 
@@ -127,16 +131,13 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
               <strong style={{display:'block',marginBottom:12,color:'#1f2937',fontSize:14}}>💰 Rémunération</strong>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
                 <label style={{display:'block'}}>
-                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Type</small>
-                  <select 
-                    value={payType} 
-                    onChange={e=>setPayType(e.target.value)}
-                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
-                  >
-                    <option value="Permanence">Permanence</option>
-                    <option value="APS">APS</option>
-                    <option value="Garde">Garde</option>
-                  </select>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Type (synchronisé ci-dessus)</small>
+                  <input 
+                    type="text" 
+                    value={payType}
+                    disabled
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,background:'#f3f4f6',cursor:'not-allowed'}}
+                  />
                 </label>
                 <label style={{display:'block'}}>
                   <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Date</small>
