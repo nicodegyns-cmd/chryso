@@ -637,7 +637,7 @@ export default function PrestationsTable({ email }) {
                 </div>
 
                 {/* Section Montants */}
-                {(editing.remuneration_infi || editing.remuneration_med) && (
+                {(editing.remuneration_infi || editing.remuneration_med) && !_editPayTypeLower.includes('rmp') && (
                   <div style={{padding:12,border:'1px solid #e5e7eb',borderRadius:8,background:'#f9fafb'}}>
                     <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#1f2937'}}>💶 Montants</div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
