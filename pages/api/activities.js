@@ -150,23 +150,32 @@ export default async function handler(req, res){
           activityType = p.activity_type.toLowerCase().trim()
         }
         
-        // ENHANCEMENT: If type is generic "garde" but activity name contains more specific keywords,
-        // parse the name to get the real type. This handles cases where eBrigade's type field is
-        // set to "Garde" (default) but the actual activity description is more specific.
-        if ((activityType === 'garde' || activityType === '') && p.E_LIBELLE) {
-          const libelle = p.E_LIBELLE.toLowerCase()
-          if (libelle.includes('permanence')) {
-            activityType = 'permanence'
-          } else if (libelle.includes('aps')) {
-            activityType = 'aps'
-          } else if (libelle.includes('sortie')) {
-            activityType = 'sortie'
-          } else if (libelle.includes('formation')) {
-            activityType = 'formation'
-          } else if (libelle.includes('réunion')) {
-            activityType = 'réunion'
+        // ENHANCEMENT: If type is generic "garde", try to extract the real type from the activity name
+        // This handles eBrigade classification mismatch where type is "Garde" but name contains the real type
+        if (activityType === 'garde' && p.E_LIBELLE) {
+          const eLibelleLower = p.E_LIBELLE.toLowerCase().trim()
+          
+          // FIRST PRIORITY: Extract main code before hyphen or space
+          // This handles cases like "RMP- Bordet", "APS- Charleroi", etc.
+          const mainCode = eLibelleLower.split(/[-\s]/)[0].trim()
+          if (mainCode && mainCode !== 'garde' && localActivitiesByType[mainCode]) {
+            // Found a match with extracted code
+            activityType = mainCode
+          } else {
+            // SECOND PRIORITY: Check for specific keywords
+            if (eLibelleLower.includes('permanence')) {
+              activityType = 'permanence'
+            } else if (eLibelleLower.includes('aps')) {
+              activityType = 'aps'
+            } else if (eLibelleLower.includes('sortie')) {
+              activityType = 'sortie'
+            } else if (eLibelleLower.includes('formation')) {
+              activityType = 'formation'
+            } else if (eLibelleLower.includes('réunion')) {
+              activityType = 'réunion'
+            }
+            // If none of the above keywords found, keep the original type (garde)
           }
-          // If none of the above keywords found, keep the original type (garde)
         }
         
         // Final fallback: if still empty, default to garde
@@ -183,19 +192,6 @@ export default async function handler(req, res){
 
         // Find matching local activity by pay_type
         let localActivity = (localActivitiesByType[activityType] || [])[0]
-        
-        // If not found and E_LIBELLE contains a code (like "RMP- Bordet"), try extracting the main code
-        if (!localActivity && p.E_LIBELLE) {
-          const eLibelleLower = p.E_LIBELLE.toLowerCase().trim()
-          // Extract main code before hyphen or space (e.g., "RMP" from "RMP- Bordet")
-          const mainCode = eLibelleLower.split(/[-\s]/)[0].trim()
-          if (mainCode && mainCode !== activityType) {
-            localActivity = (localActivitiesByType[mainCode] || [])[0]
-            if (localActivity) {
-              activityType = mainCode  // Use extracted code as the matched type
-            }
-          }
-        }
         
         console.log(`[api/activities] Matching "${activityType}":`, {
           found: localActivity ? 'yes' : 'no',
