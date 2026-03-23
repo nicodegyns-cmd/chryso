@@ -103,97 +103,89 @@ export default async function handler(req, res){
 
       // Fetch local activities from database to enrich with remuneration data
       const [localActivities] = await pool.query(
-        'SELECT id, analytic_id, analytic_name, analytic_code, pay_type, remuneration_infi, remuneration_med FROM activities'
+        'SELECT id, analytic_id, analytic_name, analytic_code, pay_type, ebrigade_activity_type, remuneration_infi, remuneration_med FROM activities'
       )
-      const localActivitiesMap = {}
+      
+      // Create map by eBrigade activity type for exact matching
+      const localActivitiesByEbrigadeType = {}
       if (Array.isArray(localActivities)) {
         localActivities.forEach(act => {
-          const key = (act.pay_type || '').toLowerCase()
-          if (!localActivitiesMap[key]) {
-            localActivitiesMap[key] = []
+          const key = (act.ebrigade_activity_type || '').toLowerCase().trim()
+          if (key) {
+            if (!localActivitiesByEbrigadeType[key]) {
+              localActivitiesByEbrigadeType[key] = []
+            }
+            localActivitiesByEbrigadeType[key].push(act)
           }
-          localActivitiesMap[key].push(act)
         })
       }
 
-      console.log('[api/activities] Local activities map:', {
-        types: Object.keys(localActivitiesMap),
-        sample: Object.entries(localActivitiesMap).slice(0, 3)
+      console.log('[api/activities] Local activities by eBrigade type:', {
+        types: Object.keys(localActivitiesByEbrigadeType),
+        data: Object.entries(localActivitiesByEbrigadeType).map(([type, acts]) => ({ type, count: acts.length }))
       })
 
       // Transform eBrigade format to our format, enriching with local activity data
       const transformed = activities.map(p => {
-        // Debug: Log all fields from eBrigade participation
-        console.log(`[api/activities] eBrigade participation fields:`, {
-          E_LIBELLE: p.E_LIBELLE,
-          TE_LIBELLE: p.TE_LIBELLE,
-          E_CODE: p.E_CODE,
-          type: p.type,
-          activity_type: p.activity_type,
-          EH_DATE_DEBUT: p.EH_DATE_DEBUT,
-          allKeys: Object.keys(p)
-        })
-
         // Get the activity type from eBrigade
-        // Try multiple sources: TE_LIBELLE, type, E_LIBELLE (extract from project name)
         let activityType = ''
         
-        // First try TE_LIBELLE 
+        // Primary source: TE_LIBELLE (Type d'Engagement - the most reliable field)
         if (p.TE_LIBELLE) {
           activityType = p.TE_LIBELLE.toLowerCase().trim()
         }
-        // Try type field
+        // Fallback: other fields
         else if (p.type) {
           activityType = p.type.toLowerCase().trim()
         }
-        // Try activity_type field
         else if (p.activity_type) {
           activityType = p.activity_type.toLowerCase().trim()
         }
-        // Extract from E_LIBELLE if it contains the type (e.g., "Permanence INFI | 10h-17h")
+        // Last resort: extract from E_LIBELLE if it contains the type
         else if (p.E_LIBELLE) {
           const libelle = p.E_LIBELLE.toLowerCase()
           if (libelle.includes('permanence')) activityType = 'permanence'
           else if (libelle.includes('garde')) activityType = 'garde'
           else if (libelle.includes('aps')) activityType = 'aps'
-          else activityType = 'garde' // Default fallback
-        }
-        else {
-          activityType = 'garde' // Default fallback
+          else if (libelle.includes('sortie')) activityType = 'sortie'
+          else if (libelle.includes('formation')) activityType = 'formation'
+          else if (libelle.includes('réunion')) activityType = 'réunion'
         }
 
-        console.log(`[api/activities] Detected activity type: "${activityType}"`, {
-          source: p.TE_LIBELLE ? 'TE_LIBELLE' : p.type ? 'type' : p.activity_type ? 'activity_type' : p.E_LIBELLE ? 'E_LIBELLE extraction' : 'default',
-          ebrigade: p.TE_LIBELLE || p.type || p.activity_type || p.E_LIBELLE || 'unknown'
+        console.log(`[api/activities] eBrigade participation:`, {
+          ebrigadeType: p.TE_LIBELLE || p.type || p.activity_type || 'unknown',
+          normalizedType: activityType,
+          E_LIBELLE: p.E_LIBELLE,
+          EH_DATE_DEBUT: p.EH_DATE_DEBUT
         })
 
-        const localActivityList = localActivitiesMap[activityType] || []
-        const localActivity = localActivityList[0] // Use first matching activity for this type
+        // Find matching local activity using eBrigade type
+        const localActivityList = localActivitiesByEbrigadeType[activityType] || []
+        const localActivity = localActivityList[0]
         
-        console.log(`[api/activities] Matching "${activityType}" with local activities:`, {
+        console.log(`[api/activities] Matching "${activityType}":`, {
           found: localActivity ? 'yes' : 'no',
           localId: localActivity?.id,
-          localPayType: localActivity?.pay_type,
-          availableLocal: Object.keys(localActivitiesMap)
+          availableTypes: Object.keys(localActivitiesByEbrigadeType)
         })
         
         return {
           id: `${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`,
           analytic_id: localActivity?.analytic_id || null,
-          analytic_name: p.E_LIBELLE || p.name || p.projet || '',  // e.g., "Garde WEEK-END | 10h - 20h"
+          analytic_name: p.E_LIBELLE || p.name || p.projet || '',
           analytic_code: p.E_CODE || p.code || '',
-          pay_type: p.TE_LIBELLE || p.type || 'GARDE',  // "Garde", "Permanence", "APS", etc.
+          pay_type: p.TE_LIBELLE || p.type || 'GARDE',
           date: p.EH_DATE_DEBUT || p.date || p.date_start || p.start_date,
-          startTime: p.EH_DEBUT,  // e.g., "10:00:00"
-          endTime: p.EH_FIN,      // e.g., "20:00:00"
-          duration: p.EP_DUREE,   // hours
-          // Use local activity remuneration if available, otherwise use eBrigade data
+          startTime: p.EH_DEBUT,
+          endTime: p.EH_FIN,
+          duration: p.EP_DUREE,
+          // Use local activity remuneration if available
           remuneration_infi: localActivity?.remuneration_infi ?? p.remuneration_infi ?? p.rate_infi ?? null,
           remuneration_med: localActivity?.remuneration_med ?? p.remuneration_med ?? p.rate_med ?? null,
           created_at: new Date().toISOString(),
-          // Keep original eBrigade data for reference
           _ebrigade_raw: p
         }
+      })
       })
 
       return res.status(200).json({ activities: transformed })
