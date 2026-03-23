@@ -102,9 +102,26 @@ export default async function handler(req, res){
       })
 
       // Fetch local activities from database to enrich with remuneration data
-      const [localActivities] = await pool.query(
-        'SELECT id, analytic_id, analytic_name, analytic_code, pay_type, ebrigade_activity_type, remuneration_infi, remuneration_med FROM activities'
-      )
+      let localActivities = []
+      try {
+        // Try to fetch with ebrigade_activity_type column (after migration 013)
+        const [rows] = await pool.query(
+          'SELECT id, analytic_id, analytic_name, analytic_code, pay_type, ebrigade_activity_type, remuneration_infi, remuneration_med FROM activities'
+        )
+        localActivities = rows || []
+      } catch (err) {
+        // If column doesn't exist yet, fetch without it
+        console.log('[api/activities] ebrigade_activity_type column not available, fetching without it')
+        try {
+          const [rows] = await pool.query(
+            'SELECT id, analytic_id, analytic_name, analytic_code, pay_type, remuneration_infi, remuneration_med FROM activities'
+          )
+          localActivities = (rows || []).map(r => ({ ...r, ebrigade_activity_type: null }))
+        } catch (err2) {
+          console.error('[api/activities] Could not fetch activities:', err2.message)
+          localActivities = []
+        }
+      }
       
       // Create two maps: one by ebrigade_activity_type (new field) and one by pay_type (fallback for old activities)
       const localActivitiesByEbrigadeType = {}

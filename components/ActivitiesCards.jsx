@@ -11,10 +11,16 @@ export default function ActivitiesCards({ email, onEditActivity }) {
     setLoading(true)
     setError(null)
     
-    fetch('/api/activities')
-      .then(r => { if (!r.ok) throw new Error('Échec'); return r.json() })
-      .then(d => setActivities(d.activities || []))
-      .catch(e => setError(e.message || 'Erreur'))
+    fetch(`/api/activities?email=${encodeURIComponent(email)}`)
+      .then(r => { if (!r.ok) throw new Error(`Échec: ${r.status}`); return r.json() })
+      .then(d => {
+        console.log('[ActivitiesCards] Received:', d)
+        setActivities(d.activities || [])
+      })
+      .catch(e => {
+        console.error('[ActivitiesCards] Error:', e)
+        setError(e.message || 'Erreur')
+      })
       .finally(() => setLoading(false))
   }, [email])
 

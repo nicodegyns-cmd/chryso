@@ -5,27 +5,48 @@ export default async function handler(req, res){
   try{
     if (req.method === 'GET'){
       try {
-        const [rows] = await pool.query('SELECT a.id, a.analytic_id, a.pay_type, a.ebrigade_activity_type, a.date, a.remuneration_infi, a.remuneration_med, a.created_at FROM activities a ORDER BY a.id DESC')
+        // Try getting all activities with standard columns only
+        const [rows] = await pool.query('SELECT a.id, a.analytic_id, a.pay_type, a.date, a.remuneration_infi, a.remuneration_med, a.created_at FROM activities a ORDER BY a.id DESC')
         
-        // If there are rows, try to join analytics data, otherwise skip
+        // If there are rows, try to get analytics and add ebrigade_activity_type if it exists
         let result = rows
         if (rows && rows.length > 0) {
+          // Get analytics data
           const [analytics] = await pool.query('SELECT id, name, code FROM analytics')
           const analyticsMap = {}
           if (Array.isArray(analytics)) {
             analytics.forEach(a => analyticsMap[a.id] = a)
           }
           
-          result = rows.map(row => ({
-            ...row,
-            analytic_name: analyticsMap[row.analytic_id]?.name || null,
-            analytic_code: analyticsMap[row.analytic_id]?.code || null
-          }))
+          // Try to get ebrigade_activity_type for each activity
+          try {
+            const [activitiesWithTypes] = await pool.query('SELECT id, ebrigade_activity_type FROM activities')
+            const typesMap = {}
+            if (Array.isArray(activitiesWithTypes)) {
+              activitiesWithTypes.forEach(a => typesMap[a.id] = a.ebrigade_activity_type)
+            }
+            
+            result = rows.map(row => ({
+              ...row,
+              ebrigade_activity_type: typesMap[row.id] || null,
+              analytic_name: analyticsMap[row.analytic_id]?.name || null,
+              analytic_code: analyticsMap[row.analytic_id]?.code || null
+            }))
+          } catch (typeErr) {
+            // ebrigade_activity_type column doesn't exist yet, just use rows without it
+            console.log('[api/admin/activities] ebrigade_activity_type column not available yet')
+            result = rows.map(row => ({
+              ...row,
+              ebrigade_activity_type: null,
+              analytic_name: analyticsMap[row.analytic_id]?.name || null,
+              analytic_code: analyticsMap[row.analytic_id]?.code || null
+            }))
+          }
         }
         
         return res.status(200).json({ items: result })
       } catch (queryErr) {
-        console.error('[api/admin/activities] Query error:', queryErr)
+        console.error('[api/admin/activities] Query error:', queryErr.message)
         throw queryErr
       }
     }
