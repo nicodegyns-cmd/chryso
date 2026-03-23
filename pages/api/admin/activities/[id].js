@@ -14,24 +14,25 @@ export default async function handler(req, res){
       const { analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med } = req.body || {}
       const updates = []
       const params = []
-      if (typeof analytic_id !== 'undefined') { updates.push('analytic_id = ?'); params.push(analytic_id) }
-      if (typeof analytic_name !== 'undefined') { updates.push('analytic_name = ?'); params.push(analytic_name) }
-      if (typeof analytic_code !== 'undefined') { updates.push('analytic_code = ?'); params.push(analytic_code) }
-      if (typeof pay_type !== 'undefined') { updates.push('pay_type = ?'); params.push(pay_type) }
-      if (typeof date !== 'undefined') { updates.push('date = ?'); params.push(date) }
-      if (typeof remuneration_infi !== 'undefined') { updates.push('remuneration_infi = ?'); params.push(remuneration_infi) }
-      if (typeof remuneration_med !== 'undefined') { updates.push('remuneration_med = ?'); params.push(remuneration_med) }
+      let paramIndex = 1
+      if (typeof analytic_id !== 'undefined') { updates.push(`analytic_id = $${paramIndex++}`); params.push(analytic_id) }
+      if (typeof analytic_name !== 'undefined') { updates.push(`analytic_name = $${paramIndex++}`); params.push(analytic_name) }
+      if (typeof analytic_code !== 'undefined') { updates.push(`analytic_code = $${paramIndex++}`); params.push(analytic_code) }
+      if (typeof pay_type !== 'undefined') { updates.push(`pay_type = $${paramIndex++}`); params.push(pay_type) }
+      if (typeof date !== 'undefined') { updates.push(`date = $${paramIndex++}`); params.push(date) }
+      if (typeof remuneration_infi !== 'undefined') { updates.push(`remuneration_infi = $${paramIndex++}`); params.push(remuneration_infi) }
+      if (typeof remuneration_med !== 'undefined') { updates.push(`remuneration_med = $${paramIndex++}`); params.push(remuneration_med) }
 
       if (updates.length === 0) return res.status(400).json({ error: 'no fields' })
       params.push(id)
-      const sql = `UPDATE activities SET ${updates.join(', ')} WHERE id = $1`
-      await pool.execute(sql, params)
+      const sql = `UPDATE activities SET ${updates.join(', ')} WHERE id = $${paramIndex}`
+      await pool.query(sql, params)
       const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, created_at FROM activities WHERE id = $1', [id])
       return res.status(200).json({ item: row })
     }
 
     if (req.method === 'DELETE'){
-      await pool.execute('DELETE FROM activities WHERE id = $1', [id])
+      await pool.query('DELETE FROM activities WHERE id = $1', [id])
       return res.status(204).end()
     }
 
