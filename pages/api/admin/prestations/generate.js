@@ -15,7 +15,7 @@ export default async function handler(req, res){
     let analyticId = null
     if (activity_id) {
       try{
-        const [[act]] = await pool.query('SELECT analytic_id FROM activities WHERE id = ? LIMIT 1', [activity_id])
+        const [[act]] = await pool.query('SELECT analytic_id FROM activities WHERE id = $1 LIMIT 1', [activity_id])
         if (act && act.analytic_id) analyticId = act.analytic_id
       }catch(e){
         console.warn('failed to resolve activity analytic', e)
@@ -29,7 +29,7 @@ export default async function handler(req, res){
         const [result] = await pool.execute(sql, [user_id, analyticId, activity_id || null, date, type])
     const id = result.insertId
 
-    const [rows] = await pool.query('SELECT * FROM prestations WHERE id = ? LIMIT 1', [id])
+    const [rows] = await pool.query('SELECT * FROM prestations WHERE id = $1 LIMIT 1', [id])
     return res.status(200).json({ item: rows[0] })
   }catch(err){
     console.error('generate prestation error', err && err.stack ? err.stack : err)

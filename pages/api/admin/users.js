@@ -52,9 +52,9 @@ export default async function handler(req, res) {
     const passwordHash = await bcrypt.hash(plainPassword, 10)
 
     try {
-      const [result] = await pool.execute(
+      const [result] = await pool.query(
         `INSERT INTO users (email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, password_hash)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
         [
           (email || '').toLowerCase(),
           roleValue,
@@ -73,8 +73,8 @@ export default async function handler(req, res) {
         ]
       )
 
-      const insertedId = result.insertId
-      const [rows] = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction FROM users WHERE id = ?', [insertedId])
+      const insertedId = result.rows[0].id
+      const [rows] = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction FROM users WHERE id = $1', [insertedId])
       const user = rows && rows[0] ? rows[0] : null
 
       console.log('[api/admin/users] Created user with auto-generated password:', { email })

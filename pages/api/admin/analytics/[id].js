@@ -15,7 +15,7 @@ export default async function handler(req, res) {
       return []
     }
     if (req.method === 'GET') {
-      const [[row]] = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at FROM analytics WHERE id = ?', [id])
+      const [[row]] = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at FROM analytics WHERE id = $1', [id])
       if (!row) return res.status(404).json({ error: 'not found' })
       const item = {
         id: row.id,
@@ -46,9 +46,9 @@ export default async function handler(req, res) {
 
       if (updates.length === 0) return res.status(400).json({ error: 'no fields' })
       params.push(id)
-      const sql = `UPDATE analytics SET ${updates.join(', ')} WHERE id = ?`
+      const sql = `UPDATE analytics SET ${updates.join(', ')} WHERE id = $1`
       await pool.execute(sql, params)
-      const [[row]] = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at FROM analytics WHERE id = ?', [id])
+      const [[row]] = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at FROM analytics WHERE id = $1', [id])
       const item = {
         id: row.id,
         name: row.name,
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
-      await pool.execute('DELETE FROM analytics WHERE id = ?', [id])
+      await pool.execute('DELETE FROM analytics WHERE id = $1', [id])
       return res.status(204).end()
     }
 

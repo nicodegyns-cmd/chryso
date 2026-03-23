@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
   if (method === 'GET') {
     try {
-      const [rows] = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id FROM users WHERE id = ?', [id])
+      const [rows] = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id FROM users WHERE id = $1', [id])
       if (!rows || rows.length === 0) return res.status(404).json({ error: 'not_found' })
       const u = rows[0]
       // return user as-is; `role` may be a comma-separated list of canonical codes
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       }
       const roleValue = normalizeRoles(role)
       await pool.query(
-        `UPDATE users SET email = ?, role = ?, first_name = ?, last_name = ?, ninami = ?, telephone = ?, address = ?, niss = ?, bce = ?, company = ?, account = ?, fonction = ?, liaison_ebrigade_id = ?, updated_at = NOW() WHERE id = ?`,
+        `UPDATE users SET email = ?, role = ?, first_name = ?, last_name = ?, ninami = ?, telephone = ?, address = ?, niss = ?, bce = ?, company = ?, account = ?, fonction = ?, liaison_ebrigade_id = ?, updated_at = NOW() WHERE id = $1`,
         [
           email ? email.toLowerCase() : null,
           roleValue,
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
           id,
         ]
       )
-      const [rows] = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id FROM users WHERE id = ?', [id])
+      const [rows] = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id FROM users WHERE id = $1', [id])
       return res.status(200).json({ user: rows[0] })
     } catch (err) {
       console.error('[api/admin/users/[id]] PUT error', err)
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
 
   if (method === 'DELETE') {
     try {
-      await pool.query('DELETE FROM users WHERE id = ?', [id])
+      await pool.query('DELETE FROM users WHERE id = $1', [id])
       return res.status(204).end()
     } catch (err) {
       console.error('[api/admin/users/[id]] DELETE error', err)

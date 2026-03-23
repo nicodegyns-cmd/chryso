@@ -49,13 +49,13 @@ export default async function handler(req, res) {
       const distArr = Array.isArray(distribution) ? distribution : (typeof distribution === 'string' ? distribution.split(/[,;\n]+/).map(s=>s.trim()).filter(Boolean) : [])
 
       try {
-        const [result] = await pool.execute(
-          'INSERT INTO analytics (name, analytic_type, code, entite, distribution, description) VALUES (?, ?, ?, ?, ?, ?)',
+        const [result] = await pool.query(
+          'INSERT INTO analytics (name, analytic_type, code, entite, distribution, description) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
           [name, analytic || 'PDF', cleanedCode, entite || null, distArr.length ? JSON.stringify(distArr) : null, description || null]
         )
 
-        const insertId = result.insertId
-        const [[row]] = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at FROM analytics WHERE id = ?', [insertId])
+        const insertId = result.rows[0].id
+        const [[row]] = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at FROM analytics WHERE id = $1', [insertId])
         const item = {
           id: row.id,
           name: row.name,

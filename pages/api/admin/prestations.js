@@ -36,7 +36,7 @@ export default async function handler(req, res){
 
       // Find user by email
       const [users] = await pool.query(
-        'SELECT id FROM users WHERE LOWER(email) = ?',
+        'SELECT id FROM users WHERE LOWER(email) = $1',
         [(userEmail || '').toLowerCase()]
       )
       if (!users || users.length === 0) {
@@ -46,14 +46,14 @@ export default async function handler(req, res){
       const userId = users[0].id
 
       // Insert new prestation
-      const [result] = await pool.execute(
+      const [result] = await pool.query(
         `INSERT INTO prestations (
           user_id, analytic_id, date, pay_type,
           hours_actual, garde_hours, sortie_hours, overtime_hours,
           remuneration_infi, remuneration_med,
           comments, expense_amount, expense_comment, proof_image,
           status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW()) RETURNING id`,
         [
           userId,
           analytic_id || null,
@@ -73,7 +73,7 @@ export default async function handler(req, res){
         ]
       )
 
-      const insertId = result.insertId
+      const insertId = result.rows[0].id
 
       // Fetch and return the newly created prestation with user and analytic info
       const [[newRow]] = await pool.query(
@@ -81,7 +81,7 @@ export default async function handler(req, res){
          FROM prestations p
          LEFT JOIN users u ON p.user_id = u.id
          LEFT JOIN analytics an ON p.analytic_id = an.id
-         WHERE p.id = ? LIMIT 1`,
+         WHERE p.id = $1 LIMIT 1`,
         [insertId]
       )
 
