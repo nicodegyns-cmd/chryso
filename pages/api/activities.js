@@ -185,11 +185,22 @@ export default async function handler(req, res){
             // FIRST PRIORITY: Extract main code before hyphen or space
             // This handles cases like "RMP - Bordet", "APS - Charleroi", etc.
             const mainCode = typeLower.split(/[-\s]/)[0].trim()
+            
+            console.log(`[api/activities] Extracting code from garde:`, {
+              typeSource,
+              typeLower,
+              mainCode,
+              inLocalActivities: !!localActivitiesByType[mainCode],
+              availableTypes: Object.keys(localActivitiesByType)
+            })
+            
             if (mainCode && mainCode !== 'garde' && localActivitiesByType[mainCode]) {
               // Found a match with extracted code
+              console.log(`[api/activities] ✅ Matched code "${mainCode}" to local activity`)
               activityType = mainCode
             } else {
               // SECOND PRIORITY: Check for specific keywords
+              console.log(`[api/activities] Code "${mainCode}" not found, checking keywords`)
               if (typeLower.includes('permanence')) {
                 activityType = 'permanence'
               } else if (typeLower.includes('aps')) {
