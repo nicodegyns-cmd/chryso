@@ -45,6 +45,7 @@ export default function PrestationsTable({ email }) {
   const editingIsGarde = _editPayTypeLower.includes('garde')
   const editingIsPermanence = _editPayTypeLower.includes('permanence')
   const editingIsAPS = _editPayTypeLower.includes('aps')
+  const editingIsRMP = _editPayTypeLower.includes('rmp')
 
   useEffect(() => {
     // Fetch both prestations and available activities
@@ -759,7 +760,7 @@ export default function PrestationsTable({ email }) {
                 </div>
 
                 {/* Section Montants */}
-                { !editingIsPermanence && !editingIsGarde && !editingIsAPS && (
+                { !editingIsPermanence && !editingIsGarde && !editingIsAPS && !editingIsRMP && (
                   <div style={{padding:12,border:'1px solid #e5e7eb',borderRadius:8,background:'#f9fafb'}}>
                     <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#1f2937'}}>💶 Montants</div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
