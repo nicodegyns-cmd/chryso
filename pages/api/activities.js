@@ -135,6 +135,16 @@ export default async function handler(req, res){
 
       // Transform eBrigade format to our format, enriching with local activity data
       const transformed = activities.map(p => {
+        // Debug: Log all eBrigade fields to understand structure
+        console.log(`[api/activities] eBrigade fields for participation:`, {
+          TE_LIBELLE: p.TE_LIBELLE,
+          TE_TYPE_GARDE: p.TE_TYPE_GARDE,
+          TYPE_GARDE: p.TYPE_GARDE,
+          TE_LIB_TYPE_GARDE: p.TE_LIB_TYPE_GARDE,
+          E_LIBELLE: p.E_LIBELLE,
+          all_keys: Object.keys(p).filter(k => k.toUpperCase().includes('GARDE') || k.toUpperCase().includes('TYPE'))
+        })
+        
         // Get the activity type from eBrigade
         let activityType = ''
         
