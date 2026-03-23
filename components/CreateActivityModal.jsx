@@ -66,6 +66,11 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       remuneration_infi: infi,
       remuneration_med: med
     }
+    console.log('[CreateActivityModal] SUBMITTING:', {
+      payType: payType,
+      ebrigadeType: ebrigadeType,
+      payload: payload
+    })
     const isEdit = initial && (initial.id || initial.id === 0)
     if (isEdit && typeof onUpdate === 'function') {
       onUpdate(initial.id, payload)

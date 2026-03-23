@@ -59,8 +59,12 @@ export default async function handler(req, res){
         // Use ebrigade_activity_type if provided, otherwise use pay_type
         const typeToSave = ebrigade_activity_type || pay_type
         
-        console.log('[api/admin/activities] POST payload:', {
-          analytic_id, analytic_name, analytic_code, pay_type, ebrigade_activity_type, typeToSave
+        console.log('[api/admin/activities] POST RECEIVED:', {
+          analytic_id, analytic_name, analytic_code, 
+          pay_type: pay_type,
+          ebrigade_activity_type: ebrigade_activity_type,
+          typeToSave: typeToSave,
+          fullBody: req.body
         })
         
         // Try to save with both fields if column exists
