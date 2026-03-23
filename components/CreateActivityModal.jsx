@@ -11,7 +11,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
   const [error, setError] = useState(null)
 
   // eBrigade activity types
-  const EBRIGADE_TYPES = ['Permanence', 'Garde', 'APS', 'Sortie', 'Formation', 'Réunion']
+  const EBRIGADE_TYPES = ['Permanence', 'Garde', 'RMP', 'APS', 'Sortie', 'Formation', 'Réunion']
 
   useEffect(()=>{ if(open) loadAnalytics() }, [open])
   useEffect(() => {
