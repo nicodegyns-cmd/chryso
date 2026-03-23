@@ -184,6 +184,19 @@ export default async function handler(req, res){
         // Find matching local activity by pay_type
         let localActivity = (localActivitiesByType[activityType] || [])[0]
         
+        // If not found and E_LIBELLE contains a code (like "RMP- Bordet"), try extracting the main code
+        if (!localActivity && p.E_LIBELLE) {
+          const eLibelleLower = p.E_LIBELLE.toLowerCase().trim()
+          // Extract main code before hyphen or space (e.g., "RMP" from "RMP- Bordet")
+          const mainCode = eLibelleLower.split(/[-\s]/)[0].trim()
+          if (mainCode && mainCode !== activityType) {
+            localActivity = (localActivitiesByType[mainCode] || [])[0]
+            if (localActivity) {
+              activityType = mainCode  // Use extracted code as the matched type
+            }
+          }
+        }
+        
         console.log(`[api/activities] Matching "${activityType}":`, {
           found: localActivity ? 'yes' : 'no',
           localId: localActivity?.id,
