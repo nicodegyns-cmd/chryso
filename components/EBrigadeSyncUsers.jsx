@@ -6,6 +6,7 @@ export default function EBrigadeSyncUsers() {
   const [error, setError] = useState(null)
   const [pendingCount, setPendingCount] = useState(null)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [loadingCount, setLoadingCount] = useState(true)
 
   // Load pending count on mount
   useEffect(() => {
@@ -13,14 +14,22 @@ export default function EBrigadeSyncUsers() {
   }, [])
 
   async function loadPendingCount() {
+    setLoadingCount(true)
     try {
       const resp = await fetch('/api/admin/users/pending-count')
       if (resp.ok) {
         const data = await resp.json()
+        console.log('Pending count loaded:', data)
         setPendingCount(data.pendingCount)
+      } else {
+        console.error('Error loading pending count:', resp.status)
+        setPendingCount(0)
       }
     } catch (err) {
       console.error('Error loading pending count:', err)
+      setPendingCount(0)
+    } finally {
+      setLoadingCount(false)
     }
   }
 
@@ -90,7 +99,7 @@ export default function EBrigadeSyncUsers() {
             </h2>
             <p style={{ marginBottom: '24px', color: '#4b5563', fontSize: '15px', lineHeight: '1.5' }}>
               Êtes-vous sûr d'envoyer le lien d'invitation à 
-              <strong style={{ color: '#3b82f6' }}> {pendingCount || 'X'} profil{pendingCount !== 1 ? 's' : ''}</strong> 
+              <strong style={{ color: '#3b82f6' }}> {loadingCount ? '...' : pendingCount} profil{(pendingCount === 0 || pendingCount === 1) ? '' : 's'}</strong> 
               {' '}en attente ?
             </p>
             <div style={{
@@ -176,7 +185,7 @@ export default function EBrigadeSyncUsers() {
               minWidth: '24px',
               textAlign: 'center'
             }}>
-              {pendingCount}
+              {loadingCount ? '...' : pendingCount}
             </span>
           )}
         </button>
