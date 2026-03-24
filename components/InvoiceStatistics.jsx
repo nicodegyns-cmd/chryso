@@ -7,7 +7,8 @@ export default function InvoiceStatistics() {
     startMonth: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'),
     endMonth: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'),
     role: '', // empty = all, 'INFI', 'MED'
-    userId: '' // empty = all
+    userId: '', // empty = all
+    analyticId: '' // empty = all
   })
 
   useEffect(() => {
@@ -22,6 +23,7 @@ export default function InvoiceStatistics() {
       if (filters.endMonth) params.append('endMonth', filters.endMonth)
       if (filters.role) params.append('role', filters.role)
       if (filters.userId) params.append('userId', filters.userId)
+      if (filters.analyticId) params.append('analyticId', filters.analyticId)
       
       const r = await fetch('/api/admin/statistics/invoices?' + params.toString())
       if (!r.ok) throw new Error('failed')
@@ -89,6 +91,8 @@ export default function InvoiceStatistics() {
   }, [data])
 
   const [users, setUsers] = useState([])
+  const [analytics, setAnalytics] = useState([])
+  
   useEffect(() => {
     async function loadUsers() {
       try {
@@ -101,7 +105,21 @@ export default function InvoiceStatistics() {
         console.error('load users failed', e)
       }
     }
+    
+    async function loadAnalytics() {
+      try {
+        const r = await fetch('/api/analytics')
+        if (r.ok) {
+          const d = await r.json()
+          setAnalytics(d.items || [])
+        }
+      } catch (e) {
+        console.error('load analytics failed', e)
+      }
+    }
+    
     loadUsers()
+    loadAnalytics()
   }, [])
 
   const months = useMemo(() => {
@@ -140,6 +158,17 @@ export default function InvoiceStatistics() {
               style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
             >
               {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Analytique</span>
+            <select
+              value={filters.analyticId}
+              onChange={e => setFilters({ ...filters, analyticId: e.target.value })}
+              style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+            >
+              <option value="">Tous</option>
+              {analytics.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column' }}>

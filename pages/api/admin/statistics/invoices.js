@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { startMonth, endMonth, role, userId } = req.query
+    const { startMonth, endMonth, role, userId, analyticId } = req.query
 
     // Build date range
     let startDate = '2000-01-01'
@@ -29,6 +29,7 @@ export default async function handler(req, res) {
       SELECT 
         p.id,
         p.user_id,
+        p.analytic_id,
         p.date,
         p.pay_type,
         p.remuneration_infi,
@@ -36,9 +37,12 @@ export default async function handler(req, res) {
         u.first_name as user_first_name,
         u.last_name as user_last_name,
         u.email as user_email,
-        u.role as user_role
+        u.role as user_role,
+        a.name as analytic_name,
+        a.code as analytic_code
       FROM prestations p
       LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN analytics a ON p.analytic_id = a.id
       WHERE p.date >= $1 AND p.date < $2
     `
 
@@ -57,6 +61,12 @@ export default async function handler(req, res) {
       params.push(parseInt(userId))
     }
 
+    if (analyticId && analyticId !== '') {
+      paramCount++
+      query += ` AND p.analytic_id = $${paramCount}`
+      params.push(parseInt(analyticId))
+    }
+
     query += ` ORDER BY p.date DESC`
 
     const result = await db.query(query, params)
@@ -65,6 +75,7 @@ export default async function handler(req, res) {
       prestations: result.rows.map(row => ({
         id: row.id,
         user_id: row.user_id,
+        analytic_id: row.analytic_id,
         date: row.date,
         pay_type: row.pay_type,
         remuneration_infi: row.remuneration_infi ? parseFloat(row.remuneration_infi) : 0,
@@ -72,7 +83,9 @@ export default async function handler(req, res) {
         user_firstName: row.user_first_name,
         user_lastName: row.user_last_name,
         user_email: row.user_email,
-        user_role: row.user_role
+        user_role: row.user_role,
+        analytic_name: row.analytic_name,
+        analytic_code: row.analytic_code
       }))
     })
   } catch (error) {
