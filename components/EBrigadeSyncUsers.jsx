@@ -1,17 +1,31 @@
 import React, { useState, useEffect } from 'react'
 
-export default function EBrigadeSyncUsers() {
+export default function EBrigadeSyncUsers({ 
+  pendingCount: propPendingCount = null, 
+  loadingCount: propLoadingCount = false,
+  onSyncComplete = null,
+  autoShowConfirm = false
+}) {
   const [syncing, setSyncing] = useState(false)
   const [results, setResults] = useState(null)
   const [error, setError] = useState(null)
-  const [pendingCount, setPendingCount] = useState(null)
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [loadingCount, setLoadingCount] = useState(true)
+  const [pendingCount, setPendingCount] = useState(propPendingCount)
+  const [showConfirm, setShowConfirm] = useState(autoShowConfirm)
+  const [loadingCount, setLoadingCount] = useState(propLoadingCount)
 
-  // Load pending count on mount
+  // Load pending count on mount (only if not provided via props)
   useEffect(() => {
-    loadPendingCount()
-  }, [])
+    if (propPendingCount === null) {
+      loadPendingCount()
+    }
+  }, [propPendingCount])
+
+  // Open confirmation automatically if autoShowConfirm is true
+  useEffect(() => {
+    if (autoShowConfirm) {
+      setShowConfirm(true)
+    }
+  }, [autoShowConfirm])
 
   async function loadPendingCount() {
     setLoadingCount(true)
@@ -59,7 +73,11 @@ export default function EBrigadeSyncUsers() {
         const data = JSON.parse(responseText)
         setResults(data)
         // Refresh pending count after sync
-        await loadPendingCount()
+        if (onSyncComplete) {
+          onSyncComplete()
+        } else {
+          await loadPendingCount()
+        }
       } catch (parseErr) {
         throw new Error(`Réponse invalide du serveur: ${responseText.substring(0, 200)}`)
       }
@@ -156,39 +174,41 @@ export default function EBrigadeSyncUsers() {
       )}
 
       <div style={{ marginBottom: '20px' }}>
-        <button
-          onClick={() => setShowConfirm(true)}
-          disabled={syncing}
-          style={{
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            padding: '10px 20px',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: syncing ? 'not-allowed' : 'pointer',
-            opacity: syncing ? 0.7 : 1,
-            fontSize: '14px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}
-        >
-          {syncing ? '🔄 Synchronisation en cours...' : '🔗 Synchroniser eBrigade'}
-          {pendingCount !== null && (
-            <span style={{
-              backgroundColor: '#1e40af',
-              borderRadius: '999px',
-              padding: '4px 8px',
-              fontSize: '12px',
-              fontWeight: '600',
-              minWidth: '24px',
-              textAlign: 'center'
-            }}>
-              {loadingCount ? '...' : pendingCount}
-            </span>
-          )}
-        </button>
+        {!autoShowConfirm && (
+          <button
+            onClick={() => setShowConfirm(true)}
+            disabled={syncing}
+            style={{
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              padding: '10px 20px',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: syncing ? 'not-allowed' : 'pointer',
+              opacity: syncing ? 0.7 : 1,
+              fontSize: '14px',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}
+          >
+            {syncing ? '🔄 Synchronisation en cours...' : '🔗 Synchroniser eBrigade'}
+            {pendingCount !== null && (
+              <span style={{
+                backgroundColor: '#1e40af',
+                borderRadius: '999px',
+                padding: '4px 8px',
+                fontSize: '12px',
+                fontWeight: '600',
+                minWidth: '24px',
+                textAlign: 'center'
+              }}>
+                {loadingCount ? '...' : pendingCount}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
       {error && (
