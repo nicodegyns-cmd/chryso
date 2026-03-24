@@ -13,7 +13,11 @@ module.exports = async function handler(req, res) {
     const ebrigadeUrl = process.env.EBRIGADE_URL || 'http://127.0.0.1/ebrigade'
     const ebrigadeToken = process.env.EBRIGADE_TOKEN
     
+    console.log('DEBUG: ebrigadeUrl =', ebrigadeUrl)
+    console.log('DEBUG: ebrigadeToken =', ebrigadeToken ? 'SET' : 'NOT SET')
+    
     if (!ebrigadeToken) {
+      console.error('ERROR: EBRIGADE_TOKEN not configured')
       return res.status(500).json({ error: 'EBRIGADE_TOKEN not configured' })
     }
 
@@ -26,18 +30,27 @@ module.exports = async function handler(req, res) {
       // Can be: grade, fonction, role, or other filtering parameter
     }
 
+    console.log('DEBUG: searchUrl =', searchUrl)
+    console.log('DEBUG: searchBody =', JSON.stringify(searchBody, null, 2))
+
     const ebrigadeResponse = await fetch(searchUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(searchBody)
     })
 
+    console.log('DEBUG: ebrigadeResponse.status =', ebrigadeResponse.status)
+    console.log('DEBUG: ebrigadeResponse.ok =', ebrigadeResponse.ok)
+
     if (!ebrigadeResponse.ok) {
-      console.error('eBrigade search failed:', ebrigadeResponse.status)
-      return res.status(502).json({ error: 'eBrigade search failed' })
+      const errorText = await ebrigadeResponse.text()
+      console.error('eBrigade search failed:', ebrigadeResponse.status, errorText)
+      return res.status(502).json({ error: 'eBrigade search failed', statusCode: ebrigadeResponse.status, details: errorText.substring(0, 200) })
     }
 
     const ebrigadeData = await ebrigadeResponse.json()
+    console.log('DEBUG: ebrigadeData type =', typeof ebrigadeData, 'isArray =', Array.isArray(ebrigadeData))
+    console.log('DEBUG: ebrigadeData length =', Array.isArray(ebrigadeData) ? ebrigadeData.length : 'N/A')
     const ebrigadeUsers = Array.isArray(ebrigadeData) ? ebrigadeData : (ebrigadeData.remote ? ebrigadeData.remote : [])
 
     // Filter by eligible grades (based on available fields in eBrigade response)

@@ -16,14 +16,24 @@ export default function EBrigadeSyncUsers() {
         headers: { 'Content-Type': 'application/json' }
       })
 
+      // Get response text first to see what we're dealing with
+      const responseText = await response.text()
+      console.log('API Response status:', response.status)
+      console.log('API Response text:', responseText)
+
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Sync failed')
+        throw new Error(`Erreur ${response.status}: ${responseText || 'Pas de détails'}`)
       }
 
-      const data = await response.json()
-      setResults(data)
+      // Try to parse JSON
+      try {
+        const data = JSON.parse(responseText)
+        setResults(data)
+      } catch (parseErr) {
+        throw new Error(`Réponse invalide du serveur: ${responseText.substring(0, 200)}`)
+      }
     } catch (err) {
+      console.error('Sync error:', err)
       setError(err.message || 'Erreur synchronisation')
     } finally {
       setSyncing(false)
