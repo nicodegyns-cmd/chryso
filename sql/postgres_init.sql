@@ -31,6 +31,13 @@ CREATE TABLE IF NOT EXISTS users (
   password_reset_sent_at TIMESTAMP DEFAULT NULL,
   is_active SMALLINT NOT NULL DEFAULT 1,
   
+  -- From 011_add_invitation_onboarding_columns.sql (Phase 6: Self-service onboarding)
+  invitation_token VARCHAR(128) DEFAULT NULL,
+  invitation_sent_at TIMESTAMP DEFAULT NULL,
+  invitation_expires_at TIMESTAMP DEFAULT NULL,
+  onboarding_status VARCHAR(50) NOT NULL DEFAULT 'active',
+  import_batch_id VARCHAR(100) DEFAULT NULL,
+  
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -39,6 +46,9 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_liaison_ebrigade ON users(liaison_ebrigade_id);
 CREATE INDEX IF NOT EXISTS idx_users_ebrigade ON users(ebrigade_id);
+CREATE INDEX IF NOT EXISTS idx_invitation_token ON users(invitation_token);
+CREATE INDEX IF NOT EXISTS idx_onboarding_status ON users(onboarding_status);
+CREATE INDEX IF NOT EXISTS idx_import_batch ON users(import_batch_id);
 
 -- ============================================
 -- 2. Create roles table (from 008_create_roles_table.sql)
