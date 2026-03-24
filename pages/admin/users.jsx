@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
 import UserTable from '../../components/UserTable'
-import BulkImportUsers from '../../components/BulkImportUsers'
+import EBrigadeSyncUsers from '../../components/EBrigadeSyncUsers'
 import AdminHeader from '../../components/AdminHeader'
 import AdminSidebar from '../../components/AdminSidebar'
 
 export default function AdminUsersPage(){
-  const [showImport, setShowImport] = useState(false)
+  const [showSync, setShowSync] = useState(false)
 
   return (
     <div className="admin-page-root">
@@ -17,16 +17,16 @@ export default function AdminUsersPage(){
           <div className="small-muted">Gérer les comptes utilisateurs</div>
           <button 
             className="btn btn-primary"
-            onClick={() => setShowImport(!showImport)}
+            onClick={() => setShowSync(!showSync)}
             style={{ marginLeft: 'auto' }}
           >
-            {showImport ? 'Annuler import' : '+ Importer CSV'}
+            {showSync ? 'Annuler' : '+ Nouveau utilisateur'}
           </button>
         </div>
 
-        {showImport && (
+        {showSync && (
           <div className="admin-card card" style={{ marginBottom: '20px' }}>
-            <BulkImportUsers />
+            <EBrigadeSyncUsers />
           </div>
         )}
 
