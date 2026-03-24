@@ -3,7 +3,7 @@ const { query } = require('../../../../services/db')
 const crypto = require('crypto')
 const emailService = require('../../../../services/emailService')
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
