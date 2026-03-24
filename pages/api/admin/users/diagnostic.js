@@ -49,6 +49,7 @@ export default async function handler(req, res) {
         status: response.ok ? 'OK' : 'FAILED',
         statusCode: response.status,
         url: searchUrl,
+        rawResponse: responseText.substring(0, 500),  // First 500 chars
         dataType: Array.isArray(data) ? 'array' : (data && data.remote ? 'object_with_remote' : 'other'),
         userCount: Array.isArray(data) ? data.length : (data?.remote ? data.remote.length : 0)
       }

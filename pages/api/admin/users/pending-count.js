@@ -39,10 +39,12 @@ export default async function handler(req, res) {
     console.log('[pending-count] eBrigade response status:', ebrigadeResponse.status)
 
     if (!ebrigadeResponse.ok) {
-      console.error('[pending-count] eBrigade fetch failed:', ebrigadeResponse.status)
+      const errorText = await ebrigadeResponse.text()
+      console.error('[pending-count] eBrigade fetch failed:', ebrigadeResponse.status, errorText.substring(0, 200))
       return res.status(502).json({ 
         error: 'Failed to fetch eBrigade data',
         statusCode: ebrigadeResponse.status,
+        responsePreview: errorText.substring(0, 200),
         pendingCount: 0,
         message: `eBrigade API error ${ebrigadeResponse.status}`
       })
