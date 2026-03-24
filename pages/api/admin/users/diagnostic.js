@@ -34,7 +34,11 @@ export default async function handler(req, res) {
       const response = await fetch(searchUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: ebrigadeToken })
+        body: JSON.stringify({ 
+          token: ebrigadeToken,
+          lastname: '%',  // Wildcard to get all users
+          qstrict: '0'    // Non-strict matching
+        })
       })
 
       const responseText = await response.text()

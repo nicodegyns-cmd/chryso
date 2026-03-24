@@ -24,7 +24,9 @@ export default async function handler(req, res) {
     // Fetch users from eBrigade
     const searchUrl = `${ebrigadeUrl.replace(/\/$/, '')}/api/export/search.php`
     const searchBody = {
-      token: ebrigadeToken
+      token: ebrigadeToken,
+      lastname: '%',  // Wildcard to get all users
+      qstrict: '0'    // Non-strict matching
     }
 
     console.log('DEBUG: searchUrl =', searchUrl)
