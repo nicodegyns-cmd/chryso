@@ -24,12 +24,8 @@ export default async function handler(req, res) {
 
     // Step 1: Fetch all users from eBrigade
     const searchUrl = `${ebrigadeUrl.replace(/\/$/, '')}/api/export/search.php`
-    const searchBody = { 
-      token: ebrigadeToken,
-      // Add parameters expected by eBrigade API
-      // Empty search to get all users
-      qstrict: '0'
-    }
+    // Send only token to get ALL users (no search criteria)
+    const searchBody = { token: ebrigadeToken }
 
     console.log('[pending-count] Querying eBrigade at:', searchUrl)
     console.log('[pending-count] Search body:', JSON.stringify(searchBody))

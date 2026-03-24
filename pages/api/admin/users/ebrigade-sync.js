@@ -21,13 +21,10 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'EBRIGADE_TOKEN not configured' })
     }
 
-    // Fetch users from eBrigade - try searching with empty query to get all
-    // or use grade parameter if supported by eBrigade
+    // Fetch users from eBrigade
     const searchUrl = `${ebrigadeUrl.replace(/\/$/, '')}/api/export/search.php`
     const searchBody = {
-      token: ebrigadeToken,
-      // Adjust these parameters based on eBrigade API
-      // Can be: grade, fonction, role, or other filtering parameter
+      token: ebrigadeToken
     }
 
     console.log('DEBUG: searchUrl =', searchUrl)
