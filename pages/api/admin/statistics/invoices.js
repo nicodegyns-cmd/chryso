@@ -1,4 +1,4 @@
-import db from '../../services/db'
+import db from '../../../../services/db'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
