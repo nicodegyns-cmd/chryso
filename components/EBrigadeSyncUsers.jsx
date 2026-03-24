@@ -35,6 +35,7 @@ export default function EBrigadeSyncUsers({
         const data = await resp.json()
         console.log('Pending count loaded:', data)
         setPendingCount(data.pendingCount)
+        setResults(data) // Store full data for display
       } else {
         console.error('Error loading pending count:', resp.status)
         setPendingCount(0)
@@ -116,21 +117,31 @@ export default function EBrigadeSyncUsers({
               Confirmer la synchronisation
             </h2>
             <p style={{ marginBottom: '24px', color: '#4b5563', fontSize: '15px', lineHeight: '1.5' }}>
-              Êtes-vous sûr de synchroniser eBrigade et d'envoyer les invitations à 
+              Êtes-vous sûr de synchroniser les profils eBrigade et d'envoyer les invitations à 
               <strong style={{ color: '#3b82f6' }}> {loadingCount ? '...' : pendingCount || 0} profil{(pendingCount === 0 || pendingCount === 1) ? '' : 's'}</strong>
-              {' '}non-liés ?
+              {' '} non-liés ?
             </p>
-            <div style={{
-              backgroundColor: '#f0f4f8',
-              borderLeft: '4px solid #3b82f6',
-              padding: '12px',
-              marginBottom: '24px',
-              borderRadius: '4px',
-              fontSize: '13px',
-              color: '#1e40af'
-            }}>
-              💡 Les utilisateurs recevront un email avec un lien pour compléter leur profil.
-            </div>
+          <div style={{
+            backgroundColor: '#f0f4f8',
+            borderLeft: '4px solid #3b82f6',
+            padding: '12px',
+            marginBottom: '24px',
+            borderRadius: '4px',
+            fontSize: '13px',
+            color: '#1e40af'
+          }}>
+            💡 Cette action va:
+            <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+              <li>Récupérer les profils depuis eBrigade</li>
+              <li>Créer des comptes pour ceux qui n'en ont pas</li>
+              <li>Envoyer des invitations par email</li>
+            </ul>
+            {results && results.totalEbrigadeUsers && (
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#1e40af' }}>
+                <strong>Résumé:</strong> {results.totalEbrigadeUsers} profils dans eBrigade, {results.totalEbrigadeUsers - pendingCount} déjà liés, {pendingCount} à synchroniser
+              </div>
+            )}
+          </div>
             <div style={{
               display: 'flex',
               gap: '12px',
