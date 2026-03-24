@@ -1,4 +1,4 @@
-const { query } = require('../../../../services/db')
+const { query } = require('../../../../../services/db')
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
