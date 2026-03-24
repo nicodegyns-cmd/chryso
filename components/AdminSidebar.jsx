@@ -17,6 +17,11 @@ export default function AdminSidebar({ onNavigate }) {
             </Link>
           </li>
           <li>
+            <Link href="/admin/validation" className="sidebar-btn" onClick={() => onNavigate && onNavigate('validation')}>
+              ✓ Validation utilisateurs
+            </Link>
+          </li>
+          <li>
             <Link href="/admin/analytics" className="sidebar-btn" onClick={() => onNavigate && onNavigate('analytics')}>
               Analytique
             </Link>
