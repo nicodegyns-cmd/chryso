@@ -1,14 +1,34 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 export default function EBrigadeSyncUsers() {
   const [syncing, setSyncing] = useState(false)
   const [results, setResults] = useState(null)
   const [error, setError] = useState(null)
+  const [pendingCount, setPendingCount] = useState(null)
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  // Load pending count on mount
+  useEffect(() => {
+    loadPendingCount()
+  }, [])
+
+  async function loadPendingCount() {
+    try {
+      const resp = await fetch('/api/admin/users/pending-count')
+      if (resp.ok) {
+        const data = await resp.json()
+        setPendingCount(data.pendingCount)
+      }
+    } catch (err) {
+      console.error('Error loading pending count:', err)
+    }
+  }
 
   async function handleSync() {
     setSyncing(true)
     setError(null)
     setResults(null)
+    setShowConfirm(false)
 
     try {
       const response = await fetch('/api/admin/users/ebrigade-sync', {
@@ -29,6 +49,8 @@ export default function EBrigadeSyncUsers() {
       try {
         const data = JSON.parse(responseText)
         setResults(data)
+        // Refresh pending count after sync
+        await loadPendingCount()
       } catch (parseErr) {
         throw new Error(`Réponse invalide du serveur: ${responseText.substring(0, 200)}`)
       }
@@ -42,9 +64,91 @@ export default function EBrigadeSyncUsers() {
 
   return (
     <div style={{ padding: '20px' }}>
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '28px',
+            maxWidth: '400px',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)'
+          }}>
+            <h2 style={{ marginTop: 0, marginBottom: '16px', color: '#1f2937' }}>
+              Confirmer la synchronisation
+            </h2>
+            <p style={{ marginBottom: '24px', color: '#4b5563', fontSize: '15px', lineHeight: '1.5' }}>
+              Êtes-vous sûr d'envoyer le lien d'invitation à 
+              <strong style={{ color: '#3b82f6' }}> {pendingCount || 'X'} profil{pendingCount !== 1 ? 's' : ''}</strong> 
+              {' '}en attente ?
+            </p>
+            <div style={{
+              backgroundColor: '#f0f4f8',
+              borderLeft: '4px solid #3b82f6',
+              padding: '12px',
+              marginBottom: '24px',
+              borderRadius: '4px',
+              fontSize: '13px',
+              color: '#1e40af'
+            }}>
+              💡 Les utilisateurs recevront un email avec un lien pour compléter leur profil.
+            </div>
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => setShowConfirm(false)}
+                style={{
+                  padding: '10px 16px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                style={{
+                  padding: '10px 16px',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: syncing ? 'not-allowed' : 'pointer',
+                  opacity: syncing ? 0.7 : 1,
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                {syncing ? '🔄 Synchronisation...' : '✓ Confirmer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ marginBottom: '20px' }}>
         <button
-          onClick={handleSync}
+          onClick={() => setShowConfirm(true)}
           disabled={syncing}
           style={{
             backgroundColor: '#3b82f6',
@@ -55,10 +159,26 @@ export default function EBrigadeSyncUsers() {
             cursor: syncing ? 'not-allowed' : 'pointer',
             opacity: syncing ? 0.7 : 1,
             fontSize: '14px',
-            fontWeight: '500'
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
           }}
         >
           {syncing ? '🔄 Synchronisation en cours...' : '🔗 Synchroniser eBrigade'}
+          {pendingCount !== null && (
+            <span style={{
+              backgroundColor: '#1e40af',
+              borderRadius: '999px',
+              padding: '4px 8px',
+              fontSize: '12px',
+              fontWeight: '600',
+              minWidth: '24px',
+              textAlign: 'center'
+            }}>
+              {pendingCount}
+            </span>
+          )}
         </button>
       </div>
 
