@@ -36,7 +36,11 @@ export default function AdminSidebar({ onNavigate }) {
               Prestations
             </Link>
           </li>
-          {/* future items will go here */}
+          <li>
+            <Link href="/admin/statistics" className="sidebar-btn" onClick={() => onNavigate && onNavigate('statistics')}>
+              📊 Statistiques
+            </Link>
+          </li>
         </ul>
       </nav>
     </aside>
