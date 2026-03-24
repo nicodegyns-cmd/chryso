@@ -116,9 +116,9 @@ export default function EBrigadeSyncUsers({
               Confirmer la synchronisation
             </h2>
             <p style={{ marginBottom: '24px', color: '#4b5563', fontSize: '15px', lineHeight: '1.5' }}>
-              Êtes-vous sûr d'envoyer le lien d'invitation à 
-              <strong style={{ color: '#3b82f6' }}> {loadingCount ? '...' : pendingCount} profil{(pendingCount === 0 || pendingCount === 1) ? '' : 's'}</strong> 
-              {' '}en attente ?
+              Êtes-vous sûr de synchroniser eBrigade et d'envoyer les invitations à 
+              <strong style={{ color: '#3b82f6' }}> {loadingCount ? '...' : pendingCount || 0} profil{(pendingCount === 0 || pendingCount === 1) ? '' : 's'}</strong>
+              {' '}non-liés ?
             </p>
             <div style={{
               backgroundColor: '#f0f4f8',

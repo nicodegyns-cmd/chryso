@@ -7,10 +7,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Count users with pending_signup status
+    // Count users WITHOUT liaison_ebrigade_id (non-linked accounts eligible for sync)
     const result = await query(
-      'SELECT COUNT(*) as count FROM users WHERE onboarding_status = $1',
-      ['pending_signup']
+      'SELECT COUNT(*) as count FROM users WHERE liaison_ebrigade_id IS NULL',
+      []
     )
 
     const pendingCount = parseInt(result.rows[0]?.count || 0)
@@ -18,8 +18,8 @@ export default async function handler(req, res) {
     res.status(200).json({
       pendingCount,
       message: pendingCount === 0 
-        ? 'Aucun profil en attente'
-        : `${pendingCount} profil${pendingCount > 1 ? 's' : ''} en attente`
+        ? 'Aucun profil à synchroniser'
+        : `${pendingCount} profil${pendingCount > 1 ? 's' : ''} à synchroniser`
     })
   } catch (error) {
     console.error('Error getting pending count:', error)
