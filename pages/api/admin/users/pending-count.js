@@ -59,20 +59,11 @@ export default async function handler(req, res) {
 
     console.log('[pending-count] Total eBrigade users:', ebrigadeUsers.length)
 
-    // Step 2: Filter by eligible grades (INFI, MED, Pharmacien, etc.)
-    const eligibleGrades = ['INFI', 'MED', 'Pharmacien', 'Infirmier', 'Médecin']
-    const filtered = ebrigadeUsers.filter(user => {
-      const grade = (user.grade || user.fonction || user.role_label || '').toUpperCase()
-      return eligibleGrades.some(g => grade.includes(g))
-    })
-
-    console.log('[pending-count] Eligible users after grade filter:', filtered.length)
-
-    // Step 3: For each eBrigade user, check if they're already linked in our system
+    // Step 2: For each eBrigade user, check if they're already linked in our system
     let unlinkedCount = 0
     const unlinkedUsers = []
 
-    for (const ebUser of filtered) {
+    for (const ebUser of ebrigadeUsers) {
       try {
         const ebrigadeId = String(ebUser.id || ebUser.ebrigade_id || ebUser.EBR_ID || '')
         
@@ -103,11 +94,12 @@ export default async function handler(req, res) {
 
     res.status(200).json({
       pendingCount: unlinkedCount,
-      totalEbrigadeUsers: filtered.length,
+      totalEbrigadeUsers: ebrigadeUsers.length,
       message: unlinkedCount === 0 
         ? 'Tous les profils eBrigade sont liés'
         : `${unlinkedCount} profil${unlinkedCount > 1 ? 's' : ''} eBrigade à synchroniser`,
-      unlinkedUsers: unlinkedUsers.slice(0, 10) // Return first 10 for reference
+      emails: unlinkedUsers.map(u => u.email).filter(e => e), // Return just emails
+      unlinkedUsers: unlinkedUsers // Return full user data for debugging
     })
   } catch (error) {
     console.error('[pending-count] Error:', error)

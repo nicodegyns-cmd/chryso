@@ -52,20 +52,12 @@ export default async function handler(req, res) {
     console.log('DEBUG: ebrigadeData length =', Array.isArray(ebrigadeData) ? ebrigadeData.length : 'N/A')
     const ebrigadeUsers = Array.isArray(ebrigadeData) ? ebrigadeData : (ebrigadeData.remote ? ebrigadeData.remote : [])
 
-    // Filter by eligible grades (based on available fields in eBrigade response)
-    const eligibleGrades = ['INFI', 'MED', 'Pharmacien', 'Infirmier', 'Médecin']
-    const filtered = ebrigadeUsers.filter(user => {
-      const grade = (user.grade || user.fonction || user.role_label || '').toUpperCase()
-      return eligibleGrades.some(g => grade.includes(g))
-    })
-
     // Step 2: For each eBrigade user, check if already linked in our system
     const batchId = crypto.randomBytes(16).toString('hex')
     const toCreate = []
     const alreadyLinked = []
     const errors = []
-
-    for (const ebUser of filtered) {
+    for (const ebUser of ebrigadeUsers) {
       try {
         const ebrigadeId = String(ebUser.id || ebUser.ebrigade_id || ebUser.EBR_ID || '')
         const email = (ebUser.email || '').toLowerCase().trim()
