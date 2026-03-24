@@ -101,4 +101,16 @@ function getPool() {
   return new MySQLCompatiblePool(pool)
 }
 
-module.exports = { getPool }
+// Direct query function for simpler usage (doesn't release connection after each call)
+// Reuses global pool and relies on Node.js connection pooling
+async function query(sql, params = []) {
+  const pool = createPgPool()
+  try {
+    const result = await pool.query(sql, params)
+    return { rows: result.rows, fields: result.fields }
+  } catch (err) {
+    throw err
+  }
+}
+
+module.exports = { getPool, query }

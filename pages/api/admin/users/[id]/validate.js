@@ -1,6 +1,6 @@
-import db from '../../../../services/db'
+const { query } = require('../../../../services/db')
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     }
 
     // Update user: set liaison_ebrigade_id, role, and other admin fields, mark as active
-    const result = await db.query(
+    const result = await query(
       `UPDATE users
        SET liaison_ebrigade_id = $1,
            role = $2,

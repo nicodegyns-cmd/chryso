@@ -1,6 +1,6 @@
-import db from '../../../services/db'
+const { query } = require('../../../services/db')
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -12,7 +12,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Token required' })
     }
 
-    const result = await db.query(
+    const result = await query(
       `SELECT id, email, first_name, last_name, invitation_expires_at 
        FROM users 
        WHERE invitation_token = $1 AND invitation_expires_at > NOW() AND onboarding_status = $2`,

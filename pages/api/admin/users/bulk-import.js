@@ -1,7 +1,7 @@
-import db from '../../../services/db'
-import crypto from 'crypto'
+const { query } = require('../../../services/db')
+const crypto = require('crypto')
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
 
       try {
         // Check if user already exists
-        const existing = await db.query('SELECT id FROM users WHERE email = $1', [email])
+        const existing = await query('SELECT id FROM users WHERE email = $1', [email])
         if (existing.rows.length > 0) {
           errors.push({ line: i + 2, reason: 'User already exists' })
           continue
@@ -48,7 +48,7 @@ export default async function handler(req, res) {
         const invitationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
         // Create user with pending_signup status
-        const result = await db.query(
+        const result = await query(
           `INSERT INTO users (email, first_name, last_name, role, onboarding_status, invitation_token, invitation_sent_at, invitation_expires_at, import_batch_id, is_active)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING id, email, first_name, last_name, role, invitation_token, invitation_expires_at`,

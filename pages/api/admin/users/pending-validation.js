@@ -1,12 +1,12 @@
-import db from '../../../../services/db'
+const { query } = require('../../../../services/db')
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
   try {
-    const result = await db.query(
+    const result = await query(
       `SELECT id, email, first_name, last_name, telephone, address, fonction, company, role, liaison_ebrigade_id, niss, bce, account, onboarding_status
        FROM users
        WHERE onboarding_status = $1

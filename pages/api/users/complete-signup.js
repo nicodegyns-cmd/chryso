@@ -1,7 +1,8 @@
-import db from '../../../services/db'
-import crypto from 'crypto'
+const { query } = require('../../../services/db')
+const crypto = require('crypto')
+const bcrypt = require('bcryptjs')
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -14,7 +15,7 @@ export default async function handler(req, res) {
     }
 
     // Validate token
-    const result = await db.query(
+    const result = await query(
       `SELECT id FROM users 
        WHERE invitation_token = $1 AND invitation_expires_at > NOW() AND onboarding_status = $2`,
       [token, 'pending_signup']
@@ -27,12 +28,11 @@ export default async function handler(req, res) {
     const userId = result.rows[0].id
 
     // Hash password
-    const bcrypt = require('bcryptjs')
     const saltRounds = 10
     const passwordHash = await bcrypt.hash(password, saltRounds)
 
     // Update user: set password, personal info, and mark as pending_validation
-    await db.query(
+    await query(
       `UPDATE users 
        SET password_hash = $1, 
            first_name = $2, 
