@@ -232,6 +232,20 @@ export default function EBrigadeSyncUsers({
           color: '#991b1b'
         }}>
           <strong>Erreur:</strong> {error}
+          {error.includes('not configured') && (
+            <div style={{ marginTop: '8px', fontSize: '13px' }}>
+              ⚠️ Veuillez configurer EBRIGADE_TOKEN dans le fichier .env et redémarrer le serveur.
+            </div>
+          )}
+          {error.includes('eBrigade API error') && (
+            <div style={{ marginTop: '8px', fontSize: '13px' }}>
+              ⚠️ Impossible de contacter eBrigade. Vérifiez EBRIGADE_URL et EBRIGADE_TOKEN.
+              <br />
+              <a href="/api/admin/users/diagnostic" target="_blank" rel="noopener noreferrer" style={{ color: '#991b1b', textDecoration: 'underline' }}>
+                → Vérifier la configuration
+              </a>
+            </div>
+          )}
         </div>
       )}
 
