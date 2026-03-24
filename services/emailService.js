@@ -288,7 +288,65 @@ async function sendPasswordChangeEmail(email, firstName) {
   }
 }
 
+/**
+ * Generic send email function for any email type
+ * @param {Object} options - Email options
+ * @param {string} options.to - Recipient email
+ * @param {string} options.subject - Email subject
+ * @param {string} options.text - Plain text content
+ * @param {string} options.html - HTML content
+ * @param {string} options.from - From address (optional)
+ * @returns {Promise<{sent: boolean, messageId?: string, error?: string}>}
+ */
+async function send(options) {
+  try {
+    const mailer = getTransporter()
+
+    if (!mailer) {
+      // Log email to console if SMTP not configured
+      console.log('[EmailService] Email would be sent:')
+      console.log('To:', options.to)
+      console.log('Subject:', options.subject)
+      console.log('Text:', options.text)
+      console.log('---')
+      return { sent: false, error: 'SMTP not configured - logged to console only' }
+    }
+
+    const fromEmail = options.from || process.env.SMTP_FROM || process.env.GMAIL_USER || 'no-reply@sirona-consult.be'
+    const appName = process.env.APP_NAME || 'Fénix'
+
+    const info = await mailer.sendMail({
+      from: {
+        name: appName,
+        address: fromEmail
+      },
+      to: options.to,
+      subject: options.subject,
+      html: options.html || options.text,
+      text: options.text,
+      replyTo: fromEmail,
+      headers: {
+        'X-Mailer': 'Fénix/1.0',
+        'X-Priority': '3 (Normal)',
+        'Importance': 'normal',
+        'Reply-To': fromEmail,
+        'Content-Type': 'text/html; charset=UTF-8',
+        'MIME-Version': '1.0',
+        'Precedence': 'bulk',
+        'Auto-Submitted': 'auto-generated'
+      }
+    })
+
+    console.log('[EmailService] Email sent:', { to: options.to, messageId: info.messageId })
+    return { sent: true, messageId: info.messageId }
+  } catch (err) {
+    console.error('[EmailService] Error sending email:', err.message)
+    return { sent: false, error: err.message }
+  }
+}
+
 module.exports = {
+  send,
   sendUserCreationEmail,
   sendPasswordChangeEmail,
 }
