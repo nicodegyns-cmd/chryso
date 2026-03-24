@@ -222,6 +222,20 @@ export default function EBrigadeSyncUsers({
         )}
       </div>
 
+      {loadingCount && !error && (
+        <div style={{
+          backgroundColor: '#dbeafe',
+          border: '1px solid #93c5fd',
+          borderRadius: '6px',
+          padding: '12px',
+          marginBottom: '20px',
+          color: '#1e40af',
+          fontSize: '14px'
+        }}>
+          🔄 Vérification des profils eBrigade en cours...
+        </div>
+      )}
+
       {error && (
         <div style={{
           backgroundColor: '#fee2e2',
