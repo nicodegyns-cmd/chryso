@@ -1,10 +1,10 @@
 // pages/api/documents/upload.js
 // Upload user documents
 
-import fs from 'fs'
-import path from 'path'
-import { getPool } from '../../../services/db'
-import Busboy from 'busboy'
+const fs = require('fs')
+const path = require('path')
+const { getPool } = require('../../../services/db')
+const Busboy = require('busboy')
 
 const uploadsDir = process.env.VERCEL 
   ? '/tmp/uploads'
