@@ -11,6 +11,7 @@ export default function UserSidebar({ open, onClose }) {
             <li><Link href="/dashboard" className="sidebar-btn">Accueil</Link></li>
             <li><Link href="/profile" className="sidebar-btn">Mon profil</Link></li>
             <li><Link href="/invoices" className="sidebar-btn">Mes factures</Link></li>
+            <li><Link href="/documents" className="sidebar-btn">Mes documents</Link></li>
           </ul>
         </nav>
       </aside>
