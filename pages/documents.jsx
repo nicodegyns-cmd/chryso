@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import AdminHeader from '../components/AdminHeader'
 import UserSidebar from '../components/UserSidebar'
-import './documents.css'
 
 export default function DocumentsPage() {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
