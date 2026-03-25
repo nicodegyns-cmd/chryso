@@ -31,7 +31,19 @@ export default async function handler(req, res) {
   console.log('[UPLOAD] Starting document upload...')
 
   try {
-    const bb = busboy({ headers: req.headers })
+    console.log('[UPLOAD] Creating busboy parser...')
+    console.log('[UPLOAD] Request headers:', JSON.stringify(req.headers))
+    
+    const bb = busboy({ 
+      headers: req.headers,
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB max file size for parsing
+        files: 1,
+        fields: 10
+      }
+    })
+    
+    console.log('[UPLOAD] Busboy parser created successfully')
     
     let fileData = null
     let fileName = null
@@ -169,11 +181,18 @@ export default async function handler(req, res) {
       })
 
       bb.on('error', (err) => {
-        console.error('[UPLOAD] Busboy error:', err)
-        return resolve(res.status(500).json({ error: 'Form parsing error', details: err.message }))
+        console.error('[UPLOAD] Busboy error:', err.message, err.code)
+        console.error('[UPLOAD] Full error:', JSON.stringify(err, null, 2))
+        return resolve(res.status(400).json({ 
+          error: 'Form parsing error', 
+          details: err.message,
+          code: err.code
+        }))
       })
 
+      console.log('[UPLOAD] Piping request to busboy...')
       req.pipe(bb)
+      console.log('[UPLOAD] Request piped, waiting for events...')
     })
   } catch (err) {
     console.error('[UPLOAD] Handler error:', err.message, err.stack)
