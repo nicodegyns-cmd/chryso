@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import AdminHeader from '../../../components/AdminHeader';
-import AdminSidebar from '../../../components/AdminSidebar';
+import AdminHeader from '../../components/AdminHeader';
+import AdminSidebar from '../../components/AdminSidebar';
 import './rib-validation.css';
 
 export default function RIBValidation() {
