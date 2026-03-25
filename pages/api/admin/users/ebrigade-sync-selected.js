@@ -109,9 +109,9 @@ export default async function handler(req, res) {
           
           // Update user with new invitation
           await query(
-            `UPDATE users SET invitation_token = $1, invitation_sent_at = $2, invitation_expires_at = $3
+            `UPDATE users SET invitation_token = $1, invitation_sent_at = $2, invitation_expires_at = $3, onboarding_status = $5
              WHERE liaison_ebrigade_id = $4`,
-            [invitationToken, new Date(), invitationExpiresAt, ebrigadeId]
+            [invitationToken, new Date(), invitationExpiresAt, ebrigadeId, 'pending_signup']
           )
           
           invitationsToSend.push({
@@ -139,9 +139,9 @@ export default async function handler(req, res) {
         const invitationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         
         await query(
-          `UPDATE users SET invitation_token = $1, invitation_sent_at = $2, invitation_expires_at = $3
+          `UPDATE users SET invitation_token = $1, invitation_sent_at = $2, invitation_expires_at = $3, onboarding_status = $5
            WHERE email = $4`,
-          [invitationToken, new Date(), invitationExpiresAt, email]
+          [invitationToken, new Date(), invitationExpiresAt, email, 'pending_signup']
         )
         
         invitationsToSend.push({
@@ -159,9 +159,9 @@ export default async function handler(req, res) {
         const invitationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         
         await query(
-          `UPDATE users SET invitation_token = $1, invitation_sent_at = $2, invitation_expires_at = $3
+          `UPDATE users SET invitation_token = $1, invitation_sent_at = $2, invitation_expires_at = $3, onboarding_status = $5
            WHERE id = $4`,
-          [invitationToken, new Date(), invitationExpiresAt, existingId]
+          [invitationToken, new Date(), invitationExpiresAt, existingId, 'pending_signup']
         )
         
         invitationsToSend.push({
