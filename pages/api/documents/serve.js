@@ -46,7 +46,8 @@ export default async function handler(req, res) {
     res.setHeader('Content-Disposition', `inline; filename="${document.name}"`)
     res.setHeader('Content-Length', fileContent.length)
 
-    return res.send(fileContent)
+    res.write(fileContent)
+    return res.end()
   } catch (err) {
     console.error('[SERVE] Error:', err.message, err.stack)
     return res.status(500).json({
