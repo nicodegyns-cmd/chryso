@@ -133,8 +133,8 @@ export default function EBrigadeSyncUsers({
             💡 Cette action va:
             <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
               <li>Récupérer les profils depuis eBrigade</li>
-              <li>Créer des comptes pour ceux qui n'en ont pas</li>
               <li>Envoyer des invitations par email</li>
+              <li>Les utilisateurs recevront un lien pour compléter leur profil</li>
             </ul>
             {results && results.totalEbrigadeUsers && (
               <div style={{ marginTop: '8px', fontSize: '12px', color: '#1e40af' }}>
