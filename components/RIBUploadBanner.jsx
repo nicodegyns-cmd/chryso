@@ -39,10 +39,20 @@ export default function RIBUploadBanner({ email }) {
       })
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Erreur lors de l\'upload')
+        let errorMsg = 'Erreur lors de l\'upload'
+        try {
+          const data = await response.json()
+          errorMsg = data.error || data.details || errorMsg
+        } catch (e) {
+          const text = await response.text()
+          if (text.includes('<!DOCTYPE')) {
+            errorMsg = 'Erreur serveur: Les colonnes de validation n\'existent pas. Contactez l\'admin.'
+          }
+        }
+        throw new Error(errorMsg)
       }
 
+      const data = await response.json()
       setMessage('⏳ Document RIB uploadé - En attente de validation')
       setSuccess(true)
       if (fileInputRef.current) {
