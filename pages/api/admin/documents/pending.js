@@ -16,14 +16,15 @@ export default async function handler(req, res) {
         d.type,
         d.file_path,
         d.file_size,
+        d.url,
         d.created_at,
         d.validation_status,
         d.rejection_reason,
-        u.user_name,
+        CONCAT(u.first_name, ' ', u.last_name) as user_name,
         u.email,
-        u.phone,
-        u.company_name,
-        u.city
+        u.telephone as phone,
+        u.company as company_name,
+        NULL as city
       FROM documents d
       JOIN users u ON d.user_id = u.id
       WHERE d.validation_status = 'pending'
