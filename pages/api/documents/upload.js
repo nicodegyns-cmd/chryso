@@ -1,33 +1,13 @@
 // pages/api/documents/upload.js
-// Upload user documents
+// Upload user documents - store file content directly in database
 
 import fs from 'fs'
-import path from 'path'
 import { getPool } from '../../../services/db'
 import formidable from 'formidable'
 
 export const config = {
   api: {
     bodyParser: false
-  }
-}
-
-let uploadsDir = path.join(process.cwd(), 'public', 'uploads')
-
-// Try to create directory, but don't fail if it doesn't exist (Vercel limitation)
-try {
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true })
-  }
-} catch (e) {
-  // On Vercel, use /tmp instead
-  uploadsDir = '/tmp/uploads'
-  try {
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true })
-    }
-  } catch (e2) {
-    // Ignore - will fail at upload time if really can't write
   }
 }
 
@@ -40,7 +20,6 @@ export default async function handler(req, res) {
 
   try {
     const form = formidable({
-      uploadDir: uploadsDir,
       keepExtensions: true,
       maxFileSize: 5 * 1024 * 1024 // 5MB
     })
@@ -61,10 +40,9 @@ export default async function handler(req, res) {
 
     console.log('[UPLOAD] File:', uploadedFile.originalFilename, uploadedFile.size)
 
-    // Validate PDF
+    // Validate PDF magic bytes
     const fileData = fs.readFileSync(uploadedFile.filepath)
     if (fileData.slice(0, 4).toString('hex') !== '25504446') {
-      fs.unlinkSync(uploadedFile.filepath)
       return res.status(400).json({ error: 'Invalid PDF file' })
     }
 
@@ -73,7 +51,6 @@ export default async function handler(req, res) {
       const [users] = await pool.query('SELECT id FROM users WHERE email = $1', [email])
 
       if (!users?.[0]) {
-        fs.unlinkSync(uploadedFile.filepath)
         return res.status(404).json({ error: 'User not found' })
       }
 
@@ -81,18 +58,14 @@ export default async function handler(req, res) {
       const ts = Date.now()
       const rand = Math.random().toString(36).substring(2, 8)
       const fileName = `doc_${userId}_${ts}_${rand}.pdf`
-      const finalPath = path.join(uploadsDir, fileName)
       
-      // Move temp file to final location
-      fs.copyFileSync(uploadedFile.filepath, finalPath)
-      fs.unlinkSync(uploadedFile.filepath)
-
-      console.log('[UPLOAD] Saved to:', finalPath)
+      // No need to save to disk - storing file_data in database instead
+      console.log('[UPLOAD] Storing in database with file content')
 
       const [docs] = await pool.query(
-        `INSERT INTO documents (user_id, name, type, file_path, file_size, validation_status, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
-        [userId, uploadedFile.originalFilename, 'PDF', fileName, fileData.length, 'pending']
+        `INSERT INTO documents (user_id, name, type, file_path, file_data, file_size, validation_status, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id`,
+        [userId, uploadedFile.originalFilename, 'PDF', fileName, fileData, fileData.length, 'pending']
       )
 
       console.log('[UPLOAD] Success:', docs[0].id)
@@ -108,9 +81,6 @@ export default async function handler(req, res) {
       })
     } catch (e) {
       console.error('[UPLOAD] DB error:', e.message)
-      try {
-        fs.unlinkSync(uploadedFile.filepath)
-      } catch {}
       return res.status(500).json({ error: e.message })
     }
   } catch (err) {

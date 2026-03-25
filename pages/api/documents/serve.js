@@ -1,8 +1,6 @@
 // pages/api/documents/serve.js
-// Serve uploaded document files from /tmp (Vercel) or public/uploads (local)
+// Serve uploaded document files from database
 
-import fs from 'fs'
-import path from 'path'
 import { getPool } from '../../../services/db'
 
 export default async function handler(req, res) {
@@ -19,7 +17,7 @@ export default async function handler(req, res) {
 
     // Get document from database
     const [rows] = await pool.query(
-      'SELECT id, name, file_path, user_id FROM documents WHERE id = $1',
+      'SELECT id, name, file_data FROM documents WHERE id = $1',
       [id]
     )
 
@@ -29,32 +27,19 @@ export default async function handler(req, res) {
     }
 
     const document = rows[0]
-    console.log(`[SERVE] Document found: ${document.name}, path: ${document.file_path}`)
+    console.log(`[SERVE] Document found: ${document.name}`)
 
-    // Try multiple possible file locations
-    let fullPath = null
-    const possiblePaths = [
-      path.join('/tmp/uploads', document.file_path),
-      path.join(process.cwd(), 'public', 'uploads', document.file_path),
-      document.file_path // If it's already an absolute path
-    ]
-
-    for (const tryPath of possiblePaths) {
-      if (fs.existsSync(tryPath)) {
-        fullPath = tryPath
-        break
-      }
+    // Check if file data exists
+    if (!document.file_data) {
+      console.log(`[SERVE] No file data for document: ${id}`)
+      return res.status(404).json({ error: 'File data not found' })
     }
 
-    if (!fullPath) {
-      console.log(`[SERVE] File not found in any location, tried:`, possiblePaths)
-      return res.status(404).json({ error: 'File not found on server' })
-    }
+    // Convert to buffer if needed
+    const fileContent = Buffer.isBuffer(document.file_data) 
+      ? document.file_data 
+      : Buffer.from(document.file_data)
 
-    console.log(`[SERVE] File found at: ${fullPath}`)
-
-    // Read and send file
-    const fileContent = fs.readFileSync(fullPath)
     console.log(`[SERVE] File read successfully: ${fileContent.length} bytes`)
 
     // Set response headers
