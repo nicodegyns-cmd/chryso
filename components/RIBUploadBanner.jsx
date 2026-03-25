@@ -44,10 +44,7 @@ export default function RIBUploadBanner({ email }) {
           const data = await response.json()
           errorMsg = data.error || data.details || errorMsg
         } catch (e) {
-          const text = await response.text()
-          if (text.includes('<!DOCTYPE')) {
-            errorMsg = 'Erreur serveur: Les colonnes de validation n\'existent pas. Contactez l\'admin.'
-          }
+          errorMsg = `Erreur serveur (${response.status})`
         }
         throw new Error(errorMsg)
       }
