@@ -29,21 +29,34 @@ export default async function handler(req, res) {
   }
 
   console.log('[UPLOAD] Starting document upload...')
+  console.log('[UPLOAD] Content-Type:', req.headers['content-type'])
+  console.log('[UPLOAD] Content-Length:', req.headers['content-length'])
 
-  try {
-    console.log('[UPLOAD] Creating busboy parser...')
-    console.log('[UPLOAD] Request headers:', JSON.stringify(req.headers))
-    
-    const bb = busboy({ 
-      headers: req.headers,
-      limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB max file size for parsing
-        files: 1,
-        fields: 10
-      }
+  // Check for multipart/form-data
+  const contentType = req.headers['content-type'] || ''
+  if (!contentType.includes('multipart/form-data')) {
+    console.log('[UPLOAD] ERROR: Not multipart form data')
+    return res.status(400).json({ 
+      error: 'Invalid Content-Type',
+      expected: 'multipart/form-data',
+      received: contentType
     })
-    
-    console.log('[UPLOAD] Busboy parser created successfully')
+  }
+
+  return new Promise((resolve) => {
+    try {
+      console.log('[UPLOAD] Creating busboy parser...')
+      
+      const bb = busboy({ 
+        headers: req.headers,
+        limits: {
+          fileSize: 10 * 1024 * 1024,
+          files: 1,
+          fields: 10
+        }
+      })
+      
+      console.log('[UPLOAD] Busboy parser created successfully')
     
     let fileData = null
     let fileName = null
@@ -181,24 +194,23 @@ export default async function handler(req, res) {
       })
 
       bb.on('error', (err) => {
-        console.error('[UPLOAD] Busboy error:', err.message, err.code)
-        console.error('[UPLOAD] Full error:', JSON.stringify(err, null, 2))
+        console.error('[UPLOAD] Busboy error - Message:', err.message)
+        console.error('[UPLOAD] Busboy error - Code:', err.code)
+        console.error('[UPLOAD] Busboy error - Stack:', err.stack)
         return resolve(res.status(400).json({ 
           error: 'Form parsing error', 
-          details: err.message,
-          code: err.code
+          details: `${err.code}: ${err.message}`
         }))
       })
 
       console.log('[UPLOAD] Piping request to busboy...')
       req.pipe(bb)
       console.log('[UPLOAD] Request piped, waiting for events...')
-    })
-  } catch (err) {
-    console.error('[UPLOAD] Handler error:', err.message, err.stack)
-    return res.status(500).json({ 
-      error: 'Upload failed',
-      details: err.message
-    })
-  }
-}
+    } catch (err) {
+      console.error('[UPLOAD] Setup error:', err.message, err.stack)
+      return resolve(res.status(500).json({ 
+        error: 'Upload initialization failed',
+        details: err.message
+      }))
+    }
+  })
