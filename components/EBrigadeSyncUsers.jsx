@@ -504,7 +504,7 @@ export default function EBrigadeSyncUsers({
         </div>
       )}
 
-      {results && (
+      {results && results.summary && (
         <div>
           <div style={{
             display: 'grid',
@@ -514,7 +514,7 @@ export default function EBrigadeSyncUsers({
           }}>
             <StatCard 
               label="Utilisateurs eBrigade détectés" 
-              value={results.summary.eligibleUsers}
+              value={results.summary.totalEbrigadeUsers}
               color="#3b82f6"
             />
             <StatCard 
