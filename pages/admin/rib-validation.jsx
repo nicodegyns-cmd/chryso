@@ -174,7 +174,7 @@ export default function RIBValidation() {
                       <p><strong>Date d'upload:</strong> {new Date(selectedDoc.created_at).toLocaleString('fr-FR')}</p>
                     </div>
                     <a 
-                      href={selectedDoc.url} 
+                      href={selectedDoc.url || `/api/documents/serve?id=${selectedDoc.id}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="view-document-btn"

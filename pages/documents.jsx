@@ -127,7 +127,7 @@ export default function DocumentsPage() {
 
                   <div className="doc-card-footer">
                     <a 
-                      href={doc.url} 
+                      href={doc.url || `/api/documents/serve?id=${doc.id}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="btn-view"

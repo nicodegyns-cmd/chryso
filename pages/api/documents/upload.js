@@ -117,7 +117,6 @@ export default async function handler(req, res) {
             const randomStr = Math.random().toString(36).substring(7)
             const safeFileName = `${documentType.toLowerCase()}_${userId}_${timestamp}_${randomStr}.pdf`
             const filePath = path.join(uploadsDir, safeFileName)
-            const fileUrl = `/uploads/${safeFileName}`
 
             console.log(`[UPLOAD] Saving file to: ${filePath}`)
 
@@ -128,21 +127,22 @@ export default async function handler(req, res) {
             // Insert into documents table with validation_status = pending
             console.log('[UPLOAD] Inserting document record into database...')
             const [docRows] = await pool.query(
-              `INSERT INTO documents (user_id, name, type, url, file_path, file_size, validation_status, created_at)
-               VALUES ($1, $2, $3, $4, $5, $6, 'pending', CURRENT_TIMESTAMP)
+              `INSERT INTO documents (user_id, name, type, file_path, file_size, validation_status, created_at)
+               VALUES ($1, $2, $3, $4, $5, 'pending', CURRENT_TIMESTAMP)
                RETURNING id`,
-              [userId, fileName, 'PDF', fileUrl, filePath, fileData.length]
+              [userId, fileName, 'PDF', filePath, fileData.length]
             )
 
             console.log(`[UPLOAD] Document created with ID: ${docRows[0].id}`)
 
+            const docId = docRows[0].id
             return resolve(res.status(200).json({
               success: true,
               document: {
-                id: docRows[0].id,
+                id: docId,
                 name: fileName,
                 size: fileData.length,
-                url: fileUrl,
+                url: `/api/documents/serve?id=${docId}`,
                 validation_status: 'pending'
               }
             }))
