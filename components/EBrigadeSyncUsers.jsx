@@ -12,6 +12,11 @@ export default function EBrigadeSyncUsers({
   const [pendingCount, setPendingCount] = useState(propPendingCount)
   const [showConfirm, setShowConfirm] = useState(autoShowConfirm)
   const [loadingCount, setLoadingCount] = useState(propLoadingCount)
+  
+  // Selection mode
+  const [mode, setMode] = useState('sync-all') // 'sync-all' or 'select-specific'
+  const [selectedUsers, setSelectedUsers] = useState(new Set()) // Set of ebrigade IDs
+  const [unlinkedUsers, setUnlinkedUsers] = useState([])
 
   // Load pending count on mount (only if not provided via props)
   useEffect(() => {
@@ -35,6 +40,7 @@ export default function EBrigadeSyncUsers({
         const data = await resp.json()
         console.log('Pending count loaded:', data)
         setPendingCount(data.pendingCount)
+        setUnlinkedUsers(data.unlinkedUsers || []) // Store unlinked users list
         setResults(data) // Store full data for display
       } else {
         console.error('Error loading pending count:', resp.status)
@@ -55,9 +61,19 @@ export default function EBrigadeSyncUsers({
     setShowConfirm(false)
 
     try {
-      const response = await fetch('/api/admin/users/ebrigade-sync', {
+      // Determine which endpoint to use
+      const endpoint = mode === 'select-specific' 
+        ? '/api/admin/users/ebrigade-sync-selected'
+        : '/api/admin/users/ebrigade-sync'
+      
+      const body = mode === 'select-specific'
+        ? { selectedIds: Array.from(selectedUsers) }
+        : {}
+
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       })
 
       // Get response text first to see what we're dealing with
@@ -90,8 +106,183 @@ export default function EBrigadeSyncUsers({
     }
   }
 
+  function toggleUserSelection(ebrigadeId) {
+    const newSelected = new Set(selectedUsers)
+    if (newSelected.has(ebrigadeId)) {
+      newSelected.delete(ebrigadeId)
+    } else {
+      newSelected.add(ebrigadeId)
+    }
+    setSelectedUsers(newSelected)
+  }
+
   return (
     <div style={{ padding: '20px' }}>
+      {/* Mode Toggle */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+        <button
+          onClick={() => { setMode('sync-all'); setSelectedUsers(new Set()) }}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: mode === 'sync-all' ? '#3b82f6' : '#e5e7eb',
+            color: mode === 'sync-all' ? 'white' : '#374151',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            transition: 'all 0.2s'
+          }}
+        >
+          🔗 Synchroniser tous
+        </button>
+        <button
+          onClick={() => setMode('select-specific')}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: mode === 'select-specific' ? '#3b82f6' : '#e5e7eb',
+            color: mode === 'select-specific' ? 'white' : '#374151',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            transition: 'all 0.2s'
+          }}
+        >
+          ✅ Sélectionner individuellement
+        </button>
+      </div>
+
+      {/* Selection Mode UI */}
+      {mode === 'select-specific' && (
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{
+            backgroundColor: '#f0f4f8',
+            border: '1px solid #bfdbfe',
+            borderRadius: '6px',
+            padding: '14px',
+            marginBottom: '12px'
+          }}>
+            <p style={{ marginTop: 0, marginBottom: '8px', color: '#1e40af', fontWeight: '600' }}>
+              Sélectionnez les profils à synchroniser ({selectedUsers.size} sélectionné{selectedUsers.size !== 1 ? 's' : ''})
+            </p>
+            <p style={{ margin: 0, color: '#4b5563', fontSize: '13px' }}>
+              - Cochez les profils à inviter
+              <br/>
+              - Cliquez "Synchroniser sélectionnés" pour lancer le test
+              <br/>
+              - Les profils ne seront créés que s'ils ne sont pas dupliquéstes
+            </p>
+          </div>
+
+          {loadingCount ? (
+            <div style={{ color: '#6b7280' }}>🔄 Chargement des profils...</div>
+          ) : unlinkedUsers.length === 0 ? (
+            <div style={{ color: '#6b7280' }}>Aucun profil non-lié</div>
+          ) : (
+            <div style={{
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              maxHeight: '400px',
+              overflowY: 'auto'
+            }}>
+              {unlinkedUsers.map((user, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '12px',
+                    borderBottom: idx < unlinkedUsers.length - 1 ? '1px solid #f3f4f6' : 'none',
+                    backgroundColor: selectedUsers.has(user.ebrigadeId) ? '#eff6ff' : 'white',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => toggleUserSelection(user.ebrigadeId)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedUsers.has(user.ebrigadeId)}
+                    onChange={() => toggleUserSelection(user.ebrigadeId)}
+                    style={{ marginRight: '12px', cursor: 'pointer' }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '500', color: '#1f2937' }}>
+                      {user.firstName} {user.lastName}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                      {user.email}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {selectedUsers.size > 0 && (
+            <button
+              onClick={() => setShowConfirm(true)}
+              disabled={syncing}
+              style={{
+                marginTop: '12px',
+                padding: '10px 20px',
+                backgroundColor: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: syncing ? 'not-allowed' : 'pointer',
+                opacity: syncing ? 0.7 : 1,
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              {syncing ? '🔄 Synchronisation...' : '✓ Synchroniser sélectionnés'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Sync All Mode - Button */}
+      {mode === 'sync-all' && (
+        <div style={{ marginBottom: '20px' }}>
+          {!autoShowConfirm && (
+            <button
+              onClick={() => setShowConfirm(true)}
+              disabled={syncing}
+              style={{
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                padding: '10px 20px',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: syncing ? 'not-allowed' : 'pointer',
+                opacity: syncing ? 0.7 : 1,
+                fontSize: '14px',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}
+            >
+              {syncing ? '🔄 Synchronisation en cours...' : '🔗 Synchroniser tous'}
+              {pendingCount !== null && (
+                <span style={{
+                  backgroundColor: '#1e40af',
+                  borderRadius: '999px',
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  minWidth: '24px',
+                  textAlign: 'center'
+                }}>
+                  {loadingCount ? '...' : pendingCount}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Confirmation Modal */}
       {showConfirm && (
         <div style={{
@@ -118,8 +309,10 @@ export default function EBrigadeSyncUsers({
             </h2>
             <p style={{ marginBottom: '24px', color: '#4b5563', fontSize: '15px', lineHeight: '1.5' }}>
               Êtes-vous sûr de synchroniser les profils eBrigade et d'envoyer les invitations à 
-              <strong style={{ color: '#3b82f6' }}> {loadingCount ? '...' : pendingCount || 0} profil{(pendingCount === 0 || pendingCount === 1) ? '' : 's'}</strong>
-              {' '} non-liés ?
+              <strong style={{ color: '#3b82f6' }}>
+                {' '}{mode === 'select-specific' ? selectedUsers.size : (pendingCount || 0)} profil{(mode === 'select-specific' ? selectedUsers.size : pendingCount) === 1 ? '' : 's'}{' '}
+              </strong>
+              non-liés ?
             </p>
           <div style={{
             backgroundColor: '#f0f4f8',
