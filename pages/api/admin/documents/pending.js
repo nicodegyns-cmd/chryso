@@ -14,7 +14,7 @@ export default async function handler(req, res) {
         d.user_id,
         d.name,
         d.type,
-        d.url,
+        d.file_path,
         d.file_size,
         d.created_at,
         d.validation_status,
