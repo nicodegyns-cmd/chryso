@@ -52,89 +52,115 @@ export default async function handler(req, res) {
     console.log('DEBUG: ebrigadeData length =', Array.isArray(ebrigadeData) ? ebrigadeData.length : 'N/A')
     const ebrigadeUsers = Array.isArray(ebrigadeData) ? ebrigadeData : (ebrigadeData.remote ? ebrigadeData.remote : [])
 
-    // Step 2: For each eBrigade user, check if already linked in our system
+    // Step 2: Batch validation - collect all data first, then do single queries
     const batchId = crypto.randomBytes(16).toString('hex')
     const toCreate = []
     const alreadyLinked = []
     const errors = []
-    for (const ebUser of ebrigadeUsers) {
-      try {
-        const ebrigadeId = String(ebUser.id || ebUser.ebrigade_id || ebUser.EBR_ID || '')
-        const email = (ebUser.email || '').toLowerCase().trim()
-        const firstName = (ebUser.firstname || ebUser.first_name || '').trim()
-        const lastName = (ebUser.lastname || ebUser.last_name || '').trim()
 
-        if (!email || !firstName || !lastName) {
-          errors.push({ ebrigadeId, reason: 'Missing email, firstname, or lastname' })
-          continue
-        }
+    // Extract data first
+    const usersToProcess = ebrigadeUsers
+      .map(ebUser => ({
+        original: ebUser,
+        ebrigadeId: String(ebUser.id || ebUser.ebrigade_id || ebUser.EBR_ID || ''),
+        email: (ebUser.email || '').toLowerCase().trim(),
+        firstName: (ebUser.firstname || ebUser.first_name || '').trim(),
+        lastName: (ebUser.lastname || ebUser.last_name || '').trim()
+      }))
+      .filter(u => u.ebrigadeId && u.email && u.firstName && u.lastName) // Pre-filter invalid ones
 
-        // Check if user already linked in our system
-        const existing = await query(
-          'SELECT id FROM users WHERE liaison_ebrigade_id = $1 OR email = $2',
+    // Batch query 1: Find all ALREADY LINKED users (by ebrigadeId or email)
+    const linkedByEbrigadeId = new Set()
+    const linkedByEmail = new Map()
+    
+    if (usersToProcess.length > 0) {
+      const ebrigadeIds = usersToProcess.map(u => u.ebrigadeId)
+      const emails = usersToProcess.map(u => u.email)
+
+      const linkedQuery = await query(
+        `SELECT id, email, liaison_ebrigade_id FROM users 
+         WHERE liaison_ebrigade_id = ANY($1) OR email = ANY($2)`,
+        [ebrigadeIds, emails]
+      )
+
+      linkedQuery.rows.forEach(row => {
+        if (row.liaison_ebrigade_id) linkedByEbrigadeId.add(row.liaison_ebrigade_id)
+        linkedByEmail.set(row.email, row.id)
+      })
+    }
+
+    // Batch query 2: Find emails that exist but aren't linked to eBrigade
+    const emailsNotLinked = new Set()
+    const unlinkedEmails = usersToProcess
+      .filter(u => !linkedByEbrigadeId.has(u.ebrigadeId) && linkedByEmail.has(u.email))
+      .map(u => u.email)
+
+    if (unlinkedEmails.length > 0) {
+      const unlinkedQuery = await query(
+        `SELECT id, email FROM users WHERE email = ANY($1) AND liaison_ebrigade_id IS NULL`,
+        [unlinkedEmails]
+      )
+      unlinkedQuery.rows.forEach(row => emailsNotLinked.add(row.email))
+    }
+
+    // Now process all users efficiently
+    for (const userData of usersToProcess) {
+      const { original, ebrigadeId, email, firstName, lastName } = userData
+
+      // Check 1: Already linked by eBrigadeId
+      if (linkedByEbrigadeId.has(ebrigadeId)) {
+        alreadyLinked.push({ email, firstName, lastName, ebrigadeId, status: 'already_linked' })
+        continue
+      }
+
+      // Check 2: Email exists but not linked (will update)
+      if (emailsNotLinked.has(email)) {
+        await query(
+          'UPDATE users SET liaison_ebrigade_id = $1 WHERE email = $2',
           [ebrigadeId, email]
         )
-
-        if (existing.rows.length > 0) {
-          alreadyLinked.push({ email, firstName, lastName, ebrigadeId })
-          continue
-        }
-
-        // Check if email already exists from other source
-        const emailExists = await query(
-          'SELECT id FROM users WHERE email = $1 AND liaison_ebrigade_id IS NULL',
-          [email]
-        )
-
-        if (emailExists.rows.length > 0) {
-          // Update existing user with liaison
-          await query(
-            'UPDATE users SET liaison_ebrigade_id = $1 WHERE email = $2',
-            [ebrigadeId, email]
-          )
-          alreadyLinked.push({ email, firstName, lastName, ebrigadeId, status: 'linked_existing' })
-          continue
-        }
-
-        // Step 3: Create new user with pending_signup status
-        const invitationToken = crypto.randomBytes(32).toString('hex')
-        const invitationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-
-        const result = await query(
-          `INSERT INTO users (email, first_name, last_name, liaison_ebrigade_id, onboarding_status, 
-           invitation_token, invitation_sent_at, invitation_expires_at, import_batch_id, is_active)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-           RETURNING id, email, first_name, last_name`,
-          [
-            email,
-            firstName,
-            lastName,
-            ebrigadeId,
-            'pending_signup',
-            invitationToken,
-            new Date(),
-            invitationExpiresAt,
-            batchId,
-            1
-          ]
-        )
-
-        const newUser = result.rows[0]
-        toCreate.push({
-          id: newUser.id,
-          email: newUser.email,
-          first_name: newUser.first_name,
-          last_name: newUser.last_name,
-          ebrigadeId,
-          invitationToken
-        })
-      } catch (e) {
-        console.error('User creation error:', e.message)
-        errors.push({ 
-          ebrigadeId: ebUser.id || ebUser.ebrigade_id, 
-          reason: e.message 
-        })
+        alreadyLinked.push({ email, firstName, lastName, ebrigadeId, status: 'linked_existing' })
+        continue
       }
+
+      // Check 3: Email already exists (via another eBrigade ID)
+      if (linkedByEmail.has(email)) {
+        alreadyLinked.push({ email, firstName, lastName, ebrigadeId, status: 'email_conflict' })
+        continue
+      }
+
+      // Step 3: Create new user with pending_signup status
+      const invitationToken = crypto.randomBytes(32).toString('hex')
+      const invitationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+      const result = await query(
+        `INSERT INTO users (email, first_name, last_name, liaison_ebrigade_id, onboarding_status, 
+         invitation_token, invitation_sent_at, invitation_expires_at, import_batch_id, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING id, email, first_name, last_name`,
+        [
+          email,
+          firstName,
+          lastName,
+          ebrigadeId,
+          'pending_signup',
+          invitationToken,
+          new Date(),
+          invitationExpiresAt,
+          batchId,
+          1
+        ]
+      )
+
+      const newUser = result.rows[0]
+      toCreate.push({
+        id: newUser.id,
+        email: newUser.email,
+        first_name: newUser.first_name,
+        last_name: newUser.last_name,
+        ebrigadeId,
+        invitationToken
+      })
     }
 
     // Step 4: Send invitation emails for newly created users

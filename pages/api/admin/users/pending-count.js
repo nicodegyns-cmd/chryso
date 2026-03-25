@@ -59,37 +59,44 @@ export default async function handler(req, res) {
 
     console.log('[pending-count] Total eBrigade users:', ebrigadeUsers.length)
 
-    // Step 2: For each eBrigade user, check if they're already linked in our system
-    let unlinkedCount = 0
-    const unlinkedUsers = []
+    // Step 2: Batch check - get all linked eBrigade IDs in ONE query instead of N queries
+    const ebrigadeIds = ebrigadeUsers
+      .map(u => String(u.id || u.ebrigade_id || u.EBR_ID || ''))
+      .filter(id => id.length > 0)
 
-    for (const ebUser of ebrigadeUsers) {
-      try {
-        const ebrigadeId = String(ebUser.id || ebUser.ebrigade_id || ebUser.EBR_ID || '')
-        
-        if (!ebrigadeId) continue
-
-        // Check if user already linked in our system
-        const existing = await query(
-          'SELECT id FROM users WHERE liaison_ebrigade_id = $1 OR ebrigade_id = $1',
-          [ebrigadeId]
-        )
-
-        if (existing.rows.length === 0) {
-          // Not linked yet - eligible for sync
-          unlinkedCount++
-          unlinkedUsers.push({
-            ebrigadeId,
-            firstName: ebUser.firstname || ebUser.first_name || '',
-            lastName: ebUser.lastname || ebUser.last_name || '',
-            email: ebUser.email || ''
-          })
-        }
-      } catch (e) {
-        console.error('Error checking user:', e.message)
-      }
+    let linkedIds = new Set()
+    if (ebrigadeIds.length > 0) {
+      // Single query: get all users with ANY of these eBrigade IDs
+      const placeholders = ebrigadeIds.map((_, i) => `$${i + 1}`).join(',')
+      const linkedResult = await query(
+        `SELECT liaison_ebrigade_id, ebrigade_id FROM users WHERE liaison_ebrigade_id = ANY($1) OR ebrigade_id = ANY($1)`,
+        [ebrigadeIds]
+      )
+      linkedIds = new Set([
+        ...linkedResult.rows.map(r => r.liaison_ebrigade_id),
+        ...linkedResult.rows.map(r => r.ebrigade_id)
+      ])
     }
 
+    console.log('[pending-count] Linked IDs in system:', linkedIds.size)
+
+    // Step 3: Filter unlinked users
+    const unlinkedUsers = ebrigadeUsers
+      .map(ebUser => {
+        const ebrigadeId = String(ebUser.id || ebUser.ebrigade_id || ebUser.EBR_ID || '')
+        const email = ebUser.email || ''
+        
+        return {
+          ebrigadeId,
+          firstName: ebUser.firstname || ebUser.first_name || '',
+          lastName: ebUser.lastname || ebUser.last_name || '',
+          email,
+          isLinked: linkedIds.has(ebrigadeId)
+        }
+      })
+      .filter(u => u.ebrigadeId && u.email && !u.isLinked)
+
+    const unlinkedCount = unlinkedUsers.length
     console.log('[pending-count] Unlinked users eligible for sync:', unlinkedCount)
 
     res.status(200).json({
@@ -99,7 +106,12 @@ export default async function handler(req, res) {
         ? 'Tous les profils eBrigade sont liés'
         : `${unlinkedCount} profil${unlinkedCount > 1 ? 's' : ''} eBrigade à synchroniser`,
       emails: unlinkedUsers.map(u => u.email).filter(e => e), // Return just emails
-      unlinkedUsers: unlinkedUsers // Return full user data for debugging
+      unlinkedUsers: unlinkedUsers.map(u => ({
+        ebrigadeId: u.ebrigadeId,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email
+      })) // Return full user data for debugging (without isLinked flag)
     })
   } catch (error) {
     console.error('[pending-count] Error:', error)
