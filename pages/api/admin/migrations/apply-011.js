@@ -4,7 +4,7 @@
 
 import fs from 'fs'
 import path from 'path'
-import { getPool } from '../../../services/db'
+import { getPool } from '../../../../services/db'
 
 export default async function handler(req, res) {
   // Only allow POST requests
