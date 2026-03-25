@@ -1,10 +1,10 @@
 // pages/api/documents/upload.js
 // Upload user documents
 
-const fs = require('fs')
-const path = require('path')
-const { getPool } = require('../../../services/db')
-const Busboy = require('busboy')
+import fs from 'fs'
+import path from 'path'
+import { getPool } from '../../../services/db'
+import busboy from 'busboy'
 
 const uploadsDir = process.env.VERCEL 
   ? '/tmp/uploads'
@@ -21,7 +21,7 @@ export default function handler(req, res) {
 
   console.log('[UPLOAD] Start')
 
-  const bb = new Busboy({ headers: req.headers })
+  const bb = busboy({ headers: req.headers })
   let sent = false
   let email = null
 
