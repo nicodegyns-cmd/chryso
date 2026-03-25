@@ -90,13 +90,38 @@ export default async function handler(req, res) {
     })
 
     // Process each user
+    const toCreate = []
+    const invitationsToSend = [] // Track all invitations to send
+    const alreadyLinked = []
+
     for (const userData of usersToProcess) {
       const { ebrigadeId, email, firstName, lastName } = userData
 
-      // Check if already linked
+      // Check if already linked by eBrigade ID
       if (linkedByEbrigadeId.has(ebrigadeId)) {
-        alreadyLinked.push({ email, firstName, lastName, ebrigadeId, status: 'already_linked' })
-        continue
+        // Still get the user to send them an invitation
+        const existingUserQuery = await query(
+          'SELECT id FROM users WHERE liaison_ebrigade_id = $1',
+          [ebrigadeId]
+        )
+        if (existingUserQuery.rows.length > 0) {
+          // Generate new invitation token (for testing purposes)
+          const invitationToken = crypto.randomBytes(32).toString('hex')
+          const invitationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          
+          // Update user with new invitation
+          await query(
+            `UPDATE users SET invitation_token = $1, invitation_sent_at = $2, invitation_expires_at = $3
+             WHERE liaison_ebrigade_id = $4`,
+            [invitationToken, new Date(), invitationExpiresAt, ebrigadeId]
+          )
+          
+          invitationsToSend.push({
+            email, firstName, lastName, ebrigadeId, invitationToken, isExisting: true
+          })
+          alreadyLinked.push({ email, firstName, lastName, ebrigadeId, status: 'already_linked' })
+          continue
+        }
       }
 
       // Check if email exists unlinked
@@ -110,12 +135,40 @@ export default async function handler(req, res) {
           'UPDATE users SET liaison_ebrigade_id = $1 WHERE email = $2',
           [ebrigadeId, email]
         )
+        
+        // Still send invitation
+        const invitationToken = crypto.randomBytes(32).toString('hex')
+        const invitationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        
+        await query(
+          `UPDATE users SET invitation_token = $1, invitation_sent_at = $2, invitation_expires_at = $3
+           WHERE email = $4`,
+          [invitationToken, new Date(), invitationExpiresAt, email]
+        )
+        
+        invitationsToSend.push({
+          email, firstName, lastName, ebrigadeId, invitationToken, isExisting: true
+        })
         alreadyLinked.push({ email, firstName, lastName, ebrigadeId, status: 'linked_existing' })
         continue
       }
 
       // Check if email already taken by another eBrigade ID
       if (linkedByEmail.has(email)) {
+        // Still send invitation to existing account (for testing)
+        const existingId = linkedByEmail.get(email)
+        const invitationToken = crypto.randomBytes(32).toString('hex')
+        const invitationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        
+        await query(
+          `UPDATE users SET invitation_token = $1, invitation_sent_at = $2, invitation_expires_at = $3
+           WHERE id = $4`,
+          [invitationToken, new Date(), invitationExpiresAt, existingId]
+        )
+        
+        invitationsToSend.push({
+          email, firstName, lastName, ebrigadeId, invitationToken, isExisting: true
+        })
         alreadyLinked.push({ email, firstName, lastName, ebrigadeId, status: 'email_conflict' })
         continue
       }
@@ -152,13 +205,22 @@ export default async function handler(req, res) {
         ebrigadeId,
         invitationToken
       })
+      
+      invitationsToSend.push({
+        email: newUser.email,
+        firstName: newUser.first_name,
+        lastName: newUser.last_name,
+        ebrigadeId,
+        invitationToken,
+        isExisting: false
+      })
     }
 
     // Send invitation emails
     const emailResults = []
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-    for (const user of toCreate) {
+    for (const user of invitationsToSend) {
       try {
         const signupUrl = `${baseUrl}/signup?token=${encodeURIComponent(user.invitationToken)}`
         const emailContent = `
@@ -203,7 +265,7 @@ L'équipe d'administration`
         created: toCreate.length,
         alreadyLinked: alreadyLinked.length,
         emailsSent: sentCount,
-        emailsFailed: toCreate.length - sentCount
+        emailsFailed: invitationsToSend.length - sentCount
       },
       created: toCreate,
       alreadyLinked,
