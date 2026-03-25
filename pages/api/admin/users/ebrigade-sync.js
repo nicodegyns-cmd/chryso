@@ -57,17 +57,30 @@ export default async function handler(req, res) {
     const toCreate = []
     const alreadyLinked = []
     const errors = []
+    const skippedUsers = []
 
-    // Extract data first
-    const usersToProcess = ebrigadeUsers
-      .map(ebUser => ({
+    // Extract data first AND track those with missing data
+    const usersToProcess = []
+    for (const ebUser of ebrigadeUsers) {
+      const data = {
         original: ebUser,
         ebrigadeId: String(ebUser.id || ebUser.ebrigade_id || ebUser.EBR_ID || ''),
         email: (ebUser.email || '').toLowerCase().trim(),
         firstName: (ebUser.firstname || ebUser.first_name || '').trim(),
-        lastName: (ebUser.lastname || ebUser.last_name || '').trim()
-      }))
-      .filter(u => u.ebrigadeId && u.email && u.firstName && u.lastName) // Pre-filter invalid ones
+        lastName: (ebUser.lastname || ebUser.last_name || '').trim(),
+        grade: (ebUser.grade || ebUser.fonction || ebUser.role_label || 'UNKNOWN').toUpperCase()
+      }
+
+      if (!data.ebrigadeId || !data.email || !data.firstName || !data.lastName) {
+        skippedUsers.push({
+          id: data.ebrigadeId || 'UNKNOWN',
+          grade: data.grade,
+          reason: !data.email ? 'missing_email' : 'missing_name'
+        })
+      } else {
+        usersToProcess.push(data)
+      }
+    }
 
     // Batch query 1: Find all ALREADY LINKED users (by ebrigadeId or email)
     const linkedByEbrigadeId = new Set()
@@ -208,15 +221,17 @@ L'équipe d'administration
       batchId,
       summary: {
         totalEbrigadeUsers: ebrigadeUsers.length,
-        eligibleUsers: filtered.length,
+        processedUsers: usersToProcess.length,
         created: toCreate.length,
         alreadyLinked: alreadyLinked.length,
         emailsSent: sentCount,
         emailsFailed: toCreate.length - sentCount,
+        skippedDueToMissingData: skippedUsers.length,
         errors: errors.length
       },
       created: toCreate,
       alreadyLinked,
+      skippedUsers: skippedUsers.slice(0, 10), // Show first 10 skipped with reason
       emailResults,
       errors: errors.slice(0, 10) // Return first 10 errors
     })

@@ -85,19 +85,44 @@ export default async function handler(req, res) {
       .map(ebUser => {
         const ebrigadeId = String(ebUser.id || ebUser.ebrigade_id || ebUser.EBR_ID || '')
         const email = ebUser.email || ''
+        const firstName = ebUser.firstname || ebUser.first_name || ''
+        const lastName = ebUser.lastname || ebUser.last_name || ''
         
         return {
           ebrigadeId,
-          firstName: ebUser.firstname || ebUser.first_name || '',
-          lastName: ebUser.lastname || ebUser.last_name || '',
+          firstName,
+          lastName,
           email,
+          grade: (ebUser.grade || ebUser.fonction || ebUser.role_label || 'UNKNOWN').toUpperCase(),
+          hasRequiredData: !!(ebrigadeId && email && firstName && lastName),
           isLinked: linkedIds.has(ebrigadeId)
         }
       })
-      .filter(u => u.ebrigadeId && u.email && !u.isLinked)
 
-    const unlinkedCount = unlinkedUsers.length
+    // Show breakdown by grade
+    const gradeBreakdown = {}
+    const usersWithoutData = []
+
+    for (const user of unlinkedUsers) {
+      gradeBreakdown[user.grade] = (gradeBreakdown[user.grade] || 0) + 1
+
+      if (!user.hasRequiredData) {
+        usersWithoutData.push({
+          id: user.ebrigadeId,
+          reason: !user.email ? 'no email' : 'no firstname/lastname',
+          grade: user.grade
+        })
+      }
+    }
+
+    // Filter unlinked users
+    const eligibleUnlinked = unlinkedUsers
+      .filter(u => u.hasRequiredData && !u.isLinked)
+
+    const unlinkedCount = eligibleUnlinked.length
     console.log('[pending-count] Unlinked users eligible for sync:', unlinkedCount)
+    console.log('[pending-count] Users missing data:', usersWithoutData.length)
+    console.log('[pending-count] Grade breakdown:', gradeBreakdown)
 
     res.status(200).json({
       pendingCount: unlinkedCount,
@@ -105,13 +130,19 @@ export default async function handler(req, res) {
       message: unlinkedCount === 0 
         ? 'Tous les profils eBrigade sont liés'
         : `${unlinkedCount} profil${unlinkedCount > 1 ? 's' : ''} eBrigade à synchroniser`,
-      emails: unlinkedUsers.map(u => u.email).filter(e => e), // Return just emails
-      unlinkedUsers: unlinkedUsers.map(u => ({
+      emails: eligibleUnlinked.map(u => u.email).filter(e => e), // Return just emails
+      unlinkedUsers: eligibleUnlinked.map(u => ({
         ebrigadeId: u.ebrigadeId,
         firstName: u.firstName,
         lastName: u.lastName,
-        email: u.email
-      })) // Return full user data for debugging (without isLinked flag)
+        email: u.email,
+        grade: u.grade
+      })),
+      gradeBreakdown,
+      missingData: {
+        count: usersWithoutData.length,
+        reasons: usersWithoutData.slice(0, 10) // Show first 10 examples
+      }
     })
   } catch (error) {
     console.error('[pending-count] Error:', error)
