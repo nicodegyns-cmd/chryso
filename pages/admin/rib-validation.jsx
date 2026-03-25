@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminHeader from '../../components/AdminHeader';
 import AdminSidebar from '../../components/AdminSidebar';
+import styles from './rib-validation.module.css';
 
 export default function RIBValidation() {
   const [documents, setDocuments] = useState([]);
@@ -71,62 +72,62 @@ export default function RIBValidation() {
       <div className="admin-content">
         <AdminSidebar />
         <div className="admin-main">
-          <div className="rib-validation-container">
+          <div className={styles['rib-validation-container']}>
             <h1>📋 Validation des Documents RIB</h1>
 
             {message && (
-              <div className={`message ${message.includes('✅') ? 'success' : 'error'}`}>
+              <div className={`${styles.message} ${message.includes('✅') ? styles.success : styles.error}`}>
                 {message}
               </div>
             )}
 
             {loading ? (
-              <div className="loading">Chargement des documents...</div>
+              <div className={styles.loading}>Chargement des documents...</div>
             ) : documents.length === 0 ? (
-              <div className="empty-state">
+              <div className={styles['empty-state']}>
                 <p>✅ Aucun document en attente de validation</p>
               </div>
             ) : (
-              <div className="documents-grid">
+              <div className={styles['documents-grid']}>
                 {documents.map(doc => (
                   <div 
                     key={doc.id} 
-                    className={`document-card ${selectedDoc?.id === doc.id ? 'selected' : ''}`}
+                    className={`${styles['document-card']} ${selectedDoc?.id === doc.id ? styles.selected : ''}`}
                     onClick={() => setSelectedDoc(doc)}
                   >
-                    <div className="doc-header">
-                      <div className="doc-type-badge">📄 {doc.type}</div>
-                      <div className="doc-date">{new Date(doc.created_at).toLocaleDateString('fr-FR')}</div>
+                    <div className={styles['doc-header']}>
+                      <div className={styles['doc-type-badge']}>📄 {doc.type}</div>
+                      <div className={styles['doc-date']}>{new Date(doc.created_at).toLocaleDateString('fr-FR')}</div>
                     </div>
 
-                    <div className="user-info">
+                    <div className={styles['user-info']}>
                       <h3>{doc.user_name}</h3>
-                      <p className="email">📧 {doc.email}</p>
-                      <p className="phone">📱 {doc.phone}</p>
-                      {doc.company_name && <p className="company">🏢 {doc.company_name}</p>}
-                      {doc.city && <p className="city">📍 {doc.city}</p>}
+                      <p className={styles.email}>📧 {doc.email}</p>
+                      <p className={styles.phone}>📱 {doc.phone}</p>
+                      {doc.company_name && <p className={styles.company}>🏢 {doc.company_name}</p>}
+                      {doc.city && <p className={styles.city}>📍 {doc.city}</p>}
                     </div>
 
-                    <div className="doc-filename">
+                    <div className={styles['doc-filename']}>
                       <strong>Fichier:</strong> {doc.name}
                     </div>
 
-                    <div className="doc-size">
+                    <div className={styles['doc-size']}>
                       <strong>Taille:</strong> {(doc.file_size / 1024).toFixed(2)} KB
                     </div>
 
-                    <div className="status-badge pending">⏳ En attente</div>
+                    <div className={`${styles['status-badge']} ${styles.pending}`}>⏳ En attente</div>
                   </div>
                 ))}
               </div>
             )}
 
             {selectedDoc && (
-              <div className="validation-panel">
-                <div className="panel-header">
+              <div className={styles['validation-panel']}>
+                <div className={styles['panel-header']}>
                   <h2>Valider le document</h2>
                   <button 
-                    className="close-btn" 
+                    className={styles['close-btn']} 
                     onClick={() => {
                       setSelectedDoc(null);
                       setRejectionReason('');
@@ -136,38 +137,38 @@ export default function RIBValidation() {
                   </button>
                 </div>
 
-                <div className="panel-content">
-                  <div className="user-full-info">
+                <div className={styles['panel-content']}>
+                  <div className={styles['user-full-info']}>
                     <h3>👤 Informations de l'utilisateur</h3>
-                    <div className="info-row">
-                      <span className="label">Nom:</span>
+                    <div className={styles['info-row']}>
+                      <span className={styles.label}>Nom:</span>
                       <span>{selectedDoc.user_name}</span>
                     </div>
-                    <div className="info-row">
-                      <span className="label">Email:</span>
+                    <div className={styles['info-row']}>
+                      <span className={styles.label}>Email:</span>
                       <span>{selectedDoc.email}</span>
                     </div>
-                    <div className="info-row">
-                      <span className="label">Téléphone:</span>
+                    <div className={styles['info-row']}>
+                      <span className={styles.label}>Téléphone:</span>
                       <span>{selectedDoc.phone}</span>
                     </div>
                     {selectedDoc.company_name && (
-                      <div className="info-row">
-                        <span className="label">Entreprise:</span>
+                      <div className={styles['info-row']}>
+                        <span className={styles.label}>Entreprise:</span>
                         <span>{selectedDoc.company_name}</span>
                       </div>
                     )}
                     {selectedDoc.city && (
-                      <div className="info-row">
-                        <span className="label">Ville:</span>
+                      <div className={styles['info-row']}>
+                        <span className={styles.label}>Ville:</span>
                         <span>{selectedDoc.city}</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="document-preview">
+                  <div className={styles['document-preview']}>
                     <h3>📎 Aperçu du document</h3>
-                    <div className="document-info">
+                    <div className={styles['document-info']}>
                       <p><strong>Nom:</strong> {selectedDoc.name}</p>
                       <p><strong>Type:</strong> {selectedDoc.type}</p>
                       <p><strong>Taille:</strong> {(selectedDoc.file_size / 1024).toFixed(2)} KB</p>
@@ -177,14 +178,14 @@ export default function RIBValidation() {
                       href={selectedDoc.url || `/api/documents/serve?id=${selectedDoc.id}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="view-document-btn"
+                      className={styles['view-document-btn']}
                     >
                       👁️ Voir le PDF
                     </a>
                   </div>
 
                   {validationInProgress && (
-                    <div className="validation-section">
+                    <div className={styles['validation-section']}>
                       <label>Raison du rejet:</label>
                       <textarea
                         value={rejectionReason}
@@ -195,16 +196,16 @@ export default function RIBValidation() {
                     </div>
                   )}
 
-                  <div className="validation-actions">
+                  <div className={styles['validation-actions']}>
                     <button
-                      className="btn-approve"
+                      className={styles['btn-approve']}
                       onClick={() => handleValidate(selectedDoc.id, 'approved')}
                       disabled={validationInProgress}
                     >
                       ✅ Valider le document
                     </button>
                     <button
-                      className="btn-reject"
+                      className={styles['btn-reject']}
                       onClick={() => {
                         if (!validationInProgress) {
                           setValidationInProgress(true);
