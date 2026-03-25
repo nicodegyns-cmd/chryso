@@ -10,19 +10,19 @@ export default async function handler(req, res) {
 
     // Check if documents table exists
     const tableCheck = await pool.query(`
-      SELECT EXISTS(
-        SELECT 1 FROM information_schema.tables 
-        WHERE table_schema = 'public' AND table_name = 'documents'
-      )
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'documents'
     `)
 
-    const tableExists = tableCheck.rows[0].exists
+    const tableExists = tableCheck.rows && tableCheck.rows.length > 0
 
     if (!tableExists) {
       return res.status(500).json({
         success: false,
         error: 'Documents table does not exist',
-        message: 'Run migrations 014 and 015 first'
+        message: 'Run migration 014 first',
+        tableExists: false
       })
     }
 
@@ -35,28 +35,36 @@ export default async function handler(req, res) {
     `)
 
     const requiredColumns = [
-      'id', 'user_id', 'name', 'type', 'url', 'file_path', 'file_size',
+      'id', 'user_id', 'name', 'type', 'url', 'file_size',
       'validation_status', 'created_at'
     ]
 
-    const existingColumns = columnsCheck.rows.map(r => r.column_name)
+    const existingColumns = (columnsCheck.rows || []).map(r => r.column_name)
     const missingColumns = requiredColumns.filter(col => !existingColumns.includes(col))
+
+    // Check specifically for validation columns
+    const hasValidationStatus = existingColumns.includes('validation_status')
+    const hasValidatedAt = existingColumns.includes('validated_at')
 
     return res.status(200).json({
       success: true,
       tableExists: true,
-      totalColumns: columnsCheck.rows.length,
-      columns: columnsCheck.rows,
+      totalColumns: columnsCheck.rows ? columnsCheck.rows.length : 0,
+      columns: columnsCheck.rows || [],
       requiredColumns,
+      existingColumns,
       missingColumns: missingColumns.length > 0 ? missingColumns : [],
-      diagnosisOk: missingColumns.length === 0
+      hasValidationStatus,
+      hasValidatedAt,
+      diagnosisOk: missingColumns.length === 0 && hasValidationStatus && hasValidatedAt
     })
   } catch (error) {
     console.error('Diagnosis error:', error)
     return res.status(500).json({
       success: false,
       error: 'Database check failed',
-      details: error.message
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
   }
 }
