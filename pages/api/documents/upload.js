@@ -113,6 +113,12 @@ export default function handler(req, res) {
 
     bb.on('error', err => {
       console.error('[UPLOAD] Busboy error:', err.message)
+      // Ignore "Unexpected end of form" - it's a known busboy issue on Vercel
+      // but the file might still have been received
+      if (err.message.includes('Unexpected end of form')) {
+        console.log('[UPLOAD] Ignoring Unexpected end of form error')
+        return
+      }
       if (!sent) {
         return send(400, { error: err.message })
       }
