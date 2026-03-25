@@ -178,7 +178,7 @@ export default async function handler(req, res) {
 
     // Step 4: Send invitation emails for newly created users
     const emailResults = []
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
     for (const user of toCreate) {
       try {

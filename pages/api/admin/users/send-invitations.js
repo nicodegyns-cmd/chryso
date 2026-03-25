@@ -12,7 +12,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'No users to send invitations to' })
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
     const results = []
 
     for (const user of users) {
