@@ -1,16 +1,14 @@
-import fs from 'fs'
-import path from 'path'
-import { getPool } from '../../../../services/db'
+const fs = require('fs')
+const path = require('path')
+const { query } = require('../../../../services/db')
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Allow both POST (requires token) and GET (for diagnostics)
   if (req.method === 'GET') {
     // Public diagnostic endpoint - no token required
     try {
-      const pool = getPool()
-      
-      const result = await pool.query(`
-        SELECT column_name 
+      const result = await query(
+        `SELECT column_name 
         FROM information_schema.columns 
         WHERE table_name = 'users' AND column_name IN (
           'invitation_token',
@@ -18,10 +16,10 @@ export default async function handler(req, res) {
           'invitation_expires_at',
           'onboarding_status',
           'import_batch_id'
-        )
-      `)
+        )`
+      )
 
-      const foundColumns = result.rows.map(r => r.column_name)
+      const foundColumns = result.rows ? result.rows.map(r => r.column_name) : []
       const requiredColumns = [
         'invitation_token',
         'invitation_sent_at',
@@ -40,6 +38,7 @@ export default async function handler(req, res) {
           : `Migration 011 needs to be applied. Missing columns: ${missingColumns.join(', ')}`
       })
     } catch (err) {
+      console.error('Check migration error:', err)
       return res.status(500).json({
         error: 'Failed to check migration status',
         details: err.message
@@ -62,8 +61,6 @@ export default async function handler(req, res) {
     })
   }
 
-  const pool = getPool()
-
   try {
     console.log('🔄 Applying migration 011: Add invitation and onboarding columns...')
 
@@ -79,7 +76,7 @@ export default async function handler(req, res) {
       try {
         const trimmed = statement.trim()
         // Execute the statement
-        await pool.query(trimmed)
+        await query(trimmed)
         results.push({
           status: 'success',
           statement: trimmed.slice(0, 60) + '...'
