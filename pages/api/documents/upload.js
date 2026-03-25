@@ -4,7 +4,7 @@
 import fs from 'fs'
 import path from 'path'
 import { getPool } from '../../../services/db'
-import busboy from 'busboy'
+import { busboy as Busboy } from 'busboy'
 
 const uploadsDir = process.env.VERCEL 
   ? '/tmp/uploads'
@@ -21,7 +21,7 @@ export default function handler(req, res) {
 
   console.log('[UPLOAD] Start')
 
-  const bb = busboy({ headers: req.headers })
+  const bb = Busboy({ headers: req.headers })
   let sent = false
   let email = null
 
