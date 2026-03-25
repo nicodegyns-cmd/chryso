@@ -1,216 +1,145 @@
 // pages/api/documents/upload.js
-// Upload user documents (RIB, identity documents, etc.)
+// Upload user documents - Fixed busboy handler
 
 import fs from 'fs'
 import path from 'path'
 import { getPool } from '../../../services/db'
-import busboy from 'busboy'
+import Busboy from 'busboy'
 
-// Create uploads directory if it doesn't exist
-// Use /tmp on Vercel (stateless) or public/uploads locally
 const uploadsDir = process.env.VERCEL 
   ? path.join('/tmp', 'uploads')
   : path.join(process.cwd(), 'public', 'uploads')
 
-console.log('[UPLOAD] Using directory:', uploadsDir, 'VERCEL:', process.env.VERCEL ? 'true' : 'false')
-
 if (!fs.existsSync(uploadsDir)) {
   try {
     fs.mkdirSync(uploadsDir, { recursive: true })
-    console.log('[UPLOAD] Directory created successfully')
   } catch (err) {
-    console.error('[UPLOAD] Failed to create directory:', err.message)
+    console.error('[UPLOAD] Create dir failed:', err.message)
   }
 }
 
-export default async function handler(req, res) {
+export default function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  console.log('[UPLOAD] Starting document upload...')
-  console.log('[UPLOAD] Content-Type:', req.headers['content-type'])
-  console.log('[UPLOAD] Content-Length:', req.headers['content-length'])
+  console.log('[UPLOAD] === Start ===')
+  console.log('[UPLOAD] Type:', req.headers['content-type']?.substring(0, 40))
+  console.log('[UPLOAD] Size:', req.headers['content-length'])
 
-  // Check for multipart/form-data
   const contentType = req.headers['content-type'] || ''
   if (!contentType.includes('multipart/form-data')) {
-    console.log('[UPLOAD] ERROR: Not multipart form data')
-    return res.status(400).json({ 
-      error: 'Invalid Content-Type',
-      expected: 'multipart/form-data',
-      received: contentType
-    })
+    return res.status(400).json({ error: 'Invalid Content-Type' })
   }
 
-  return new Promise((resolve) => {
-    try {
-      console.log('[UPLOAD] Creating busboy parser...')
-      
-      const bb = busboy({ 
-        headers: req.headers,
-        limits: {
-          fileSize: 10 * 1024 * 1024,
-          files: 1,
-          fields: 10
-        }
-      })
-      
-      console.log('[UPLOAD] Busboy parser created successfully')
-    
-    let fileData = null
-    let fileName = null
-    let email = null
-    let documentType = 'DOCUMENT'
-    let fileProcessed = false
+  let responseSent = false
+  let fileBuffer = null
+  let fileName = null
+  let email = null
 
-    return new Promise((resolve) => {
-      // Handle field parsing
-      bb.on('field', (fieldname, val) => {
-        console.log(`[UPLOAD] Field: ${fieldname} = ${val}`)
-        if (fieldname === 'email') {
-          email = val
-        } else if (fieldname === 'documentType') {
-          documentType = val
-        }
+  function sendResp(status, data) {
+    if (responseSent) return
+    responseSent = true
+    res.status(status).json(data)
+  }
+
+  try {
+    const bb = new Busboy({ headers: req.headers })
+
+    bb.on('field', (name, val) => {
+      console.log(`[UPLOAD] Field: ${name}`)
+      if (name === 'email') email = val
+    })
+
+    bb.on('file', (name, file, info) => {
+      console.log(`[UPLOAD] File: ${info.filename}`)
+      fileName = info.filename
+      const chunks = []
+
+      file.on('data', (chunk) => {
+        chunks.push(chunk)
       })
 
-      // Handle file parsing
-      bb.on('file', (fieldname, file, info) => {
-        console.log(`[UPLOAD] File received: ${info.filename}`)
-        fileName = info.filename
-        const chunks = []
+      file.on('end', async () => {
+        if (responseSent) return
 
-        file.on('data', (data) => {
-          console.log(`[UPLOAD] Received chunk: ${data.length} bytes`)
-          chunks.push(data)
-        })
+        try {
+          fileBuffer = Buffer.concat(chunks)
+          console.log(`[UPLOAD] Got ${fileBuffer.length}b`)
 
-        file.on('end', async () => {
-          try {
-            if (fileProcessed) {
-              console.log('[UPLOAD] File already processed, skipping duplicate')
-              return
-            }
-            fileProcessed = true
-
-            console.log(`[UPLOAD] File end event. Total chunks: ${chunks.length}`)
-            fileData = Buffer.concat(chunks)
-            console.log(`[UPLOAD] File data size: ${fileData.length} bytes`)
-
-            // Validate PDF (check magic bytes)
-            const magicBytes = fileData.toString('hex', 0, 4)
-            console.log(`[UPLOAD] Magic bytes: ${magicBytes}`)
-            if (!magicBytes.startsWith('25504446')) { // %PDF
-              console.log('[UPLOAD] Invalid PDF magic bytes')
-              return resolve(res.status(400).json({ error: 'File is not a valid PDF' }))
-            }
-
-            // Validate size (max 5MB)
-            if (fileData.length > 5 * 1024 * 1024) {
-              console.log(`[UPLOAD] File too large: ${fileData.length} bytes`)
-              return resolve(res.status(400).json({ error: 'File size exceeds 5MB limit' }))
-            }
-
-            // Validate email
-            if (!email) {
-              console.log('[UPLOAD] Email not provided')
-              return resolve(res.status(400).json({ error: 'Email is required' }))
-            }
-
-            console.log(`[UPLOAD] Email: ${email}, Type: ${documentType}`)
-
-            const pool = getPool()
-
-            // Find user
-            console.log('[UPLOAD] Querying user by email...')
-            const [userRows] = await pool.query(
-              'SELECT id FROM users WHERE email = $1',
-              [email]
-            )
-
-            if (!userRows || userRows.length === 0) {
-              console.log(`[UPLOAD] User not found for email: ${email}`)
-              return resolve(res.status(404).json({ error: 'User not found' }))
-            }
-
-            const userId = userRows[0].id
-            console.log(`[UPLOAD] User found: ${userId}`)
-
-            // Generate unique file name
-            const timestamp = Date.now()
-            const randomStr = Math.random().toString(36).substring(7)
-            const safeFileName = `${documentType.toLowerCase()}_${userId}_${timestamp}_${randomStr}.pdf`
-            const filePath = path.join(uploadsDir, safeFileName)
-
-            console.log(`[UPLOAD] Saving file to: ${filePath}`)
-
-            // Save file to disk
-            fs.writeFileSync(filePath, fileData)
-            console.log(`[UPLOAD] File saved successfully`)
-
-            // Insert into documents table with validation_status = pending
-            console.log('[UPLOAD] Inserting document record into database...')
-            const [docRows] = await pool.query(
-              `INSERT INTO documents (user_id, name, type, file_path, file_size, validation_status, created_at)
-               VALUES ($1, $2, $3, $4, $5, 'pending', CURRENT_TIMESTAMP)
-               RETURNING id`,
-              [userId, fileName, 'PDF', filePath, fileData.length]
-            )
-
-            console.log(`[UPLOAD] Document created with ID: ${docRows[0].id}`)
-
-            const docId = docRows[0].id
-            return resolve(res.status(200).json({
-              success: true,
-              document: {
-                id: docId,
-                name: fileName,
-                size: fileData.length,
-                url: `/api/documents/serve?id=${docId}`,
-                validation_status: 'pending'
-              }
-            }))
-          } catch (err) {
-            console.error('[UPLOAD] Error in file processing:', err.message, err.stack)
-            return resolve(res.status(500).json({ 
-              error: 'Failed to process file',
-              details: err.message
-            }))
+          // Validate PDF
+          if (fileBuffer.slice(0, 4).toString('hex') !== '25504446') {
+            return sendResp(400, { error: 'Invalid PDF' })
           }
-        })
 
-        file.on('error', (err) => {
-          console.error('[UPLOAD] File stream error:', err)
-          return resolve(res.status(500).json({ error: 'File upload error', details: err.message }))
-        })
-      })
+          if (!email) {
+            return sendResp(400, { error: 'No email' })
+          }
 
-      bb.on('close', () => {
-        console.log('[UPLOAD] Busboy close event')
-        if (!fileProcessed && !fileData) {
-          return resolve(res.status(400).json({ error: 'No file provided' }))
+          // Save
+          const pool = getPool()
+          const [users] = await pool.query('SELECT id FROM users WHERE email = $1', [email])
+
+          if (!users || !users[0]) {
+            return sendResp(404, { error: 'User not found' })
+          }
+
+          const uid = users[0].id
+          const ts = Date.now()
+          const rand = Math.random().toString(36).substring(2, 8)
+          const fpath = path.join(uploadsDir, `doc_${uid}_${ts}_${rand}.pdf`)
+
+          fs.writeFileSync(fpath, fileBuffer)
+
+          const [docs] = await pool.query(
+            `INSERT INTO documents (user_id, name, type, file_path, file_size, validation_status, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())
+             RETURNING id`,
+            [uid, fileName, 'PDF', fpath, fileBuffer.length, 'pending']
+          )
+
+          const docId = docs[0].id
+          console.log(`[UPLOAD] Done: #${docId}`)
+
+          return sendResp(200, {
+            success: true,
+            document: {
+              id: docId,
+              name: fileName,
+              size: fileBuffer.length,
+              url: `/api/documents/serve?id=${docId}`,
+              validation_status: 'pending'
+            }
+          })
+        } catch (err) {
+          console.error('[UPLOAD] Error:', err.message)
+          return sendResp(500, { error: err.message })
         }
       })
 
-      bb.on('error', (err) => {
-        console.error('[UPLOAD] Busboy error - Message:', err.message)
-        console.error('[UPLOAD] Busboy error - Code:', err.code)
-        console.error('[UPLOAD] Busboy error - Stack:', err.stack)
-        return resolve(res.status(400).json({ 
-          error: 'Form parsing error', 
-          details: `${err.code}: ${err.message}`
-        }))
+      file.on('error', (err) => {
+        console.error('[UPLOAD] File err:', err.message)
+        return sendResp(500, { error: 'File error' })
       })
+    })
 
-      console.log('[UPLOAD] Piping request to busboy...')
-      req.pipe(bb)
-      console.log('[UPLOAD] Request piped, waiting for events...')
-    } catch (err) {
-      console.error('[UPLOAD] Setup error:', err.message, err.stack)
-      return resolve(res.status(500).json({ 
-        error: 'Upload initialization failed',
-        details: err.message
-      }))
-    }
-  })
+    bb.on('error', (err) => {
+      console.error('[UPLOAD] Parse err:', err.message)
+      return sendResp(400, { error: `Parse: ${err.message}` })
+    })
+
+    bb.on('finish', () => {
+      console.log('[UPLOAD] Finish')
+      if (!responseSent && !fileBuffer) {
+        return sendResp(400, { error: 'No file' })
+      }
+    })
+
+    console.log('[UPLOAD] Pipe start')
+    req.pipe(bb)
+
+  } catch (err) {
+    console.error('[UPLOAD] Fatal:', err.message)
+    return sendResp(500, { error: err.message })
+  }
+}
