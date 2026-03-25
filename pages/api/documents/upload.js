@@ -3,11 +3,8 @@
 
 import fs from 'fs'
 import path from 'path'
-import { fileURLToPath } from 'url'
 import { getPool } from '../../../services/db'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+import busboy from 'busboy'
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
@@ -21,71 +18,60 @@ export default async function handler(req, res) {
   }
 
   try {
-    const contentType = req.headers['content-type']
+    const bb = busboy({ headers: req.headers })
     
-    // Check if it's form data
-    if (!contentType || !contentType.includes('multipart/form-data')) {
-      return res.status(400).json({ error: 'Content-Type must be multipart/form-data' })
-    }
-
-    // Parse form data manually
-    const boundary = contentType.split('boundary=')[1]
-    if (!boundary) {
-      return res.status(400).json({ error: 'Invalid form data' })
-    }
-
-    const chunks = []
-    for await (const chunk of req) {
-      chunks.push(chunk)
-    }
-    
-    const bodyBuffer = Buffer.concat(chunks)
-    const bodyStr = bodyBuffer.toString()
-    
-    // Extract file and form fields
-    const parts = bodyStr.split(`--${boundary}`)
     let fileData = null
     let fileName = null
     let email = null
     let documentType = 'DOCUMENT'
+    let fileBuffer = Buffer.alloc(0)
 
-    for (const part of parts) {
-      if (part.includes('filename=')) {
-        // This is the file part
-        const filenameMatch = part.match(/filename="([^"]+)"/)
-        fileName = filenameMatch ? filenameMatch[1] : `document_${Date.now()}.pdf`
-        
-        // Extract file content (between the headers and boundary)
-        const headerEnd = part.indexOf('\r\n\r\n') + 4
-        const contentEnd = part.lastIndexOf('\r\n--')
-        fileData = Buffer.from(part.slice(headerEnd, contentEnd), 'binary')
-
-        // Validate PDF (check magic bytes)
-        const magicBytes = fileData.toString('hex', 0, 4)
-        if (!magicBytes.startsWith('25504446')) { // %PDF
-          return res.status(400).json({ error: 'File is not a valid PDF' })
-        }
-
-        // Validate size (max 5MB)
-        if (fileData.length > 5 * 1024 * 1024) {
-          return res.status(400).json({ error: 'File size exceeds 5MB limit' })
-        }
-      } else if (part.includes('name="email"')) {
-        const match = part.match(/\r\n\r\n(.*?)\r\n/)
-        email = match ? match[1].trim() : null
-      } else if (part.includes('name="documentType"')) {
-        const match = part.match(/\r\n\r\n(.*?)\r\n/)
-        documentType = match ? match[1].trim() : 'DOCUMENT'
+    // Handle field parsing
+    bb.on('field', (fieldname, val) => {
+      if (fieldname === 'email') {
+        email = val
+      } else if (fieldname === 'documentType') {
+        documentType = val
       }
-    }
+    })
 
-    // Validate inputs
+    // Handle file parsing
+    bb.on('file', (fieldname, file, info) => {
+      fileName = info.filename
+      
+      file.on('data', (data) => {
+        fileBuffer = Buffer.concat([fileBuffer, data])
+      })
+
+      file.on('end', () => {
+        // Validate PDF (check magic bytes)
+        const magicBytes = fileBuffer.toString('hex', 0, 4)
+        if (!magicBytes.startsWith('25504446')) { // %PDF
+          return
+        }
+        fileData = fileBuffer
+      })
+    })
+
+    // Wait for busboy to finish
+    await new Promise((resolve, reject) => {
+      bb.on('finish', resolve)
+      bb.on('error', reject)
+      req.pipe(bb)
+    })
+
+    // Validate inputs after parsing
     if (!fileData) {
-      return res.status(400).json({ error: 'No file provided' })
+      return res.status(400).json({ error: 'No valid PDF file provided' })
     }
 
     if (!email) {
       return res.status(400).json({ error: 'Email is required' })
+    }
+
+    // Validate size (max 5MB)
+    if (fileData.length > 5 * 1024 * 1024) {
+      return res.status(400).json({ error: 'File size exceeds 5MB limit' })
     }
 
     const pool = getPool()
