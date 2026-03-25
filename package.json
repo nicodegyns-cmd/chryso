@@ -11,6 +11,7 @@
     "bcryptjs": "2.4.3",
     "busboy": "^1.6.0",
     "dotenv": "^16.4.5",
+    "formidable": "^3.5.4",
     "mysql2": "^3.19.1",
     "next": "^13.5.11",
     "nodemailer": "^8.0.3",
