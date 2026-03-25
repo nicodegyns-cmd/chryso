@@ -1,23 +1,65 @@
-// pages/api/admin/migrations/apply-011.js
-// Apply migration 011: Add invitation and onboarding columns
-// Protected endpoint - requires admin authentication
-
 import fs from 'fs'
 import path from 'path'
 import { getPool } from '../../../../services/db'
 
 export default async function handler(req, res) {
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' })
+  // Allow both POST (requires token) and GET (for diagnostics)
+  if (req.method === 'GET') {
+    // Public diagnostic endpoint - no token required
+    try {
+      const pool = getPool()
+      
+      const result = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name IN (
+          'invitation_token',
+          'invitation_sent_at',
+          'invitation_expires_at',
+          'onboarding_status',
+          'import_batch_id'
+        )
+      `)
+
+      const foundColumns = result.rows.map(r => r.column_name)
+      const requiredColumns = [
+        'invitation_token',
+        'invitation_sent_at',
+        'invitation_expires_at',
+        'onboarding_status',
+        'import_batch_id'
+      ]
+      const missingColumns = requiredColumns.filter(c => !foundColumns.includes(c))
+
+      return res.status(200).json({
+        status: missingColumns.length === 0 ? 'APPLIED' : 'PENDING',
+        foundColumns,
+        missingColumns,
+        message: missingColumns.length === 0 
+          ? 'Migration 011 is already applied'
+          : `Migration 011 needs to be applied. Missing columns: ${missingColumns.join(', ')}`
+      })
+    } catch (err) {
+      return res.status(500).json({
+        error: 'Failed to check migration status',
+        details: err.message
+      })
+    }
   }
 
-  // Verify admin token from query parameter (for testing) or Authorization header
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed. Use GET to check status or POST to apply.' })
+  }
+
+  // Verify admin token from query parameter or Authorization header
   const adminToken = req.query.token || req.headers.authorization?.replace('Bearer ', '')
   const ADMIN_MIGRATION_TOKEN = process.env.ADMIN_MIGRATION_TOKEN
 
   if (!adminToken || adminToken !== ADMIN_MIGRATION_TOKEN) {
-    return res.status(401).json({ error: 'Unauthorized - invalid migration token' })
+    return res.status(401).json({ 
+      error: 'Unauthorized - invalid migration token',
+      hint: 'Use: POST /api/admin/migrations/apply-011?token=YOUR_TOKEN'
+    })
   }
 
   const pool = getPool()
@@ -36,7 +78,7 @@ export default async function handler(req, res) {
     for (const statement of statements) {
       try {
         const trimmed = statement.trim()
-        // Convert MySQL syntax to PostgreSQL if needed (usually already PostgreSQL)
+        // Execute the statement
         await pool.query(trimmed)
         results.push({
           status: 'success',
@@ -47,7 +89,8 @@ export default async function handler(req, res) {
         if (
           err.message.includes('already exists') ||
           err.code === '42701' || // column already exists
-          err.code === '42P07' // index already exists
+          err.code === '42P07' || // index already exists
+          err.code === '42P10' // duplicate constraint
         ) {
           results.push({
             status: 'skipped',
