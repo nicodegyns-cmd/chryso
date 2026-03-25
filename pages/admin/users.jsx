@@ -37,29 +37,43 @@ export default function AdminUsersPage(){
       <AdminHeader />
       <AdminSidebar />
       <main className="admin-content">
-        <div className="admin-header">
-          <h1>Utilisateurs</h1>
-          <div className="small-muted">Gérer les comptes utilisateurs</div>
+        <div className="admin-header" style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px'}}>
+          <div>
+            <h1 style={{margin: '0 0 4px 0'}}>Utilisateurs</h1>
+            <div className="small-muted">Gérer les comptes utilisateurs</div>
+          </div>
           <button 
-            className="btn btn-primary"
             onClick={() => setShowSync(!showSync)}
             style={{ 
-              marginLeft: 'auto',
+              padding: '12px 24px',
+              background: showSync 
+                ? '#ef4444'  // Red for cancel
+                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',  // Gradient for sync
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '10px'
+              gap: '10px',
+              transition: 'all 0.2s',
             }}
+            onMouseEnter={(e) => !showSync && (e.target.style.transform = 'translateY(-2px)')}
+            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
           >
             {showSync ? 'Annuler' : '+ Nouveau utilisateur'}
-            {pendingCount !== null && pendingCount > 0 && (
+            {pendingCount !== null && pendingCount > 0 && !showSync && (
               <span style={{
-                backgroundColor: '#1e40af',
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
                 borderRadius: '999px',
                 padding: '4px 8px',
                 fontSize: '12px',
                 fontWeight: '600',
                 minWidth: '24px',
-                textAlign: 'center'
+                textAlign: 'center',
+                color: 'white'
               }}>
                 {loadingCount ? '...' : pendingCount}
               </span>
