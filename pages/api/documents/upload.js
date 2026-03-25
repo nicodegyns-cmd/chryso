@@ -7,9 +7,20 @@ import { getPool } from '../../../services/db'
 import busboy from 'busboy'
 
 // Create uploads directory if it doesn't exist
-const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
+// Use /tmp on Vercel (stateless) or public/uploads locally
+const uploadsDir = process.env.VERCEL 
+  ? path.join('/tmp', 'uploads')
+  : path.join(process.cwd(), 'public', 'uploads')
+
+console.log('[UPLOAD] Using directory:', uploadsDir, 'VERCEL:', process.env.VERCEL ? 'true' : 'false')
+
 if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true })
+  try {
+    fs.mkdirSync(uploadsDir, { recursive: true })
+    console.log('[UPLOAD] Directory created successfully')
+  } catch (err) {
+    console.error('[UPLOAD] Failed to create directory:', err.message)
+  }
 }
 
 export default async function handler(req, res) {
