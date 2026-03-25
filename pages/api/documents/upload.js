@@ -4,7 +4,7 @@
 import fs from 'fs'
 import path from 'path'
 import { getPool } from '../../../services/db'
-import { busboy as Busboy } from 'busboy'
+import Busboy from 'busboy'
 
 const uploadsDir = process.env.VERCEL 
   ? '/tmp/uploads'
