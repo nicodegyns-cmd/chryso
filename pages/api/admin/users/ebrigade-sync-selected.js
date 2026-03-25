@@ -69,8 +69,6 @@ export default async function handler(req, res) {
 
     // Batch check linked users
     const batchId = crypto.randomBytes(16).toString('hex')
-    const toCreate = []
-    const alreadyLinked = []
 
     const ebrigadeIds = usersToProcess.map(u => u.ebrigadeId)
     const emails = usersToProcess.map(u => u.email)
