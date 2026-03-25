@@ -179,7 +179,38 @@ export default function EBrigadeSyncUsers({
           {loadingCount ? (
             <div style={{ color: '#6b7280' }}>🔄 Chargement des profils...</div>
           ) : unlinkedUsers.length === 0 ? (
-            <div style={{ color: '#6b7280' }}>Aucun profil non-lié</div>
+            <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '12px' }}>
+              <div style={{ color: '#991b1b', fontWeight: '600', marginBottom: '8px' }}>
+                ℹ️ Aucun profil disponible pour sélection
+              </div>
+              {results && (
+                <div style={{ color: '#7f1d1d', fontSize: '13px' }}>
+                  <p style={{ margin: '8px 0' }}>
+                    Profils eBrigade: <strong>{results.totalEbrigadeUsers}</strong>
+                  </p>
+                  
+                  {results.gradeBreakdown && Object.keys(results.gradeBreakdown).length > 0 && (
+                    <div style={{ margin: '8px 0', paddingLeft: '12px', borderLeft: '2px solid #fca5a5' }}>
+                      <strong>Par grade:</strong>
+                      {Object.entries(results.gradeBreakdown).map(([grade, count]) => (
+                        <div key={grade} style={{ fontSize: '12px', margin: '4px 0' }}>
+                          {grade}: {count}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {results.missingData && results.missingData.count > 0 && (
+                    <div style={{ margin: '8px 0', paddingLeft: '12px', borderLeft: '2px solid #fca5a5' }}>
+                      <strong>Données manquantes:</strong> {results.missingData.count} profil{results.missingData.count > 1 ? 's' : ''}
+                      <div style={{ fontSize: '12px', margin: '4px 0' }}>
+                        (email manquant, nom manquant, etc.)
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           ) : (
             <div style={{
               border: '1px solid #e5e7eb',
