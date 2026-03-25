@@ -534,7 +534,7 @@ export default function EBrigadeSyncUsers({
             />
           </div>
 
-          {results.created.length > 0 && (
+          {results?.created?.length > 0 && (
             <div style={{ marginBottom: '20px' }}>
               <h4 style={{ marginBottom: '10px', color: '#374151' }}>
                 ✅ Nouveaux utilisateurs créés ({results.created.length})
@@ -569,7 +569,7 @@ export default function EBrigadeSyncUsers({
             </div>
           )}
 
-          {results.alreadyLinked.length > 0 && (
+          {results?.alreadyLinked?.length > 0 && (
             <div style={{ marginBottom: '20px' }}>
               <h4 style={{ marginBottom: '10px', color: '#374151' }}>
                 ℹ️ Déjà liés ({results.alreadyLinked.length})
@@ -597,7 +597,7 @@ export default function EBrigadeSyncUsers({
             </div>
           )}
 
-          {results.errors.length > 0 && (
+          {results?.errors?.length > 0 && (
             <div style={{ marginBottom: '20px' }}>
               <h4 style={{ marginBottom: '10px', color: '#374151' }}>
                 ⚠️ Erreurs ({results.errors.length})
