@@ -183,18 +183,18 @@ export default function EBrigadeSyncUsers({
               <div style={{ color: '#991b1b', fontWeight: '600', marginBottom: '8px' }}>
                 ℹ️ Aucun profil disponible pour sélection
               </div>
-              {results && (
+              {results ? (
                 <div style={{ color: '#7f1d1d', fontSize: '13px' }}>
                   <p style={{ margin: '8px 0' }}>
-                    Profils eBrigade: <strong>{results.totalEbrigadeUsers}</strong>
+                    <strong>Profils eBrigade détectés:</strong> {results.totalEbrigadeUsers || 0}
                   </p>
                   
                   {results.gradeBreakdown && Object.keys(results.gradeBreakdown).length > 0 && (
                     <div style={{ margin: '8px 0', paddingLeft: '12px', borderLeft: '2px solid #fca5a5' }}>
-                      <strong>Par grade:</strong>
+                      <strong>Distribution par grade:</strong>
                       {Object.entries(results.gradeBreakdown).map(([grade, count]) => (
                         <div key={grade} style={{ fontSize: '12px', margin: '4px 0' }}>
-                          {grade}: {count}
+                          • {grade}: {count} profils
                         </div>
                       ))}
                     </div>
@@ -202,12 +202,22 @@ export default function EBrigadeSyncUsers({
                   
                   {results.missingData && results.missingData.count > 0 && (
                     <div style={{ margin: '8px 0', paddingLeft: '12px', borderLeft: '2px solid #fca5a5' }}>
-                      <strong>Données manquantes:</strong> {results.missingData.count} profil{results.missingData.count > 1 ? 's' : ''}
+                      <strong>⚠️ Données manquantes:</strong> {results.missingData.count} profil{results.missingData.count > 1 ? 's' : ''}
                       <div style={{ fontSize: '12px', margin: '4px 0' }}>
-                        (email manquant, nom manquant, etc.)
+                        (email et/ou nom manquants - impossible à synchroniser)
                       </div>
                     </div>
                   )}
+                  
+                  <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #fca5a5', fontSize: '12px' }}>
+                    💡 <a href="/api/admin/users/pending-count" target="_blank" rel="noopener noreferrer" style={{ color: '#b91c1c', textDecoration: 'underline' }}>
+                      Voir les données brutes JSON
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ color: '#7f1d1d', fontSize: '13px', marginTop: '8px' }}>
+                  🔄 Chargement des données de diagnostic...
                 </div>
               )}
             </div>
