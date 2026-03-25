@@ -28,20 +28,20 @@ export default async function handler(req, res) {
       RETURNING *
     `;
 
-    const result = await pool.query(updateQuery, [
+    const [rows] = await pool.query(updateQuery, [
       status,
       status === 'rejected' ? reason || null : null,
       documentId
     ]);
 
-    if (result.rows.length === 0) {
+    if (!rows || rows.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
     return res.status(200).json({
       success: true,
       message: `Document ${status === 'approved' ? 'validé' : 'rejeté'} avec succès`,
-      document: result.rows[0]
+      document: rows[0]
     });
   } catch (error) {
     console.error('Error validating document:', error);

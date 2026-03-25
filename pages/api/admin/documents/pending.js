@@ -30,12 +30,12 @@ export default async function handler(req, res) {
       ORDER BY d.created_at DESC
     `;
 
-    const result = await pool.query(query);
+    const [rows] = await pool.query(query);
     
     return res.status(200).json({
       success: true,
-      documents: result.rows,
-      total: result.rows.length
+      documents: rows || [],
+      total: rows ? rows.length : 0
     });
   } catch (error) {
     console.error('Error fetching pending documents:', error);

@@ -67,16 +67,16 @@ export default async function handler(req, res) {
             const pool = getPool()
 
             // Find user
-            const userResult = await pool.query(
+            const [userRows] = await pool.query(
               'SELECT id FROM users WHERE email = $1',
               [email]
             )
 
-            if (!userResult.rows || userResult.rows.length === 0) {
+            if (!userRows || userRows.length === 0) {
               return resolve(res.status(404).json({ error: 'User not found' }))
             }
 
-            const userId = userResult.rows[0].id
+            const userId = userRows[0].id
 
             // Generate unique file name
             const timestamp = Date.now()
@@ -89,7 +89,7 @@ export default async function handler(req, res) {
             fs.writeFileSync(filePath, fileData)
 
             // Insert into documents table with validation_status = pending
-            const docResult = await pool.query(
+            const [docRows] = await pool.query(
               `INSERT INTO documents (user_id, name, type, url, file_path, file_size, validation_status, created_at)
                VALUES ($1, $2, $3, $4, $5, $6, 'pending', CURRENT_TIMESTAMP)
                RETURNING id`,
@@ -99,7 +99,7 @@ export default async function handler(req, res) {
             return resolve(res.status(200).json({
               success: true,
               document: {
-                id: docResult.rows[0].id,
+                id: docRows[0].id,
                 name: fileName,
                 size: fileData.length,
                 url: fileUrl,

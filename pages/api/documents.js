@@ -19,19 +19,19 @@ export default async function handler(req, res) {
     const pool = getPool()
 
     // Find user by email
-    const userResult = await pool.query(
+    const [userRows] = await pool.query(
       'SELECT id FROM users WHERE email = $1',
       [email]
     )
 
-    if (!userResult.rows || userResult.rows.length === 0) {
+    if (!userRows || userRows.length === 0) {
       return res.status(200).json({ documents: [] })
     }
 
-    const userId = userResult.rows[0].id
+    const userId = userRows[0].id
 
     // Fetch documents for this user from the documents table
-    const docsResult = await pool.query(
+    const [docRows] = await pool.query(
       `SELECT 
         id,
         name,
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     
     return res.status(200).json({
       success: true,
-      documents: docsResult.rows || []
+      documents: docRows || []
     })
   } catch (error) {
     console.error('Get documents error:', error)
