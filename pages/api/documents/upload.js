@@ -1,9 +1,13 @@
 // pages/api/documents/upload.js
 // Upload user documents (RIB, identity documents, etc.)
 
-const fs = require('fs')
-const path = require('path')
-const { query } = require('../../../services/db')
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { getPool } from '../../../services/db'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
@@ -11,7 +15,7 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true })
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -84,8 +88,10 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Email is required' })
     }
 
+    const pool = getPool()
+
     // Find user
-    const userResult = await query(
+    const userResult = await pool.query(
       'SELECT id FROM users WHERE email = $1',
       [email]
     )
@@ -106,12 +112,12 @@ module.exports = async function handler(req, res) {
     // Save file to disk
     fs.writeFileSync(filePath, fileData)
 
-    // Insert into documents table
-    const docResult = await query(
-      `INSERT INTO documents (user_id, name, type, url, file_size, created_at)
-       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+    // Insert into documents table with validation_status = pending
+    const docResult = await pool.query(
+      `INSERT INTO documents (user_id, name, type, url, file_path, file_size, validation_status, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'pending', CURRENT_TIMESTAMP)
        RETURNING id`,
-      [userId, fileName, 'PDF', fileUrl, fileData.length]
+      [userId, fileName, 'PDF', fileUrl, filePath, fileData.length]
     )
 
     return res.status(200).json({
@@ -120,11 +126,15 @@ module.exports = async function handler(req, res) {
         id: docResult.rows[0].id,
         name: fileName,
         size: fileData.length,
-        url: fileUrl
+        url: fileUrl,
+        validation_status: 'pending'
       }
     })
   } catch (err) {
     console.error('Upload error:', err)
-    return res.status(500).json({ error: 'Failed to upload document' })
+    return res.status(500).json({ 
+      error: 'Failed to upload document',
+      details: err.message
+    })
   }
 }

@@ -43,7 +43,7 @@ export default function RIBUploadBanner({ email }) {
         throw new Error(data.error || 'Erreur lors de l\'upload')
       }
 
-      setMessage('✅ Document RIB uploadé avec succès!')
+      setMessage('⏳ Document RIB uploadé - En attente de validation')
       setSuccess(true)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''

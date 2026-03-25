@@ -2,9 +2,9 @@
 // Fetch user documents
 // Protected endpoint - requires authentication
 
-const { query } = require('../../services/db')
+import { getPool } from '../../services/db'
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -16,8 +16,10 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Email is required' })
     }
 
+    const pool = getPool()
+
     // Find user by email
-    const userResult = await query(
+    const userResult = await pool.query(
       'SELECT id FROM users WHERE email = $1',
       [email]
     )
@@ -29,15 +31,31 @@ module.exports = async function handler(req, res) {
     const userId = userResult.rows[0].id
 
     // Fetch documents for this user from the documents table
-    // (table to be created in future migration)
-    // For now, return empty list as structure is not yet defined
+    const docsResult = await pool.query(
+      `SELECT 
+        id,
+        name,
+        type,
+        url,
+        file_size,
+        created_at,
+        validation_status,
+        rejection_reason
+      FROM documents 
+      WHERE user_id = $1
+      ORDER BY created_at DESC`,
+      [userId]
+    )
     
     return res.status(200).json({
-      documents: [],
-      message: 'Documents feature coming soon'
+      success: true,
+      documents: docsResult.rows || []
     })
   } catch (error) {
     console.error('Get documents error:', error)
-    return res.status(500).json({ error: 'Failed to fetch documents' })
+    return res.status(500).json({ 
+      error: 'Failed to fetch documents',
+      details: error.message
+    })
   }
 }

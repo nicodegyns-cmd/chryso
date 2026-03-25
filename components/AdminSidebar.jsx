@@ -46,6 +46,11 @@ export default function AdminSidebar({ onNavigate }) {
               📊 Statistiques
             </Link>
           </li>
+          <li>
+            <Link href="/admin/rib-validation" className="sidebar-btn" onClick={() => onNavigate && onNavigate('rib-validation')}>
+              📋 Validation des RIB
+            </Link>
+          </li>
         </ul>
       </nav>
     </aside>
