@@ -32,7 +32,7 @@ export default async function handler(req, res) {
         d.validation_status, 
         d.created_at,
         u.email,
-        u.user_name
+        CONCAT(u.first_name, ' ', u.last_name) as user_name
       FROM documents d
       LEFT JOIN users u ON d.user_id = u.id
       WHERE d.validation_status = 'pending'
@@ -47,7 +47,8 @@ export default async function handler(req, res) {
         d.name, 
         d.validation_status, 
         d.created_at,
-        u.email
+        u.email,
+        CONCAT(u.first_name, ' ', u.last_name) as user_name
       FROM documents d
       LEFT JOIN users u ON d.user_id = u.id
       ORDER BY d.created_at DESC
