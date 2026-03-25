@@ -1,5 +1,5 @@
 // pages/api/admin/migrate-document-paths.js
-// Fix old document paths
+// Fix old document paths - extract just the filename
 
 import { getPool } from '../../../services/db'
 
@@ -11,10 +11,10 @@ export default async function handler(req, res) {
   try {
     const pool = getPool()
 
-    // Get all documents with old tmp paths
+    // Get all documents with old /uploads/ or full paths
     const [documents] = await pool.query(`
       SELECT id, file_path FROM documents 
-      WHERE file_path LIKE '%/tmp/uploads/%' OR file_path LIKE '%\\uploads\\%'
+      WHERE file_path LIKE '%/uploads/%' OR file_path LIKE '%tmp%' OR file_path LIKE '%public%'
     `)
 
     if (documents.length === 0) {
@@ -27,15 +27,23 @@ export default async function handler(req, res) {
 
     let updated = 0
     for (const doc of documents) {
-      // Extract filename from path
-      const fileName = doc.file_path.split('/').pop() || doc.file_path.split('\\').pop()
-      const newPath = `/uploads/${fileName}`
+      // Extract just the filename from any path
+      let fileName = doc.file_path
+      if (fileName.includes('/')) {
+        fileName = fileName.split('/').pop()
+      }
+      if (fileName.includes('\\')) {
+        fileName = fileName.split('\\').pop()
+      }
 
-      await pool.query(
-        'UPDATE documents SET file_path = $1 WHERE id = $2',
-        [newPath, doc.id]
-      )
-      updated++
+      // Only update if the filename extracted is different from current
+      if (fileName !== doc.file_path) {
+        await pool.query(
+          'UPDATE documents SET file_path = $1 WHERE id = $2',
+          [fileName, doc.id]
+        )
+        updated++
+      }
     }
 
     return res.status(200).json({

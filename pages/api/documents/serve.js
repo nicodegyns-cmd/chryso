@@ -31,15 +31,27 @@ export default async function handler(req, res) {
     const document = rows[0]
     console.log(`[SERVE] Document found: ${document.name}, path: ${document.file_path}`)
 
-    // Reconstruct full path - file_path is stored as /uploads/filename
-    const fullPath = path.join(process.cwd(), 'public', document.file_path)
-    console.log(`[SERVE] Full path: ${fullPath}`)
+    // Try multiple possible file locations
+    let fullPath = null
+    const possiblePaths = [
+      path.join('/tmp/uploads', document.file_path),
+      path.join(process.cwd(), 'public', 'uploads', document.file_path),
+      document.file_path // If it's already an absolute path
+    ]
 
-    // Check if file exists
-    if (!fs.existsSync(fullPath)) {
-      console.log(`[SERVE] File not found on disk: ${fullPath}`)
+    for (const tryPath of possiblePaths) {
+      if (fs.existsSync(tryPath)) {
+        fullPath = tryPath
+        break
+      }
+    }
+
+    if (!fullPath) {
+      console.log(`[SERVE] File not found in any location, tried:`, possiblePaths)
       return res.status(404).json({ error: 'File not found on server' })
     }
+
+    console.log(`[SERVE] File found at: ${fullPath}`)
 
     // Read and send file
     const fileContent = fs.readFileSync(fullPath)

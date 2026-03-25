@@ -12,10 +12,23 @@ export const config = {
   }
 }
 
-const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
+let uploadsDir = path.join(process.cwd(), 'public', 'uploads')
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true })
+// Try to create directory, but don't fail if it doesn't exist (Vercel limitation)
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true })
+  }
+} catch (e) {
+  // On Vercel, use /tmp instead
+  uploadsDir = '/tmp/uploads'
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true })
+    }
+  } catch (e2) {
+    // Ignore - will fail at upload time if really can't write
+  }
 }
 
 export default async function handler(req, res) {
@@ -79,7 +92,7 @@ export default async function handler(req, res) {
       const [docs] = await pool.query(
         `INSERT INTO documents (user_id, name, type, file_path, file_size, validation_status, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
-        [userId, uploadedFile.originalFilename, 'PDF', `/uploads/${fileName}`, fileData.length, 'pending']
+        [userId, uploadedFile.originalFilename, 'PDF', fileName, fileData.length, 'pending']
       )
 
       console.log('[UPLOAD] Success:', docs[0].id)
