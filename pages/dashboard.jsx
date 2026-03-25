@@ -4,6 +4,7 @@ import UserSidebar from '../components/UserSidebar'
 import PrestationsTable from '../components/PrestationsTable'
 import PrestationsStats from '../components/PrestationsStats'
 import EBrigadePrestationsDisplay from '../components/eBrigadePrestationsDisplay'
+import RIBUploadBanner from '../components/RIBUploadBanner'
 
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
@@ -23,6 +24,9 @@ export default function DashboardPage() {
           <div className="admin-card card">
             <p>Bienvenue — ci-dessous la liste de vos prestations et activités disponibles.</p>
           </div>
+          
+          <RIBUploadBanner email={userEmail} />
+          
           <EBrigadePrestationsDisplay email={userEmail} />
           <PrestationsStats email={userEmail} />
           <PrestationsTable email={userEmail} />

@@ -17,6 +17,9 @@ out/
 build/
 dist/
 
+# User uploads
+public/uploads/
+
 # IDE
 .vscode/
 .idea/
