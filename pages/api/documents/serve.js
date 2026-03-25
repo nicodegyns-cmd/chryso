@@ -31,14 +31,18 @@ export default async function handler(req, res) {
     const document = rows[0]
     console.log(`[SERVE] Document found: ${document.name}, path: ${document.file_path}`)
 
+    // Reconstruct full path - file_path is stored as /uploads/filename
+    const fullPath = path.join(process.cwd(), 'public', document.file_path)
+    console.log(`[SERVE] Full path: ${fullPath}`)
+
     // Check if file exists
-    if (!document.file_path || !fs.existsSync(document.file_path)) {
-      console.log(`[SERVE] File not found on disk: ${document.file_path}`)
+    if (!fs.existsSync(fullPath)) {
+      console.log(`[SERVE] File not found on disk: ${fullPath}`)
       return res.status(404).json({ error: 'File not found on server' })
     }
 
     // Read and send file
-    const fileContent = fs.readFileSync(document.file_path)
+    const fileContent = fs.readFileSync(fullPath)
     console.log(`[SERVE] File read successfully: ${fileContent.length} bytes`)
 
     // Set response headers

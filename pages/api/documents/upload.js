@@ -12,9 +12,7 @@ export const config = {
   }
 }
 
-const uploadsDir = process.env.VERCEL 
-  ? '/tmp/uploads'
-  : path.join(process.cwd(), 'public', 'uploads')
+const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true })
@@ -69,7 +67,8 @@ export default async function handler(req, res) {
       const userId = users[0].id
       const ts = Date.now()
       const rand = Math.random().toString(36).substring(2, 8)
-      const finalPath = path.join(uploadsDir, `doc_${userId}_${ts}_${rand}.pdf`)
+      const fileName = `doc_${userId}_${ts}_${rand}.pdf`
+      const finalPath = path.join(uploadsDir, fileName)
       
       // Move temp file to final location
       fs.copyFileSync(uploadedFile.filepath, finalPath)
@@ -80,7 +79,7 @@ export default async function handler(req, res) {
       const [docs] = await pool.query(
         `INSERT INTO documents (user_id, name, type, file_path, file_size, validation_status, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
-        [userId, uploadedFile.originalFilename, 'PDF', finalPath, fileData.length, 'pending']
+        [userId, uploadedFile.originalFilename, 'PDF', `/uploads/${fileName}`, fileData.length, 'pending']
       )
 
       console.log('[UPLOAD] Success:', docs[0].id)
