@@ -34,10 +34,10 @@ export default function EBrigadeSyncUsers({
 
   // Load data when switching to select-specific mode
   useEffect(() => {
-    if (mode === 'select-specific' && unlinkedUsers.length === 0) {
+    if (mode === 'select-specific' && !results) {
       loadPendingCount()
     }
-  }, [mode])
+  }, [mode, results])
 
   async function loadPendingCount() {
     setLoadingCount(true)
