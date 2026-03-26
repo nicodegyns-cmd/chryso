@@ -40,6 +40,7 @@ export default async function handler(req, res) {
         if (v.includes('med')) return 'MED'
         if (v === 'admin') return 'admin'
         if (v.includes('moder')) return 'moderator'
+        if (v === 'comptabilite' || v.includes('comptab') || v.includes('comptable')) return 'comptabilite'
         return null
       }).filter(Boolean)
       // unique preserve order

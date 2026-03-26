@@ -28,13 +28,14 @@ export default async function handler(req, res) {
       const normalizeRoles = (r) => {
         const items = Array.isArray(r) ? r.map(String) : (r ? String(r).split(',') : [])
         const mapped = items.map(it => {
-          const v = (it||'').toString().toLowerCase()
-          if (v.includes('infi') || v.includes('infirm')) return 'INFI'
-          if (v.includes('med')) return 'MED'
-          if (v === 'admin') return 'admin'
-          if (v.includes('moder')) return 'moderator'
-          return null
-        }).filter(Boolean)
+            const v = (it||'').toString().toLowerCase()
+            if (v.includes('infi') || v.includes('infirm')) return 'INFI'
+            if (v.includes('med')) return 'MED'
+            if (v === 'admin') return 'admin'
+            if (v.includes('moder')) return 'moderator'
+            if (v === 'comptabilite' || v.includes('comptab') || v.includes('comptable')) return 'comptabilite'
+            return null
+          }).filter(Boolean)
         return Array.from(new Set(mapped)).join(',') || null
       }
       const roleValue = normalizeRoles(role)
