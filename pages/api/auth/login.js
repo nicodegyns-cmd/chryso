@@ -17,27 +17,40 @@ export default async function handler(req, res) {
     let dbRoles = []
     try {
       const rows = await dbQuery('SELECT r.name FROM roles r JOIN user_roles ur ON ur.role_id = r.id WHERE ur.user_id = ?', [user.id])
-      if (Array.isArray(rows) && rows.length > 0) dbRoles = rows.map(r => r.name)
+      if (Array.isArray(rows) && rows.length > 0) {
+        dbRoles = rows.map(r => r.name)
+        console.log('[api/login] loaded', dbRoles.length, 'roles from user_roles')
+      }
     } catch (e) {
       // If the roles tables don't exist yet or query fails, we'll fallback to legacy column
-      console.warn('[api/login] roles lookup failed, falling back to users.role', e.message)
+      console.warn('[api/login] roles lookup failed (expected if migration not run yet), falling back to users.role:', e.message)
       dbRoles = []
     }
 
     // Normalize roles (the `role` column can be comma-separated)
-    const raw = (dbRoles.length > 0 ? dbRoles.join(',') : (user.role || 'user')).toString()
-    const parts = raw.split(/[,;\s]+/).map(p => (p || '').toString()).filter(Boolean)
+    const raw = dbRoles.length > 0 ? dbRoles.join(',') : (user.role || 'user')
+    console.log('[api/login] raw role value:', raw)
+    const parts = String(raw).split(/[,;\s]+/).map(p => (p || '').trim()).filter(p => p.length > 0)
+    console.log('[api/login] role parts after split:', parts)
+    
     const normalize = (r) => {
-      const low = (r || '').toString().toLowerCase()
+      const low = (r || '').toString().toLowerCase().trim()
+      if (!low) return null
       if (low.includes('infi') || low.includes('infirm')) return 'INFI'
       if (low.includes('med')) return 'MED'
       if (low === 'admin') return 'admin'
-      if (low === 'comptabilite' || low.includes('comptable')) return 'comptabilite'
+      if (low === 'comptabilite' || low.includes('comptab')) return 'comptabilite'
       if (low.includes('moder')) return 'moderator'
+      if (low === 'user') return 'user'
+      // Default to 'user' for unrecognized roles instead of silently dropping them
+      console.warn('[api/login] unrecognized role:', r, '-> defaulting to user')
       return 'user'
     }
-    const roles = Array.from(new Set(parts.map(normalize)))
+    
+    const roles = Array.from(new Set(parts.map(normalize).filter(r => r !== null)))
+    console.log('[api/login] normalized roles:', roles)
     const active = roles.length > 0 ? roles[0] : 'user'
+    console.log('[api/login] active role:', active)
 
     // In a real app you would sign a JWT or session; here we return a dev token
     return res.status(200).json({
@@ -48,6 +61,7 @@ export default async function handler(req, res) {
       message: 'Login successful'
     })
   } catch (err) {
+    console.error('[api/login] error:', err)
     return res.status(500).json({ error: err.message || 'Server error' })
   }
 }

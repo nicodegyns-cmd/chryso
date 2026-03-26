@@ -16,37 +16,42 @@ export default function LoginForm() {
     setLoading(true)
     try {
       const data = await authService.login(email, password)
-      console.log('Authentifié', data)
+      console.log('[LoginForm] Authentifié', data)
       // store token if provided
       if (data.token) localStorage.setItem('token', data.token)
       // store email for profile lookup
       localStorage.setItem('email', email)
       // store role(s) for client-side guard
       // support `data.roles` (array) or `data.role` (single)
-      const rawRoles = Array.isArray(data.roles) && data.roles.length > 0 ? data.roles : [data.role || 'user']
+      const rawRoles = Array.isArray(data.roles) && data.roles.length > 0 ? data.roles : (data.role ? [data.role] : ['user'])
+      console.log('[LoginForm] rawRoles from API:', rawRoles)
       // normalize roles to canonical tokens used by the client
       function norm(r) {
         if (!r) return 'user'
-        const low = r.toString().toLowerCase()
+        const low = r.toString().toLowerCase().trim()
         if (low.includes('infi') || low.includes('infirm')) return 'INFI'
         if (low.includes('med') || low.includes('médec')) return 'MED'
         if (low === 'admin') return 'admin'
         if (low.includes('moder') || low.includes('modér')) return 'moderator'
-        if (low === 'comptabilite' || low.includes('comptable')) return 'comptabilite'
+        if (low === 'comptabilite' || low.includes('comptab')) return 'comptabilite'
         return 'user'
       }
       const normalized = Array.from(new Set(rawRoles.map(norm)))
+      console.log('[LoginForm] normalized roles:', normalized)
       localStorage.setItem('roles', JSON.stringify(normalized))
       // set the active role (keep previous if still valid)
       const prev = localStorage.getItem('role') || normalized[0]
       const active = normalized.includes(prev) ? prev : normalized[0]
+      console.log('[LoginForm] setting active role to:', active)
       localStorage.setItem('role', active)
       // redirect based on active role
       const r = localStorage.getItem('role')
+      console.log('[LoginForm] redirecting to role page:', r)
       if (r === 'admin') window.location.href = '/admin'
       else if (r === 'comptabilite') window.location.href = '/comptabilite'
       else window.location.href = '/'
     } catch (err) {
+      console.error('[LoginForm] error:', err)
       setError(err.message || 'Erreur lors de la connexion')
     } finally {
       setLoading(false)
