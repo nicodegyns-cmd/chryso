@@ -30,8 +30,17 @@ export default function ComptabilitePage() {
 
   // Redirect non-comptabilité users
   useEffect(() => {
-    if (userRole && userRole !== 'comptabilite') {
+    // Only check if userRole has been initialized (not null)
+    if (userRole === null) {
+      console.log('[comptabilite.jsx] waiting for role to initialize')
+      return
+    }
+    console.log('[comptabilite.jsx] guard check - role is:', userRole)
+    if (userRole !== 'comptabilite') {
+      console.log('[comptabilite.jsx] redirecting to /dashboard - user is not comptabilite')
       router.push('/dashboard')
+    } else {
+      console.log('[comptabilite.jsx] role is comptabilite, allowing access')
     }
   }, [userRole, router])
 

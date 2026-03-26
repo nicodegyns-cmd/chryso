@@ -16,7 +16,9 @@ export default function DashboardPage() {
 
   // Redirect comptabilité users to comptabilite page
   React.useEffect(() => {
-    if (userRole === 'comptabilite') {
+    // Only redirect if userRole has been initialized
+    if (userRole !== null && userRole === 'comptabilite') {
+      console.log('[dashboard.jsx] redirecting comptabilite user to /comptabilite')
       router.push('/comptabilite')
     }
   }, [userRole, router])

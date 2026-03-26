@@ -10,10 +10,19 @@ export default function ModeratorPage() {
   const role = useLocalStorage('role', null)
 
   useEffect(() => {
+    // Wait for role to be initialized
+    if (role === null) {
+      console.log('[moderator.jsx] waiting for useLocalStorage to initialize (role is still null)')
+      return
+    }
+    
     // Accept both english/french role strings for compatibility
+    console.log('[moderator.jsx] guard check - role is:', role)
     if (role !== 'moderator' && role !== 'moderateur') {
+      console.log('[moderator.jsx] redirecting to /login - role is not moderator')
       router.replace('/login')
     } else {
+      console.log('[moderator.jsx] role is moderator, allowing access')
       setChecking(false)
     }
   }, [role, router])

@@ -9,6 +9,12 @@ export default function AdminPage() {
   const role = useLocalStorage('role', null)
 
   useEffect(() => {
+    // Wait for the hook to have read the initial value
+    if (role === null) {
+      console.log('[admin.jsx] waiting for useLocalStorage to initialize (role is still null)')
+      return
+    }
+    
     // Check if user has admin role
     console.log('[admin.jsx] guard check - role is:', role)
     if (role !== 'admin') {
