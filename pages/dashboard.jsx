@@ -6,12 +6,13 @@ import PrestationsTable from '../components/PrestationsTable'
 import PrestationsStats from '../components/PrestationsStats'
 import EBrigadePrestationsDisplay from '../components/eBrigadePrestationsDisplay'
 import RIBUploadBanner from '../components/RIBUploadBanner'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 
 export default function DashboardPage() {
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
-  const userEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : ''
-  const userRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null
+  const userEmail = useLocalStorage('email', '')
+  const userRole = useLocalStorage('role', null)
 
   // Redirect comptabilité users to comptabilite page
   React.useEffect(() => {

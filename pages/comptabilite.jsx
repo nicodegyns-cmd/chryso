@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import AdminHeader from '../components/AdminHeader'
 import UserSidebar from '../components/UserSidebar'
 import adminStyles from './admin/rib-validation.module.css'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 
 export default function ComptabilitePage() {
   const router = useRouter()
@@ -24,8 +25,8 @@ export default function ComptabilitePage() {
   const [confirmPaymentOpen, setConfirmPaymentOpen] = useState(false)
   const [confirmPaymentItem, setConfirmPaymentItem] = useState(null)
 
-  const userRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null
-  const userEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : ''
+  const userRole = useLocalStorage('role', null)
+  const userEmail = useLocalStorage('email', '')
 
   // Redirect non-comptabilité users
   useEffect(() => {

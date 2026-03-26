@@ -2,20 +2,21 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import AdminHeader from '../components/AdminHeader'
 import AdminPrestationsSummary from '../components/AdminPrestationsSummary'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 
 export default function ModeratorPage() {
   const router = useRouter()
   const [checking, setChecking] = useState(true)
+  const role = useLocalStorage('role', null)
 
   useEffect(() => {
-    const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null
     // Accept both english/french role strings for compatibility
     if (role !== 'moderator' && role !== 'moderateur') {
       router.replace('/login')
     } else {
       setChecking(false)
     }
-  }, [router])
+  }, [role, router])
 
   if (checking) return <div style={{padding:20}}>Vérification des droits…</div>
 

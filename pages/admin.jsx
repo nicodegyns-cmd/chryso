@@ -1,20 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import AdminPanel from '../components/AdminPanel'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 
 export default function AdminPage() {
   const router = useRouter()
   const [checking, setChecking] = useState(true)
+  const role = useLocalStorage('role', null)
 
   useEffect(() => {
-    // Simple client-side guard for development: check localStorage 'role'
-    const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null
+    // Check if user has admin role
     if (role !== 'admin') {
       router.replace('/login')
     } else {
       setChecking(false)
     }
-  }, [router, setChecking])
+  }, [role, router])
 
   if (checking) return <div style={{padding:20}}>Vérification des droits…</div>
   return (

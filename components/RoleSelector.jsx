@@ -60,15 +60,17 @@ export default function RoleSelector() {
     localStorage.setItem('role', r)
     setCurrent(r)
     setOpen(false)
-    // trigger navigation and force a reload so pages relying on localStorage.role update
-    try {
-      router.replace(router.asPath).then(() => {
-        // ensure a full reload so SSR or cached client state picks up new role
-        if (typeof window !== 'undefined') window.location.reload()
-      })
-    } catch (e) {
-      if (typeof window !== 'undefined') window.location.reload()
+    // Emit custom event so hooks/pages can react to role change
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('localStorageChanged', { detail: { key: 'role', value: r } }))
     }
+    // Delay slightly to ensure localStorage is synced, then navigate to appropriate page
+    setTimeout(() => {
+      if (r === 'admin') router.push('/admin')
+      else if (r === 'comptabilite') router.push('/comptabilite')
+      else if (r === 'moderator') router.push('/moderator')
+      else router.push('/')
+    }, 100)
   }
 
   if (!roles || roles.length === 0) return null
