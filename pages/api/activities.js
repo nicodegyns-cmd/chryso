@@ -20,7 +20,7 @@ export default async function handler(req, res){
       // Get pool and fetch user by email to get liaison_ebrigade_id
       const pool = getPool()
       const [[userRow]] = await pool.query(
-        'SELECT id, email, liaison_ebrigade_id FROM users WHERE email = $1 LIMIT 1',
+        'SELECT id, email, liaison_ebrigade_id FROM users WHERE email = ? LIMIT 1',
         [email]
       )
 

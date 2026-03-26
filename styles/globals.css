@@ -18,6 +18,23 @@ body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI"
 @media (max-width:480px){
   .logo-image{width:90px;max-height:40px}
 }
+
+/* Larger logo specifically on the login page */
+.page-root.login-page .logo-image{
+  /* Approximately 3x larger than the standard login size */
+  width:660px;
+  max-height:270px;
+}
+
+@media (max-width:920px){
+  /* scale down a bit on medium screens */
+  .page-root.login-page .logo-image{width:420px;max-height:180px}
+}
+
+@media (max-width:480px){
+  /* keep mobile reasonable (approx 3x of original mobile size) */
+  .page-root.login-page .logo-image{width:270px;max-height:150px}
+}
 .login-form{display:flex;flex-direction:column;gap:12px}
 .field{display:flex;flex-direction:column}
 .label-text{font-size:13px;color:var(--muted);margin-bottom:6px}
@@ -29,6 +46,33 @@ input:focus{outline:none;box-shadow:0 0 0 3px rgba(37,99,235,0.08);border-color:
 .google-icon{margin-right:4px}
 .divider{margin:14px 0;text-align:center;color:var(--muted)}
 .form-error{background:#fff3f2;color:var(--danger);padding:8px;border-radius:8px;border:1px solid rgba(239,68,68,0.12)}
+
+/* Success message style */
+.form-success{background:#ecfdf5;color:#064e3b;padding:10px;border-radius:8px;border:1px solid #d0f5e5;margin-top:10px}
+
+/* Reset password specific card */
+.reset-card{width:100%;max-width:520px;background:var(--card);padding:26px;border-radius:12px;box-shadow:0 10px 36px rgba(16,24,40,0.08);display:flex;flex-direction:column;align-items:stretch}
+.reset-card .logo-header{justify-content:center;margin-bottom:8px}
+.reset-card h1{margin:6px 0 8px 0}
+.reset-card .small-muted{margin-bottom:8px}
+
+@media (max-width:480px){
+  .reset-card{padding:18px;margin:6px;border-radius:10px}
+}
+
+/* Larger centered logo for reset page */
+.page-root.reset-page .logo-image{
+  width:420px;
+  max-height:180px;
+}
+
+@media (max-width:920px){
+  .page-root.reset-page .logo-image{width:320px;max-height:140px}
+}
+
+@media (max-width:480px){
+  .page-root.reset-page .logo-image{width:220px;max-height:100px}
+}
 
 @media (max-width:480px){.login-card{padding:20px;margin:6px;border-radius:10px}}
 
@@ -113,20 +157,20 @@ button{min-height:38px}
 }
 
 .admin-topbar-left{display:flex;align-items:center;position:absolute;left:0}
-.admin-topbar-logo{width:110px;height:auto;max-height:40px;display:block;margin-right:16px;object-fit:contain}
+.admin-topbar-logo{width:160px;height:auto;max-height:60px;display:block;margin-right:16px;object-fit:contain}
 .admin-topbar-right{display:flex;gap:10px;align-items:center;position:absolute;right:0}
 
 @media (max-width:920px){
   .admin-topbar-inner{max-width:calc(100% - 40px);padding:18px 16px;justify-content:space-between}
-  .admin-topbar-logo{width:95px;height:auto;max-height:35px;transform:none;margin-left:8px;object-fit:contain}
+  .admin-topbar-logo{width:130px;height:auto;max-height:50px;transform:none;margin-left:8px;object-fit:contain}
   .admin-topbar-left{position:static;display:flex;align-items:center;gap:8px}
 }
 
 @media (max-width:480px){
-  .admin-topbar-logo{width:75px;height:auto;max-height:30px;transform:none;margin-left:6px;object-fit:contain}
+  .admin-topbar-logo{width:100px;height:auto;max-height:40px;transform:none;margin-left:6px;object-fit:contain}
 
-/* Increase topbar vertical space to accommodate larger logo */
-.admin-topbar{padding-top:8px;padding-bottom:8px}
+  /* Increase topbar vertical space to accommodate larger logo */
+  .admin-topbar{padding-top:8px;padding-bottom:8px}
   .admin-topbar-inner{padding:14px}
 }
 .top-btn{background:transparent;border:1px solid transparent;color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer}
@@ -185,8 +229,16 @@ button{min-height:38px}
 .sidebar-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .sidebar-btn{display:inline-block;padding:10px 14px;border-radius:8px;color:var(--muted);text-decoration:none;border:1px solid transparent}
 .sidebar-btn:hover{color:var(--accent);background:rgba(37,99,235,0.04)}
+/* Active sidebar item */
+.sidebar-btn.active{background:rgba(37,99,235,0.08);color:var(--accent);font-weight:700;border-left:4px solid var(--accent);padding-left:12px}
 
 .admin-content{margin-left:240px}
+
+/* Ensure pages that use .admin-container / .admin-main align with the fixed sidebar
+  Some admin pages use different class names (admin-layout/admin-container/admin-main).
+  Provide a minimal layout rule so the main content isn't hidden behind the fixed sidebar. */
+.admin-container{position:relative}
+.admin-main{margin-left:240px;flex:1;padding:calc(var(--admin-topbar-height) + 18px) 32px 32px}
 
 /* Ensure admin content stretches fully to the right edge (no centered max-width) */
 .admin-content .card{width:100%}
@@ -194,6 +246,7 @@ button{min-height:38px}
 @media (max-width:920px){
   .admin-sidebar{display:none}
   .admin-content{margin-left:0}
+  .admin-main{margin-left:0;padding-top:18px}
 }
 
 /* Increase horizontal padding on small screens so content doesn't touch edges */

@@ -36,7 +36,7 @@ export default async function handler(req, res){
 
       // Find user by email
       const [users] = await pool.query(
-        'SELECT id FROM users WHERE LOWER(email) = $1',
+        'SELECT id FROM users WHERE LOWER(email) = ?',
         [(userEmail || '').toLowerCase()]
       )
       if (!users || users.length === 0) {
@@ -81,7 +81,7 @@ export default async function handler(req, res){
          FROM prestations p
          LEFT JOIN users u ON p.user_id = u.id
          LEFT JOIN analytics an ON p.analytic_id = an.id
-         WHERE p.id = $1 LIMIT 1`,
+         WHERE p.id = ? LIMIT 1`,
         [insertId]
       )
 

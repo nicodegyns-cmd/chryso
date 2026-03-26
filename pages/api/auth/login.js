@@ -18,6 +18,7 @@ export default async function handler(req, res) {
     if (low.includes('infi') || low.includes('infirm')) role = 'INFI'
     else if (low.includes('med')) role = 'MED'
     else if (low === 'admin') role = 'admin'
+    else if (low === 'comptabilite' || low.includes('comptable')) role = 'comptabilite'
     else role = 'user'
 
     // In a real app you would sign a JWT or session; here we return a dev token

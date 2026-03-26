@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
+    "migrate:pg": "psql \"$DATABASE_URL\" -f sql/postgres_init.sql",
     "build": "next build",
     "start": "next start -p 3000"
   },

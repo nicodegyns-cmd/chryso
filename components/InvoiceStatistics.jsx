@@ -38,56 +38,75 @@ export default function InvoiceStatistics() {
   }
 
   const stats = useMemo(() => {
-    if (!data || !data.prestations) return { byUser: [], byRole: {}, total: 0 }
-    
-    // Group by user
-    const userMap = {}
-    data.prestations.forEach(p => {
-      const userId = p.user_id
-      const name = p.user_firstName && p.user_lastName 
-        ? `${p.user_firstName} ${p.user_lastName}`
-        : (p.user_email || 'Unknown')
-      const role = p.user_role || 'Unknown'
-      
-      if (!userMap[userId]) {
-        userMap[userId] = {
-          id: userId,
-          name,
-          role,
-          total: 0,
-          count: 0,
-          details: []
+    // Prefer prestations (detailed remuneration), fallback to invoices (amounts)
+    if (!data) return { byUser: [], byRole: {}, total: 0 }
+
+    if (data.prestations && data.prestations.length > 0) {
+      // Existing behaviour for prestations
+      const userMap = {}
+      data.prestations.forEach(p => {
+        const userId = p.user_id
+        const name = p.user_firstName && p.user_lastName 
+          ? `${p.user_firstName} ${p.user_lastName}`
+          : (p.user_email || 'Unknown')
+        const role = p.user_role || 'Unknown'
+
+        if (!userMap[userId]) {
+          userMap[userId] = { id: userId, name, role, total: 0, count: 0, details: [] }
         }
-      }
-      
-      const amount = (p.remuneration_infi || 0) + (p.remuneration_med || 0)
-      userMap[userId].total += amount
-      userMap[userId].count += 1
-      userMap[userId].details.push({
-        date: p.date,
-        type: p.pay_type,
-        amount,
-        infi: p.remuneration_infi || 0,
-        med: p.remuneration_med || 0
+
+        const amount = (p.remuneration_infi || 0) + (p.remuneration_med || 0)
+        userMap[userId].total += amount
+        userMap[userId].count += 1
+        userMap[userId].details.push({ date: p.date, type: p.pay_type, amount, infi: p.remuneration_infi || 0, med: p.remuneration_med || 0 })
       })
-    })
 
-    // Calculate by role
-    const byRole = { INFI: { total: 0, count: 0 }, MED: { total: 0, count: 0 } }
-    data.prestations.forEach(p => {
-      const role = p.user_role || 'Unknown'
-      const amount = (p.remuneration_infi || 0) + (p.remuneration_med || 0)
-      if (role === 'INFI' || role === 'MED') {
-        if (!byRole[role]) byRole[role] = { total: 0, count: 0 }
-        byRole[role].total += amount
-        byRole[role].count += 1
-      }
-    })
+      const byRole = { INFI: { total: 0, count: 0 }, MED: { total: 0, count: 0 } }
+      data.prestations.forEach(p => {
+        const role = p.user_role || 'Unknown'
+        const amount = (p.remuneration_infi || 0) + (p.remuneration_med || 0)
+        if (role === 'INFI' || role === 'MED') {
+          if (!byRole[role]) byRole[role] = { total: 0, count: 0 }
+          byRole[role].total += amount
+          byRole[role].count += 1
+        }
+      })
 
-    const userList = Object.values(userMap).sort((a, b) => b.total - a.total)
-    const total = userList.reduce((sum, u) => sum + u.total, 0)
+      const userList = Object.values(userMap).sort((a, b) => b.total - a.total)
+      const total = userList.reduce((sum, u) => sum + u.total, 0)
+      return { byUser: userList, byRole, total }
+    }
 
-    return { byUser: userList, byRole, total }
+    if (data.invoices && data.invoices.length > 0) {
+      // Fallback: aggregate invoices by user and role
+      const userMap = {}
+      data.invoices.forEach(inv => {
+        const userId = inv.user_id || ('u' + (inv.user_email || 'unknown'))
+        const name = [inv.user_first_name, inv.user_last_name].filter(Boolean).join(' ') || inv.user_email || inv.company_name || 'Unknown'
+        const role = inv.user_role || 'Unknown'
+        const amount = parseFloat(inv.amount) || 0
+
+        if (!userMap[userId]) {
+          userMap[userId] = { id: userId, name, role, total: 0, count: 0 }
+        }
+        userMap[userId].total += amount
+        userMap[userId].count += 1
+      })
+
+      const byRole = {}
+      Object.values(userMap).forEach(u => {
+        const r = u.role || 'Unknown'
+        if (!byRole[r]) byRole[r] = { total: 0, count: 0 }
+        byRole[r].total += u.total
+        byRole[r].count += u.count
+      })
+
+      const userList = Object.values(userMap).sort((a, b) => b.total - a.total)
+      const total = userList.reduce((sum, u) => sum + u.total, 0)
+      return { byUser: userList, byRole, total }
+    }
+
+    return { byUser: [], byRole: {}, total: 0 }
   }, [data])
 
   const [users, setUsers] = useState([])

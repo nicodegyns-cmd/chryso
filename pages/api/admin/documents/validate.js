@@ -11,37 +11,41 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  if (!['approved', 'rejected'].includes(status)) {
+  if (!['approved', 'rejected', 'encoded'].includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });
   }
 
   try {
     const pool = getPool();
-    
+
+    // MySQL doesn't support RETURNING; perform UPDATE then SELECT the row
     const updateQuery = `
-      UPDATE documents 
-      SET 
-        validation_status = $1,
-        validated_at = NOW(),
-        rejection_reason = $2
-      WHERE id = $3
-      RETURNING *
+      UPDATE documents
+      SET validation_status = ?, validated_at = NOW(), rejection_reason = ?
+      WHERE id = ?
     `;
 
-    const [rows] = await pool.query(updateQuery, [
+    const [updateResult] = await pool.query(updateQuery, [
       status,
       status === 'rejected' ? reason || null : null,
       documentId
     ]);
 
-    if (!rows || rows.length === 0) {
+    // If no rows affected, document not found
+    const affected = updateResult && (updateResult.affectedRows || updateResult.affected_rows || 0);
+    if (!affected) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
+    // Fetch updated row
+    const [rows] = await pool.query('SELECT * FROM documents WHERE id = ?', [documentId]);
+    const doc = rows && rows[0] ? rows[0] : null;
+
+    const message = status === 'approved' ? 'validé' : (status === 'rejected' ? 'rejeté' : 'encodé');
     return res.status(200).json({
       success: true,
-      message: `Document ${status === 'approved' ? 'validé' : 'rejeté'} avec succès`,
-      document: rows[0]
+      message: `Document ${message} avec succès`,
+      document: doc
     });
   } catch (error) {
     console.error('Error validating document:', error);

@@ -14,7 +14,7 @@ export default function AdminPage() {
     } else {
       setChecking(false)
     }
-  }, [router])
+  }, [router, setChecking])
 
   if (checking) return <div style={{padding:20}}>Vérification des droits…</div>
   return (

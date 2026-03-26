@@ -21,21 +21,31 @@ export default function LoginForm() {
       if (data.token) localStorage.setItem('token', data.token)
       // store email for profile lookup
       localStorage.setItem('email', email)
-      // store role for client-side guard
-      // Normalize role values to canonical tokens used by the client ('INFI','MED','admin','user')
-      let role = (data.role || 'user').toString()
-      const low = role.toLowerCase()
-      if (low.includes('infi') || low.includes('infirm')) role = 'INFI'
-      else if (low.includes('med') || low.includes('médec')) role = 'MED'
-      else if (low === 'admin') role = 'admin'
-      else role = 'user'
-      localStorage.setItem('role', role)
-      // redirect based on role
-      if (role === 'admin') {
-        window.location.href = '/admin'
-      } else {
-        window.location.href = '/'
+      // store role(s) for client-side guard
+      // support `data.roles` (array) or `data.role` (single)
+      const rawRoles = Array.isArray(data.roles) && data.roles.length > 0 ? data.roles : [data.role || 'user']
+      // normalize roles to canonical tokens used by the client
+      function norm(r) {
+        if (!r) return 'user'
+        const low = r.toString().toLowerCase()
+        if (low.includes('infi') || low.includes('infirm')) return 'INFI'
+        if (low.includes('med') || low.includes('médec')) return 'MED'
+        if (low === 'admin') return 'admin'
+        if (low.includes('moder') || low.includes('modér')) return 'moderator'
+        if (low === 'comptabilite' || low.includes('comptable')) return 'comptabilite'
+        return 'user'
       }
+      const normalized = Array.from(new Set(rawRoles.map(norm)))
+      localStorage.setItem('roles', JSON.stringify(normalized))
+      // set the active role (keep previous if still valid)
+      const prev = localStorage.getItem('role') || normalized[0]
+      const active = normalized.includes(prev) ? prev : normalized[0]
+      localStorage.setItem('role', active)
+      // redirect based on active role
+      const r = localStorage.getItem('role')
+      if (r === 'admin') window.location.href = '/admin'
+      else if (r === 'comptabilite') window.location.href = '/comptabilite'
+      else window.location.href = '/'
     } catch (err) {
       setError(err.message || 'Erreur lors de la connexion')
     } finally {

@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import LogoutButton from './LogoutButton'
+import RoleSelector from './RoleSelector'
 
-export default function AdminHeader({ onOpenRoles, logoSrc, onToggleSidebar }) {
+export default function AdminHeader({ logoSrc, onToggleSidebar }) {
   return (
     <div className="admin-topbar">
       <div className="admin-topbar-inner">
@@ -14,10 +15,8 @@ export default function AdminHeader({ onOpenRoles, logoSrc, onToggleSidebar }) {
           <img src={logoSrc || '/assets/logo.png'} alt="logo" className="admin-topbar-logo" />
         </div>
 
-        <div className="admin-topbar-right">
-          <button className="top-btn" onClick={() => onOpenRoles?.()} aria-haspopup="dialog">
-            Sélectionner le rôle
-          </button>
+        <div className="admin-topbar-right" style={{display:'flex',alignItems:'center',gap:8}}>
+          <RoleSelector />
           <Link href="/profile" className="top-btn profile-btn">Profil</Link>
           <LogoutButton small={true} />
         </div>

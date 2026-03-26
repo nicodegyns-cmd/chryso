@@ -1,0 +1,628 @@
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
+import AdminHeader from '../components/AdminHeader'
+import UserSidebar from '../components/UserSidebar'
+import adminStyles from './admin/rib-validation.module.css'
+
+export default function ComptabilitePage() {
+  const router = useRouter()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [prestations, setPrestations] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [filterStatus, setFilterStatus] = useState('sent_to_billing') // Default filter
+  const [searchQuery, setSearchQuery] = useState('')
+  const [ribPendingCount, setRibPendingCount] = useState(0)
+  const [fichePendingCount, setFichePendingCount] = useState(0)
+  const [ribModalOpen, setRibModalOpen] = useState(false)
+  const [ribDocuments, setRibDocuments] = useState([])
+  const [ficheModalOpen, setFicheModalOpen] = useState(false)
+  const [ficheUsers, setFicheUsers] = useState([])
+  const [confirmEncodeOpen, setConfirmEncodeOpen] = useState(false)
+  const [confirmDoc, setConfirmDoc] = useState(null)
+  const [selectedPrestation, setSelectedPrestation] = useState(null)
+  const [confirmPaymentOpen, setConfirmPaymentOpen] = useState(false)
+  const [confirmPaymentItem, setConfirmPaymentItem] = useState(null)
+
+  const userRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null
+  const userEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : ''
+
+  // Redirect non-comptabilité users
+  useEffect(() => {
+    if (userRole && userRole !== 'comptabilite') {
+      router.push('/dashboard')
+    }
+  }, [userRole, router])
+
+  // Fetch prestations sent to billing
+  useEffect(() => {
+    fetchPrestations()
+  }, [filterStatus])
+
+  // Fetch pending documents (for RIB count)
+  useEffect(() => {
+    let mounted = true
+    async function fetchPendingDocs() {
+      try {
+        const res = await fetch('/api/admin/documents/pending')
+        if (!res.ok) throw new Error('Erreur récupération documents')
+        const data = await res.json()
+        const docs = data.documents || []
+        const ribDocs = docs.filter(d => {
+          const t = (d.type || '').toString().toLowerCase()
+          const n = (d.name || '').toString().toLowerCase()
+          return t.includes('rib') || n.includes('rib')
+        })
+        if (mounted) setRibPendingCount(ribDocs.length)
+      } catch (err) {
+        console.warn('Failed loading pending docs', err.message)
+      }
+    }
+    fetchPendingDocs()
+    return () => { mounted = false }
+  }, [])
+
+  async function openRibModal() {
+    setRibModalOpen(true)
+    try {
+      const res = await fetch('/api/admin/documents/pending')
+      if (!res.ok) throw new Error('Erreur récupération documents')
+      const data = await res.json()
+      const docs = data.documents || []
+      const ribDocs = docs.filter(d => {
+        const t = (d.type || '').toString().toLowerCase()
+        const n = (d.name || '').toString().toLowerCase()
+        return t.includes('rib') || n.includes('rib')
+      })
+      setRibDocuments(ribDocs)
+    } catch (e) {
+      console.error('Failed loading RIB docs', e.message)
+      setRibDocuments([])
+    }
+  }
+
+  async function markAsEncoded(documentId) {
+    try {
+      const res = await fetch('/api/admin/documents/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId, status: 'encoded' })
+      })
+      if (!res.ok) throw new Error('Failed to mark encoded')
+      // remove from list
+      setRibDocuments(prev => prev.filter(d => d.id !== documentId))
+      setRibPendingCount(c => Math.max(0, c - 1))
+    } catch (e) {
+      console.error('Encode failed', e.message)
+      alert('Erreur lors de l\'encodage')
+    }
+  }
+
+  async function openFicheModal() {
+    setFicheModalOpen(true)
+    try {
+      const res = await fetch('/api/admin/users/pending-validation')
+      if (!res.ok) throw new Error('Erreur récupération fiches')
+      const data = await res.json()
+      const items = data.items || []
+      setFicheUsers(items)
+    } catch (e) {
+      console.error('Failed loading fiches', e.message)
+      setFicheUsers([])
+    }
+  }
+
+  async function validateUser(userId) {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'prestataire' })
+      })
+      if (!res.ok) throw new Error('Failed to validate user')
+      // remove from list
+      setFicheUsers(prev => prev.filter(u => u.id !== userId))
+      setFichePendingCount(c => Math.max(0, c - 1))
+    } catch (e) {
+      console.error('Validate failed', e.message)
+      alert('Erreur lors de la validation')
+    }
+  }
+
+  // Fetch pending 'fiches de renseignement' (onboarding pending)
+  useEffect(() => {
+    let mounted = true
+    async function fetchPendingFiches() {
+      try {
+        const res = await fetch('/api/admin/users/pending-validation')
+        if (!res.ok) throw new Error('Erreur récupération fiches')
+        const data = await res.json()
+        const items = data.items || []
+        if (mounted) setFichePendingCount(items.length)
+      } catch (err) {
+        console.warn('Failed loading pending fiches', err.message)
+      }
+    }
+    fetchPendingFiches()
+    return () => { mounted = false }
+  }, [])
+
+  async function fetchPrestations() {
+    setLoading(true)
+    setError(null)
+    try {
+      const params = new URLSearchParams()
+      if (filterStatus === 'sent_to_billing') {
+        params.append('status', 'sent_to_billing')
+      } else if (filterStatus === 'invoiced') {
+        params.append('status', 'invoiced')
+      } else if (filterStatus === 'paid') {
+        params.append('status', 'paid')
+      }
+
+      const res = await fetch(`/api/comptabilite/prestations?${params.toString()}`)
+      if (!res.ok) throw new Error('Erreur lors de la récupération')
+
+      const data = await res.json()
+      setPrestations(Array.isArray(data) ? data : data.prestations || [])
+    } catch (err) {
+      setError(err.message)
+      setPrestations([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Guard against null entries returned by APIs
+  const safePrestations = (prestations || []).filter(Boolean)
+
+  const filteredPrestations = safePrestations.filter(p => {
+    const query = (searchQuery || '').toLowerCase()
+    return (
+      (p.user_name || '').toString().toLowerCase().includes(query) ||
+      (p.first_name || '').toString().toLowerCase().includes(query) ||
+      (p.last_name || '').toString().toLowerCase().includes(query) ||
+      (p.email || '').toString().toLowerCase().includes(query) ||
+      (p.activity_type || '').toString().toLowerCase().includes(query)
+    )
+  })
+
+  // Basic stats for cards
+  const pendingPrestations = safePrestations.filter(p => (p && p.status) === 'sent_to_billing')
+  const pendingCount = pendingPrestations.length
+  const pendingAmount = pendingPrestations.reduce((sum, p) => sum + (parseFloat(p && p.remuneration) || 0), 0)
+  if (userRole && userRole !== 'comptabilite') {
+    return null
+  }
+
+  return (
+    <div className="admin-page-root">
+      <AdminHeader onToggleSidebar={() => setSidebarOpen(v => !v)} />
+      <UserSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      
+      <main className="admin-content" onClick={() => { if (sidebarOpen) setSidebarOpen(false) }}>
+        {/* Header */}
+        <div style={{marginBottom: 32}}>
+          <h1 style={{fontSize: 28, fontWeight: 700, color: '#111827', marginBottom: 8}}>
+            💰 Gestion des Prestations à Facturer
+          </h1>
+          <p style={{color: '#6b7280', fontSize: 14}}>
+            Tableau de bord comptabilité - Prestations en attente de facturation
+          </p>
+        </div>
+
+        {/* Stat cards */}
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 24}}>
+          <div style={{background: 'white', borderRadius: 8, padding: 16, border: '1px solid #e5e7eb', boxShadow: '0 1px 2px rgba(0,0,0,0.03)'}}>
+            <div style={{fontSize: 12, color: '#6b7280', marginBottom: 6, fontWeight: 700}}>📤 En attente de facturation</div>
+            <div style={{fontSize: 22, fontWeight: 800, color: '#111827'}}>{pendingCount}</div>
+            <div style={{fontSize: 12, color: '#6b7280', marginTop: 8}}>Montant estimé: {pendingAmount.toFixed(2)} €</div>
+          </div>
+
+          <div style={{background: 'white', borderRadius: 8, padding: 16, border: '1px solid #e5e7eb', boxShadow: '0 1px 2px rgba(0,0,0,0.03)'}}>
+            <div style={{fontSize: 12, color: '#6b7280', marginBottom: 6, fontWeight: 700}}>🧾 Total Prestations</div>
+            <div style={{fontSize: 22, fontWeight: 800, color: '#111827'}}>{safePrestations.length}</div>
+            <div style={{fontSize: 12, color: '#6b7280', marginTop: 8}}>Montant total: {safePrestations.reduce((s,p)=> s + (parseFloat(p && p.remuneration || 0)||0),0).toFixed(2)} €</div>
+          </div>
+
+          <div style={{background: 'white', borderRadius: 8, padding: 16, border: '1px solid #e5e7eb', boxShadow: '0 1px 2px rgba(0,0,0,0.03)'}}>
+            <div style={{fontSize: 12, color: '#6b7280', marginBottom: 6, fontWeight: 700}}>🏦 RIB en attente d'encodage</div>
+            <div style={{fontSize: 22, fontWeight: 800, color: '#111827', cursor: 'pointer'}} onClick={openRibModal}>{ribPendingCount}</div>
+            <div style={{fontSize: 12, color: '#6b7280', marginTop: 8}}>Documents RIB soumis par les utilisateurs</div>
+          </div>
+            <div style={{background: 'white', borderRadius: 8, padding: 16, border: '1px solid #e5e7eb', boxShadow: '0 1px 2px rgba(0,0,0,0.03)'}}>
+              <div style={{fontSize: 12, color: '#6b7280', marginBottom: 6, fontWeight: 700}}>📋 Fiches renseignement à encoder</div>
+                <div style={{fontSize: 22, fontWeight: 800, color: '#111827', cursor: 'pointer'}} onClick={openFicheModal}>{fichePendingCount}</div>
+              <div style={{fontSize: 12, color: '#6b7280', marginTop: 8}}>Utilisateurs avec onboarding en attente</div>
+            </div>
+        </div>
+
+        {/* Filters */}
+        <div style={{
+          background: 'white',
+          borderRadius: 8,
+          padding: 20,
+          marginBottom: 24,
+          border: '1px solid #e5e7eb',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+        }}>
+          <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16}}>
+            {/* Search */}
+            <div>
+              <label style={{display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151'}}>
+                🔍 Rechercher
+              </label>
+              <input 
+                type="text"
+                placeholder="Nom, email, activité..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  fontSize: 14
+                }}
+              />
+            </div>
+
+            {/* Status Filter */}
+            <div>
+              <label style={{display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151'}}>
+                📋 Statut
+              </label>
+              <select 
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  fontSize: 14,
+                  background: 'white'
+                }}
+              >
+                <option value="sent_to_billing">À facturer</option>
+                <option value="invoiced">Facturées</option>
+                <option value="paid">Payées</option>
+                <option value="all">Toutes</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Prestations Table */}
+        <div style={{
+          background: 'white',
+          borderRadius: 8,
+          border: '1px solid #e5e7eb',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          overflow: 'hidden'
+        }}>
+          {loading ? (
+            <div style={{padding: 40, textAlign: 'center', color: '#6b7280'}}>
+              <div style={{fontSize: 14}}>⏳ Chargement des prestations...</div>
+            </div>
+          ) : error ? (
+            <div style={{padding: 20, background: '#fee2e2', color: '#991b1b', borderRadius: 6, margin: 16}}>
+              <strong>❌ Erreur :</strong> {error}
+            </div>
+          ) : filteredPrestations.length === 0 ? (
+            <div style={{padding: 40, textAlign: 'center', color: '#6b7280'}}>
+              <div style={{fontSize: 32, marginBottom: 8}}>📭</div>
+              <div style={{fontSize: 14}}>Aucune prestation trouvée</div>
+            </div>
+          ) : (
+            <div style={{overflowX: 'auto'}}>
+              <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                <thead>
+                  <tr style={{background: '#f3f4f6', borderBottom: '2px solid #e5e7eb'}}>
+                    <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Collaborateur</th>
+                    <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Email</th>
+                    <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Activité</th>
+                    <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Montant</th>
+                    <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Date</th>
+                    <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Statut</th>
+                    <th style={{padding: 12, textAlign: 'center', fontSize: 13, fontWeight: 600, color: '#374151'}}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPrestations.map((prestation, idx) => (
+                    <tr key={prestation.id || idx} style={{borderBottom: '1px solid #e5e7eb', transition: 'background 0.2s', _hover: {background: '#f9fafb'}}}>
+                      <td style={{padding: 12, fontSize: 13, fontWeight: 600, color: '#1f2937'}}>
+                        {prestation.user_name || `${prestation.first_name} ${prestation.last_name}`.trim()}
+                      </td>
+                      <td style={{padding: 12, fontSize: 13, color: '#374151'}}>
+                        {prestation.email}
+                      </td>
+                      <td style={{padding: 12, fontSize: 13, color: '#374151'}}>
+                        {prestation.analytic_name || prestation.activity_type || '-'}
+                      </td>
+                      <td style={{padding: 12, fontSize: 13, fontWeight: 600, color: '#1f2937'}}>
+                        {parseFloat(prestation.remuneration || 0).toFixed(2)} €
+                      </td>
+                      <td style={{padding: 12, fontSize: 13, color: '#374151'}}>
+                        {new Date(prestation.date || prestation.created_at).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td style={{padding: 12, fontSize: 13}}>
+                        <StatusBadge status={prestation.status} />
+                      </td>
+                      <td style={{padding: 12, textAlign: 'center'}}>
+                        <div style={{display: 'flex', gap: 6, justifyContent: 'center'}}>
+                          <button
+                            onClick={() => setSelectedPrestation(prestation)}
+                            title="Détails"
+                            style={{
+                              padding: '6px 10px',
+                              background: '#3b82f6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: 4,
+                              cursor: 'pointer',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.target.style.background = '#2563eb'}
+                            onMouseLeave={(e) => e.target.style.background = '#3b82f6'}
+                          >
+                            👁️
+                          </button>
+                          {prestation.status === 'sent_to_billing' && (
+                            <button
+                              onClick={() => {}}
+                              title="Marquer comme facturé"
+                              style={{
+                                padding: '6px 10px',
+                                background: '#10b981',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                transition: 'background 0.2s'
+                              }}
+                              onMouseEnter={(e) => e.target.style.background = '#059669'}
+                              onMouseLeave={(e) => e.target.style.background = '#10b981'}
+                            >
+                              ✅
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </main>
+      {/* Prestation detail panel (admin-styled) */}
+      {selectedPrestation && (
+        <div className={adminStyles['validation-panel']}>
+          <div className={adminStyles['panel-header']}>
+            <h2>🔎 Détails de la prestation</h2>
+            <button className={adminStyles['close-btn']} onClick={() => setSelectedPrestation(null)}>✕</button>
+          </div>
+
+          <div className={adminStyles['panel-content']}>
+            <div className={adminStyles['user-full-info']}>
+              <h3>👤 Collaborateur</h3>
+              <div className={adminStyles['info-row']}>
+                <span className={adminStyles.label}>Nom:</span>
+                <span>{selectedPrestation.user_name || `${selectedPrestation.first_name || ''} ${selectedPrestation.last_name || ''}`.trim()}</span>
+              </div>
+              <div className={adminStyles['info-row']}>
+                <span className={adminStyles.label}>Email:</span>
+                <span>{selectedPrestation.email || '-'}</span>
+              </div>
+              <div className={adminStyles['info-row']}>
+                <span className={adminStyles.label}>Date:</span>
+                <span>{new Date(selectedPrestation.date || selectedPrestation.created_at).toLocaleDateString('fr-FR')}</span>
+              </div>
+              <div className={adminStyles['info-row']}>
+                <span className={adminStyles.label}>Activité:</span>
+                <span>{selectedPrestation.analytic_name || selectedPrestation.activity_type || '-'}</span>
+              </div>
+              <div className={adminStyles['info-row']}>
+                <span className={adminStyles.label}>Montant:</span>
+                <span>{(parseFloat(selectedPrestation.remuneration || 0) || 0).toFixed(2)} €</span>
+              </div>
+              <div className={adminStyles['info-row']}>
+                <span className={adminStyles.label}>Statut:</span>
+                <span>{selectedPrestation.status || '-'}</span>
+              </div>
+            </div>
+
+            <div className={adminStyles['document-preview']}>
+              <h3>📝 Commentaires</h3>
+              <div className={adminStyles['document-info']}>
+                <p>{selectedPrestation.comments || 'Aucun commentaire'}</p>
+              </div>
+            </div>
+
+            {/* PDF card */}
+            <div className={adminStyles['document-preview']} style={{marginTop:12}}>
+              <h3>📄 Document PDF associé</h3>
+              <div className={adminStyles['document-info']}>
+                <p><strong>Fichier:</strong> {selectedPrestation.pdf_filename || '—'}</p>
+                <p><strong>Taille:</strong> {selectedPrestation.pdf_size ? `${(selectedPrestation.pdf_size/1024).toFixed(2)} KB` : '—'}</p>
+              </div>
+              <div style={{display:'flex',gap:8}}>
+                {selectedPrestation.pdf_url ? (
+                  <a href={selectedPrestation.pdf_url} target="_blank" rel="noreferrer" className={adminStyles['view-document-btn']}>👁️ Voir le PDF</a>
+                ) : (
+                  <button disabled style={{padding:'8px 12px',background:'#9ca3af',color:'#fff',borderRadius:6,border:'none'}}>Aucun PDF</button>
+                )}
+                {selectedPrestation.pdf_url ? (
+                  <a href={selectedPrestation.pdf_url} download style={{padding:'8px 12px',background:'#6b7280',color:'#fff',borderRadius:6,textDecoration:'none',display:'inline-block',textAlign:'center'}}>Télécharger</a>
+                ) : null}
+                <button onClick={() => { setConfirmPaymentItem(selectedPrestation); setConfirmPaymentOpen(true); }} style={{padding:'8px 12px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Encodé</button>
+              </div>
+            </div>
+
+            <div className={adminStyles['validation-actions']}>
+              <button className={adminStyles['btn-approve']} onClick={() => setSelectedPrestation(null)}>Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm payment encoded modal */}
+      {confirmPaymentOpen && confirmPaymentItem && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1300}} onClick={() => { setConfirmPaymentOpen(false); setConfirmPaymentItem(null); }}>
+          <div style={{background:'#fff',borderRadius:10,width:420,maxWidth:'90%',padding:20,boxShadow:'0 10px 30px rgba(0,0,0,0.2)'}} onClick={(e)=>e.stopPropagation()}>
+            <h3 style={{marginTop:0}}>Confirmer l'encodage du paiement</h3>
+            <p style={{color:'#374151'}}>Voulez-vous confirmer que le paiement pour <strong>{confirmPaymentItem.user_name || confirmPaymentItem.email}</strong> (prestation #{confirmPaymentItem.id}) est encodé ?</p>
+            <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:16}}>
+              <button onClick={() => { setConfirmPaymentOpen(false); setConfirmPaymentItem(null); }} style={{padding:'8px 12px',background:'#f3f4f6',borderRadius:6,border:'none',cursor:'pointer'}}>Annuler</button>
+              <button onClick={async () => {
+                try {
+                  // call API to update prestation status to 'paid'
+                  const res = await fetch(`/api/admin/prestations/${confirmPaymentItem.id}`, {
+                    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status: 'paid' })
+                  })
+                  if (!res.ok) throw new Error('Erreur serveur')
+                  // update UI: remove or update item in list
+                  setPrestations(prev => prev.map(p => p.id === confirmPaymentItem.id ? {...p, status: 'paid'} : p))
+                } catch (e) {
+                  console.error('Encodage paiement failed', e)
+                  alert('Erreur lors de l\'encodage du paiement')
+                } finally {
+                  setConfirmPaymentOpen(false)
+                  setConfirmPaymentItem(null)
+                  setSelectedPrestation(null)
+                }
+              }} style={{padding:'8px 12px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Confirmer</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* RIB Modal */}
+      {ribModalOpen && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1200}} onClick={() => setRibModalOpen(false)}>
+          <div style={{background:'#fff',borderRadius:8,width:'95%',maxWidth:1100,maxHeight:'90vh',overflow:'auto',padding:20}} onClick={(e)=>e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+              <h2 style={{margin:0}}>🧾 RIB en attente ({ribDocuments.length})</h2>
+              <button onClick={() => setRibModalOpen(false)} style={{border:'none',background:'transparent',fontSize:18,cursor:'pointer'}}>✕</button>
+            </div>
+            <div className={adminStyles['documents-grid']}>
+              {ribDocuments.length === 0 ? (
+                <div style={{padding:20,color:'#6b7280'}}>Aucun RIB en attente</div>
+              ) : ribDocuments.map(doc => (
+                <div key={doc.id} className={adminStyles['document-card']} onClick={() => {}}>
+                  <div className={adminStyles['doc-header']}>
+                    <div className={adminStyles['doc-type-badge']}>📄 {doc.type || 'RIB'}</div>
+                    <div className={adminStyles['doc-date']}>{new Date(doc.created_at).toLocaleDateString('fr-FR')}</div>
+                  </div>
+
+                  <div className={adminStyles['user-info']}>
+                    <h3>{doc.user_name || `${doc.first_name || ''} ${doc.last_name || ''}`.trim()}</h3>
+                    <p className={adminStyles.email}>📧 {doc.email || ''}</p>
+                    {doc.phone && <p className={adminStyles.phone}>📱 {doc.phone}</p>}
+                    {doc.company_name && <p className={adminStyles.company}>🏢 {doc.company_name}</p>}
+                    {doc.address && <p className={adminStyles.city}>📍 {doc.address}</p>}
+                  </div>
+
+                  <div className={adminStyles['doc-filename']}>
+                    <strong>Fichier:</strong> {doc.name}
+                  </div>
+
+                  <div className={adminStyles['doc-size']}>
+                    <strong>Taille:</strong> {(doc.file_size / 1024).toFixed(2)} KB
+                  </div>
+
+                  <div className={`${adminStyles['status-badge']} ${adminStyles.pending}`}>⏳ En attente</div>
+
+                  <div style={{marginTop:12, display:'flex', gap:8}}>
+                    <a href={doc.url} target="_blank" rel="noreferrer" className={adminStyles['view-document-btn']}>Voir</a>
+                    <a href={doc.url} download style={{padding:'8px 12px',background:'#6b7280',color:'#fff',borderRadius:6,textDecoration:'none',textAlign:'center'}}>Télécharger</a>
+                      <button onClick={() => { setConfirmDoc(doc); setConfirmEncodeOpen(true); }} style={{padding:'8px 12px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Encodé</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Fiche Modal */}
+      {ficheModalOpen && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1200}} onClick={() => setFicheModalOpen(false)}>
+          <div style={{background:'#fff',borderRadius:8,width:'95%',maxWidth:1100,maxHeight:'90vh',overflow:'auto',padding:20}} onClick={(e)=>e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+              <h2 style={{margin:0}}>📋 Fiches en attente ({ficheUsers.length})</h2>
+              <button onClick={() => setFicheModalOpen(false)} style={{border:'none',background:'transparent',fontSize:18,cursor:'pointer'}}>✕</button>
+            </div>
+            <div className={adminStyles['documents-grid']}>
+              {ficheUsers.length === 0 ? (
+                <div style={{padding:20,color:'#6b7280'}}>Aucune fiche en attente</div>
+              ) : ficheUsers.map(u => (
+                <div key={u.id} className={adminStyles['document-card']} onClick={() => {}}>
+                  <div className={adminStyles['doc-header']}>
+                    <div className={adminStyles['doc-type-badge']}>👤 Fiche</div>
+                    <div className={adminStyles['doc-date']}>{new Date().toLocaleDateString('fr-FR')}</div>
+                  </div>
+
+                  <div className={adminStyles['user-info']}>
+                    <h3>{(u.first_name || '') + ' ' + (u.last_name || '')}</h3>
+                    <p className={adminStyles.email}>📧 {u.email}</p>
+                    {u.telephone && <p className={adminStyles.phone}>📱 {u.telephone}</p>}
+                    {u.company && <p className={adminStyles.company}>🏢 {u.company}</p>}
+                    {u.address && <p className={adminStyles.city}>📍 {u.address}</p>}
+                  </div>
+
+                  <div style={{marginTop:12, display:'flex', gap:8}}>
+                    <a href={`/profile?id=${u.id}`} target="_blank" rel="noreferrer" className={adminStyles['view-document-btn']}>Voir</a>
+                    <button onClick={() => validateUser(u.id)} style={{padding:'8px 12px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Valider</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Confirm Encoded Modal */}
+      {confirmEncodeOpen && confirmDoc && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1300}} onClick={() => { setConfirmEncodeOpen(false); setConfirmDoc(null); }}>
+          <div style={{background:'#fff',borderRadius:10,width:400,maxWidth:'90%',padding:20,boxShadow:'0 10px 30px rgba(0,0,0,0.2)'}} onClick={(e)=>e.stopPropagation()}>
+            <h3 style={{marginTop:0}}>Confirmer l'encodage</h3>
+            <p style={{color:'#374151'}}>Voulez-vous confirmer que le RIB de <strong>{confirmDoc.user_name || confirmDoc.email}</strong> est encodé ?</p>
+            <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:16}}>
+              <button onClick={() => { setConfirmEncodeOpen(false); setConfirmDoc(null); }} style={{padding:'8px 12px',background:'#f3f4f6',borderRadius:6,border:'none',cursor:'pointer'}}>Annuler</button>
+              <button onClick={async () => { try { await markAsEncoded(confirmDoc.id); } finally { setConfirmEncodeOpen(false); setConfirmDoc(null); } }} style={{padding:'8px 12px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Confirmer</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StatusBadge({ status }) {
+  const statusConfig = {
+    sent_to_billing: { bg: '#fef3c7', color: '#92400e', label: '📋 À facturer' },
+    invoiced: { bg: '#dcfce7', color: '#166534', label: '✅ Facturée' },
+    paid: { bg: '#dbeafe', color: '#0c4a6e', label: '💳 Payée' },
+    pending: { bg: '#f3f4f6', color: '#374151', label: '⏳ En attente' }
+  }
+  
+  const config = statusConfig[status] || statusConfig.pending
+  
+  return (
+    <span style={{
+      background: config.bg,
+      color: config.color,
+      padding: '4px 8px',
+      borderRadius: 4,
+      fontSize: 12,
+      fontWeight: 600,
+      whiteSpace: 'nowrap'
+    }}>
+      {config.label}
+    </span>
+  )
+}

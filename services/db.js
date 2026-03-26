@@ -1,4 +1,5 @@
-const { Pool } = require('pg')
+const { Pool: PgPool } = require('pg')
+const mysql = require('mysql2/promise')
 
 // Only load dotenv in development, not in production (Vercel sets env vars automatically)
 if (process.env.NODE_ENV !== 'production') {
@@ -7,110 +8,176 @@ if (process.env.NODE_ENV !== 'production') {
 
 const DATABASE_URL = process.env.DATABASE_URL
 
-let pgPool
+let poolInstance = null
 
-// Create the PostgreSQL connection pool
-function createPgPool() {
-  if (!pgPool) {
-    pgPool = new Pool({
-      connectionString: DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
-    })
+// Detect if using MySQL or PostgreSQL
+const isMySQL = DATABASE_URL && DATABASE_URL.startsWith('mysql://')
+
+// MySQL native pool wrapper
+class MySQLPoolAdapter {
+  constructor(pool) {
+    this.pool = pool
   }
-  return pgPool
+
+  async query(sql, params = []) {
+    try {
+      const [rows] = await this.pool.query(sql, params)
+      return [rows, null]
+    } catch (err) {
+      console.error('MySQL Query Error:', err.message)
+      throw err
+    }
+  }
+
+  async execute(sql, params = []) {
+    try {
+      const [result] = await this.pool.execute(sql, params)
+      return [
+        { insertId: result.insertId, affectedRows: result.affectedRows },
+        null
+      ]
+    } catch (err) {
+      console.error('MySQL Execute Error:', err.message)
+      throw err
+    }
+  }
+
+  async getConnection() {
+    const connection = await this.pool.getConnection()
+    return new MySQLConnectionAdapter(connection)
+  }
+
+  async end() {
+    await this.pool.end()
+  }
 }
 
-// MySQL-compatible wrapper to make pg driver work with existing MySQL queries
-class MySQLCompatiblePool {
-  constructor(pgPool) {
-    this.pgPool = pgPool
+class MySQLConnectionAdapter {
+  constructor(connection) {
+    this.connection = connection
   }
 
-  // Convert MySQL placeholder syntax (?) to PostgreSQL syntax ($1, $2, etc.)
+  async query(sql, params = []) {
+    const [rows] = await this.connection.query(sql, params)
+    return [rows, null]
+  }
+
+  async release() {
+    return this.connection.release()
+  }
+}
+
+// PostgreSQL pool wrapper - converts MySQL syntax to PostgreSQL
+class PostgreSQLPoolAdapter {
+  constructor(pool) {
+    this.pool = pool
+  }
+
   convertQuery(sql, params = []) {
     let paramIndex = 1
     const convertedSql = sql.replace(/\?/g, () => `$${paramIndex++}`)
     return { sql: convertedSql, params }
   }
 
-  // Executes INSERT/UPDATE/DELETE statements (returns result with insertId if applicable)
+  async query(sql, params = []) {
+    try {
+      const { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
+      const result = await this.pool.query(convertedSql, convertedParams)
+      return [result.rows, result.fields]
+    } catch (err) {
+      console.error('PostgreSQL Query Error:', err.message)
+      throw err
+    }
+  }
+
   async execute(sql, params = []) {
     try {
       let { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
       
-      // For PostgreSQL INSERTs without RETURNING, add RETURNING id
       if (convertedSql.trim().toUpperCase().startsWith('INSERT') && !convertedSql.toUpperCase().includes('RETURNING')) {
         convertedSql = convertedSql.trim().replace(/;?\s*$/, ' RETURNING id')
       }
       
-      const result = await this.pgPool.query(convertedSql, convertedParams)
-      
-      // Return in mysql2 format: [{ insertId, affectedRows }, fields]
+      const result = await this.pool.query(convertedSql, convertedParams)
       return [{
         insertId: result.rows[0]?.id || null,
         affectedRows: result.rowCount || 0
       }, null]
     } catch (err) {
+      console.error('PostgreSQL Execute Error:', err.message)
       throw err
     }
   }
 
-  // Executes SELECT statements (returns [rows, fields] similar to mysql2)
-  async query(sql, params = []) {
-    try {
-      const { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
-      const result = await this.pgPool.query(convertedSql, convertedParams)
-      
-      // Return in mysql2 format: [rows, fields]
-      return [result.rows, result.fields]
-    } catch (err) {
-      throw err
-    }
-  }
-
-  // Helper method for batch operations
   async getConnection() {
-    return new MySQLCompatibleConnection(await this.pgPool.connect())
+    const connection = await this.pool.connect()
+    return new PostgreSQLConnectionAdapter(connection)
+  }
+
+  async end() {
+    await this.pool.end()
   }
 }
 
-// Wrapper for individual connections
-class MySQLCompatibleConnection {
-  constructor(pgConnection) {
-    this.pgConnection = pgConnection
+class PostgreSQLConnectionAdapter {
+  constructor(connection) {
+    this.connection = connection
+  }
+
+  convertQuery(sql, params = []) {
+    let paramIndex = 1
+    const convertedSql = sql.replace(/\?/g, () => `$${paramIndex++}`)
+    return { sql: convertedSql, params }
   }
 
   async query(sql, params = []) {
-    try {
-      let paramIndex = 1
-      const convertedSql = sql.replace(/\?/g, () => `$${paramIndex++}`)
-      const result = await this.pgConnection.query(convertedSql, params)
-      return [result.rows, result.fields]
-    } catch (err) {
-      throw err
-    }
+    const { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
+    const result = await this.connection.query(convertedSql, convertedParams)
+    return [result.rows, result.fields]
   }
 
   async release() {
-    return this.pgConnection.release()
+    return this.connection.release()
+  }
+}
+
+// Create and configure the pool
+function createPool() {
+  if (isMySQL) {
+    console.log('[DB] Using MySQL:', DATABASE_URL.split('@')[1]?.split('/')[0] || 'unknown')
+    const url = new URL(DATABASE_URL)
+    const mysqlPool = mysql.createPool({
+      host: url.hostname,
+      user: url.username || 'root',
+      password: url.password || '',
+      database: url.pathname.slice(1),
+      port: url.port || 3306,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
+    })
+    return new MySQLPoolAdapter(mysqlPool)
+  } else {
+    console.log('[DB] Using PostgreSQL:', DATABASE_URL.split('@')[1]?.split('/')[0] || 'unknown')
+    const pgPool = new PgPool({
+      connectionString: DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    })
+    return new PostgreSQLPoolAdapter(pgPool)
   }
 }
 
 function getPool() {
-  const pool = createPgPool()
-  return new MySQLCompatiblePool(pool)
+  if (!poolInstance) {
+    poolInstance = createPool()
+  }
+  return poolInstance
 }
 
-// Direct query function for simpler usage (doesn't release connection after each call)
-// Reuses global pool and relies on Node.js connection pooling
 async function query(sql, params = []) {
-  const pool = createPgPool()
-  try {
-    const result = await pool.query(sql, params)
-    return { rows: result.rows, fields: result.fields }
-  } catch (err) {
-    throw err
-  }
+  const pool = getPool()
+  const [rows] = await pool.query(sql, params)
+  return rows
 }
 
 module.exports = { getPool, query }

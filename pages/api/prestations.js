@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     if (!email) return res.status(200).json({ prestations: [] })
 
     // find user id by email
-    const [urows] = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [(email || '').toLowerCase()])
+    const [urows] = await pool.query('SELECT id FROM users WHERE LOWER(email) = ?', [(email || '').toLowerCase()])
     if (!urows || urows.length === 0) return res.status(200).json({ prestations: [] })
     const userId = urows[0].id
 
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
             an.code AS analytic_code, an.name AS analytic_name
              FROM prestations p
                LEFT JOIN analytics an ON p.analytic_id = an.id
-               WHERE p.user_id = $1
+               WHERE p.user_id = ?
                ORDER BY p.date DESC, p.id DESC
                LIMIT 500`
     let rows
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
                         an.code AS analytic_code, an.name AS analytic_name
                  FROM prestations p
                  LEFT JOIN analytics an ON p.analytic_id = an.id
-                 WHERE p.user_id = $1
+                 WHERE p.user_id = ?
                  ORDER BY p.date DESC, p.id DESC
                  LIMIT 500`
       const res2 = await pool.query(fallback, [userId])

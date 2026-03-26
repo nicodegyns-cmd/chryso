@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
     // Get document from database
     const [rows] = await pool.query(
-      'SELECT id, name, file_data FROM documents WHERE id = $1',
+      'SELECT id, name, file_data FROM documents WHERE id = ?',
       [id]
     )
 

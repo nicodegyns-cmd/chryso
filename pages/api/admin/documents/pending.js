@@ -24,7 +24,10 @@ export default async function handler(req, res) {
         u.email,
         u.telephone as phone,
         u.company as company_name,
-        NULL as city
+        u.address,
+        u.bce,
+        u.account,
+        u.fonction
       FROM documents d
       JOIN users u ON d.user_id = u.id
       WHERE d.validation_status = 'pending'
