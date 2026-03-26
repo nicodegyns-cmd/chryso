@@ -10,9 +10,12 @@ export default function AdminPage() {
 
   useEffect(() => {
     // Check if user has admin role
+    console.log('[admin.jsx] guard check - role is:', role)
     if (role !== 'admin') {
+      console.log('[admin.jsx] redirecting to /login - role is not admin')
       router.replace('/login')
     } else {
+      console.log('[admin.jsx] role is admin, allowing access')
       setChecking(false)
     }
   }, [role, router])

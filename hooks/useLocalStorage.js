@@ -13,7 +13,9 @@ export function useLocalStorage(key, defaultValue = null) {
     // Read initial value from localStorage
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(key)
-      setValue(stored !== null ? stored : defaultValue)
+      const finalValue = stored !== null ? stored : defaultValue
+      console.log(`[useLocalStorage] initializing key="${key}" with value:`, finalValue)
+      setValue(finalValue)
     }
   }, [key, defaultValue])
 

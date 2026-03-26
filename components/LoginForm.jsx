@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useRouter } from 'next/router'
 import Link from 'next/link'
 import * as authService from '../services/authService'
 
 export default function LoginForm() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
@@ -44,12 +46,17 @@ export default function LoginForm() {
       const active = normalized.includes(prev) ? prev : normalized[0]
       console.log('[LoginForm] setting active role to:', active)
       localStorage.setItem('role', active)
-      // redirect based on active role
+      // redirect based on active role - use setTimeout to ensure localStorage is synced
       const r = localStorage.getItem('role')
       console.log('[LoginForm] redirecting to role page:', r)
-      if (r === 'admin') window.location.href = '/admin'
-      else if (r === 'comptabilite') window.location.href = '/comptabilite'
-      else window.location.href = '/'
+      
+      // Use a longer delay and router.push (not window.location.href) to ensure localStorage is synced
+      setTimeout(() => {
+        if (r === 'admin') router.push('/admin')
+        else if (r === 'comptabilite') router.push('/comptabilite')
+        else if (r === 'moderator') router.push('/moderator')
+        else router.push('/dashboard')
+      }, 200)
     } catch (err) {
       console.error('[LoginForm] error:', err)
       setError(err.message || 'Erreur lors de la connexion')
