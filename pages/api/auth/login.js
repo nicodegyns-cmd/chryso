@@ -1,4 +1,5 @@
 import { verifyUser } from '../../../services/userStore'
+import { query as dbQuery } from '../../../services/db'
 
 export default async function handler(req, res) {
   console.log('[api/login] handler start', req.method)
@@ -12,8 +13,19 @@ export default async function handler(req, res) {
     console.log('[api/login] verifyUser returned', !!user)
     if (!user) return res.status(401).json({ error: 'Invalid credentials' })
 
+    // Try to load roles from normalized tables (roles + user_roles)
+    let dbRoles = []
+    try {
+      const rows = await dbQuery('SELECT r.name FROM roles r JOIN user_roles ur ON ur.role_id = r.id WHERE ur.user_id = ?', [user.id])
+      if (Array.isArray(rows) && rows.length > 0) dbRoles = rows.map(r => r.name)
+    } catch (e) {
+      // If the roles tables don't exist yet or query fails, we'll fallback to legacy column
+      console.warn('[api/login] roles lookup failed, falling back to users.role', e.message)
+      dbRoles = []
+    }
+
     // Normalize roles (the `role` column can be comma-separated)
-    const raw = (user.role || 'user').toString()
+    const raw = (dbRoles.length > 0 ? dbRoles.join(',') : (user.role || 'user')).toString()
     const parts = raw.split(/[,;\s]+/).map(p => (p || '').toString()).filter(Boolean)
     const normalize = (r) => {
       const low = (r || '').toString().toLowerCase()
