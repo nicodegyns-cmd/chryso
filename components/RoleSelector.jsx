@@ -23,11 +23,28 @@ export default function RoleSelector() {
     try { parsed = raw ? JSON.parse(raw) : null } catch(e) { parsed = null }
     if (Array.isArray(parsed) && parsed.length > 0) {
       setRoles(parsed)
+      if (!localStorage.getItem('role')) localStorage.setItem('role', parsed[0])
+      setCurrent(localStorage.getItem('role'))
     } else {
       const single = typeof window !== 'undefined' ? localStorage.getItem('role') : null
-      if (single) setRoles([single])
+      if (single) {
+        // support legacy comma-separated string in `role` e.g. "admin,INFI,moderator"
+        if (single.includes(',')) {
+          const parts = single.split(',').map(s => s.trim()).filter(Boolean)
+          if (parts.length > 0) {
+            setRoles(parts)
+            // ensure canonical storage of roles array for future use
+            try { localStorage.setItem('roles', JSON.stringify(parts)) } catch(e) {}
+            // keep the first as active if not set
+            if (!localStorage.getItem('role')) localStorage.setItem('role', parts[0])
+            setCurrent(parts[0])
+          }
+        } else {
+          setRoles([single])
+          setCurrent(single)
+        }
+      }
     }
-    setCurrent(typeof window !== 'undefined' ? localStorage.getItem('role') : null)
   }, [])
 
   useEffect(() => {
@@ -43,8 +60,15 @@ export default function RoleSelector() {
     localStorage.setItem('role', r)
     setCurrent(r)
     setOpen(false)
-    // trigger client-side navigation to refresh UI based on role
-    router.replace(router.asPath)
+    // trigger navigation and force a reload so pages relying on localStorage.role update
+    try {
+      router.replace(router.asPath).then(() => {
+        // ensure a full reload so SSR or cached client state picks up new role
+        if (typeof window !== 'undefined') window.location.reload()
+      })
+    } catch (e) {
+      if (typeof window !== 'undefined') window.location.reload()
+    }
   }
 
   if (!roles || roles.length === 0) return null
