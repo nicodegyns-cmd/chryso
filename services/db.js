@@ -1,150 +1,50 @@
 const { Pool: PgPool } = require('pg')
 const mysql = require('mysql2/promise')
+const fs = require('fs')
 
-// Only load dotenv in development, not in production (Vercel sets env vars automatically)
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config()
 }
 
-const DATABASE_URL = process.env.DATABASE_URL
+function normalize(res) {
+  if (Array.isArray(res)) {
+    if (res.length === 2) return { rows: res[0], fields: res[1] }
+    return { rows: res }
+  }
+  if (res && typeof res === 'object') {
+    if ('rows' in res) return res
+    return { rows: res }
+  }
+  return { rows: res }
+}
 
 let poolInstance = null
 
-// Detect if using MySQL or PostgreSQL
-const isMySQL = DATABASE_URL && DATABASE_URL.startsWith('mysql://')
-
-// MySQL native pool wrapper
-class MySQLPoolAdapter {
-  constructor(pool) {
-    this.pool = pool
-  }
-
-  async query(sql, params = []) {
-    try {
-      const [rows] = await this.pool.query(sql, params)
-      return [rows, null]
-    } catch (err) {
-      console.error('MySQL Query Error:', err.message)
-      throw err
+function createPgPool(connectionString) {
+  const sslOptions = {}
+  try {
+    const caPath = '/etc/ssl/ovh/ovh-ca.pem'
+    if (fs.existsSync(caPath)) {
+      sslOptions.ca = fs.readFileSync(caPath, 'utf8')
+    } else {
+      sslOptions.rejectUnauthorized = false
     }
+  } catch (e) {
+    sslOptions.rejectUnauthorized = false
   }
-
-  async execute(sql, params = []) {
-    try {
-      const [result] = await this.pool.execute(sql, params)
-      return [
-        { insertId: result.insertId, affectedRows: result.affectedRows },
-        null
-      ]
-    } catch (err) {
-      console.error('MySQL Execute Error:', err.message)
-      throw err
-    }
-  }
-
-  async getConnection() {
-    const connection = await this.pool.getConnection()
-    return new MySQLConnectionAdapter(connection)
-  }
-
-  async end() {
-    await this.pool.end()
-  }
+  return new PgPool({
+    connectionString,
+    ssl: Object.keys(sslOptions).length ? sslOptions : undefined
+  })
 }
 
-class MySQLConnectionAdapter {
-  constructor(connection) {
-    this.connection = connection
-  }
-
-  async query(sql, params = []) {
-    const [rows] = await this.connection.query(sql, params)
-    return [rows, null]
-  }
-
-  async release() {
-    return this.connection.release()
-  }
-}
-
-// PostgreSQL pool wrapper - converts MySQL syntax to PostgreSQL
-class PostgreSQLPoolAdapter {
-  constructor(pool) {
-    this.pool = pool
-  }
-
-  convertQuery(sql, params = []) {
-    let paramIndex = 1
-    const convertedSql = sql.replace(/\?/g, () => `$${paramIndex++}`)
-    return { sql: convertedSql, params }
-  }
-
-  async query(sql, params = []) {
-    try {
-      const { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
-      const result = await this.pool.query(convertedSql, convertedParams)
-      return [result.rows, result.fields]
-    } catch (err) {
-      console.error('PostgreSQL Query Error:', err.message)
-      throw err
-    }
-  }
-
-  async execute(sql, params = []) {
-    try {
-      let { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
-      
-      if (convertedSql.trim().toUpperCase().startsWith('INSERT') && !convertedSql.toUpperCase().includes('RETURNING')) {
-        convertedSql = convertedSql.trim().replace(/;?\s*$/, ' RETURNING id')
-      }
-      
-      const result = await this.pool.query(convertedSql, convertedParams)
-      return [{
-        insertId: result.rows[0]?.id || null,
-        affectedRows: result.rowCount || 0
-      }, null]
-    } catch (err) {
-      console.error('PostgreSQL Execute Error:', err.message)
-      throw err
-    }
-  }
-
-  async getConnection() {
-    const connection = await this.pool.connect()
-    return new PostgreSQLConnectionAdapter(connection)
-  }
-
-  async end() {
-    await this.pool.end()
-  }
-}
-
-class PostgreSQLConnectionAdapter {
-  constructor(connection) {
-    this.connection = connection
-  }
-
-  convertQuery(sql, params = []) {
-    let paramIndex = 1
-    const convertedSql = sql.replace(/\?/g, () => `$${paramIndex++}`)
-    return { sql: convertedSql, params }
-  }
-
-  async query(sql, params = []) {
-    const { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
-    const result = await this.connection.query(convertedSql, convertedParams)
-    return [result.rows, result.fields]
-  }
-
-  async release() {
-    return this.connection.release()
-  }
-}
-
-// Create and configure the pool
 function createPool() {
+  const DATABASE_URL = process.env.DATABASE_URL || ''
+  const DB_CLIENT = (process.env.DB_CLIENT || 'pg').toLowerCase()
+
+  const isMySQL = DB_CLIENT === 'mysql' || DATABASE_URL.startsWith('mysql://')
+
   if (isMySQL) {
-    console.log('[DB] Using MySQL:', DATABASE_URL.split('@')[1]?.split('/')[0] || 'unknown')
     const url = new URL(DATABASE_URL)
     const mysqlPool = mysql.createPool({
       host: url.hostname,
@@ -156,28 +56,80 @@ function createPool() {
       connectionLimit: 10,
       queueLimit: 0
     })
-    return new MySQLPoolAdapter(mysqlPool)
-  } else {
-    console.log('[DB] Using PostgreSQL:', DATABASE_URL.split('@')[1]?.split('/')[0] || 'unknown')
-    const pgPool = new PgPool({
-      connectionString: DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
-    })
-    return new PostgreSQLPoolAdapter(pgPool)
+    return {
+      query: async (sql, params = []) => {
+        const [rows, fields] = await mysqlPool.query(sql, params)
+        return { rows, fields }
+      },
+      execute: async (sql, params = []) => {
+        const [result] = await mysqlPool.execute(sql, params)
+        return [{ insertId: result.insertId, affectedRows: result.affectedRows }, null]
+      },
+      getConnection: async () => {
+        const c = await mysqlPool.getConnection()
+        return {
+          query: async (s, p = []) => {
+            const [rows, fields] = await c.query(s, p)
+            return { rows, fields }
+          },
+          release: () => c.release()
+        }
+      },
+      end: () => mysqlPool.end()
+    }
+  }
+
+  const pgPool = createPgPool(DATABASE_URL)
+  return {
+    query: async (sql, params = []) => {
+      const result = await pgPool.query(sql, params)
+      return { rows: result.rows, fields: result.fields }
+    },
+    execute: async (sql, params = []) => {
+      const result = await pgPool.query(sql, params)
+      return [{ insertId: result.rows[0]?.id || null, affectedRows: result.rowCount || 0 }, null]
+    },
+    getConnection: async () => {
+      const conn = await pgPool.connect()
+      return {
+        query: async (s, p = []) => {
+          const r = await conn.query(s, p)
+          return { rows: r.rows, fields: r.fields }
+        },
+        release: () => conn.release()
+      }
+    },
+    end: () => pgPool.end()
   }
 }
 
 function getPool() {
-  if (!poolInstance) {
-    poolInstance = createPool()
-  }
+  if (!poolInstance) poolInstance = createPool()
   return poolInstance
 }
 
 async function query(sql, params = []) {
   const pool = getPool()
-  const [rows] = await pool.query(sql, params)
-  return rows
+  const r = await pool.query(sql, params)
+  return normalize(r)
 }
 
-module.exports = { getPool, query }
+function defaultFactory() {
+  const pool = getPool()
+  return {
+    query: async (sql, params = []) => normalize(await pool.query(sql, params)),
+    execute: async (sql, params = []) => normalize(await pool.execute ? pool.execute(sql, params) : pool.query(sql, params)),
+    getConnection: async () => {
+      const c = await pool.getConnection()
+      return { query: async (s,p=[]) => normalize(await c.query(s,p)), release: c.release ? c.release.bind(c) : () => {} }
+    }
+  }
+}
+
+const factory = function() { return defaultFactory() }
+factory.default = factory
+factory.getPool = getPool
+factory.query = query
+factory.__esModule = true
+
+module.exports = factory

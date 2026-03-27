@@ -1,8 +1,15 @@
 -- 011_expand_role_column_mysql.sql
--- Augmenter la colonne `role` pour supporter plusieurs rôles séparés par des virgules (MySQL version)
+-- Converted to PostgreSQL-compatible statements
 
-ALTER TABLE users MODIFY COLUMN role VARCHAR(255) NOT NULL DEFAULT 'user';
+-- Increase column width and enforce NOT NULL + default in Postgres
+ALTER TABLE users
+  ALTER COLUMN role TYPE VARCHAR(255);
+
+ALTER TABLE users
+  ALTER COLUMN role SET NOT NULL;
+
+ALTER TABLE users
+  ALTER COLUMN role SET DEFAULT 'user';
 
 -- Notes:
--- This migration increases the role column from VARCHAR(32) to VARCHAR(255)
--- to accommodate comma-separated role lists like "admin,comptabilite,INFI"
+-- Replaced MySQL `MODIFY COLUMN` with Postgres `ALTER COLUMN` statements.

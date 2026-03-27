@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -e
+# assurer le bon répertoire
+cd "$(dirname "$0")"
+# exporter les vars depuis .env si présent
+set -a
+if [ -f .env ]; then
+  # shellcheck disable=SC1091
+  source .env
+fi
+set +a
+# forcer DB_CLIENT par défaut à pg
+export DB_CLIENT=${DB_CLIENT:-pg}
+# démarrer l'app
+exec npm start

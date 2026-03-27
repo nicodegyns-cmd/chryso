@@ -1,19 +1,23 @@
--- Create documents table for RIB uploads
+-- Migration: Create documents table for storing generated documents
+-- For user document management and sharing
+
 CREATE TABLE IF NOT EXISTS documents (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL,
   name VARCHAR(255) NOT NULL,
-  type VARCHAR(50) NOT NULL DEFAULT 'PDF',
-  file_path VARCHAR(1024) NOT NULL,
-  file_size BIGINT NOT NULL,
-  validation_status VARCHAR(50) DEFAULT 'pending',
-  validated_at TIMESTAMP NULL,
-  validated_by_id BIGINT NULL,
-  rejection_reason VARCHAR(500) NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  type VARCHAR(50) NOT NULL DEFAULT 'PDF', -- PDF, CSV, etc.
+  url TEXT DEFAULT NULL, -- URL to download the document
+  file_path VARCHAR(512) DEFAULT NULL, -- Local file path if stored on disk
+  file_size BIGINT DEFAULT NULL, -- File size in bytes
+  description TEXT DEFAULT NULL,
+  is_public SMALLINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   
-  INDEX idx_user_id (user_id),
-  INDEX idx_validation_status (validation_status),
-  INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  CONSTRAINT fk_documents_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Create indexes for documents
+CREATE INDEX IF NOT EXISTS idx_documents_user ON documents(user_id);
+CREATE INDEX IF NOT EXISTS idx_documents_created ON documents(created_at);
+CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type);

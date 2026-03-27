@@ -1,0 +1,45 @@
+/* compatibility wrapper: load a backup implementation and normalize results */
+let impl;
+const candidates = ['./db.orig.js.real.bak','./db.orig.js.bak','./db.orig.js','./db.js.bak'];
+for (const p of candidates) {
+  try { impl = require(p); break } catch(e) {}
+}
+if (!impl) throw new Error('No db implementation found among: ' + candidates.join(', '));
+
+function normalize(res) {
+  if (Array.isArray(res)) {
+    if (res.length === 2) return { rows: res[0], fields: res[1] };
+    return { rows: res };
+  }
+  if (res && typeof res === 'object') {
+    if ('rows' in res) return res;
+    return { rows: res };
+  }
+  return { rows: res };
+}
+
+function factory() {
+  const pool = (typeof impl === 'function' && impl.getPool) ? impl.getPool() : (typeof impl === 'function' ? impl() : impl);
+  return {
+    query: async (sql, params=[]) => normalize(await pool.query(sql, params)),
+    execute: async (sql, params=[]) => normalize(await (pool.execute ? pool.execute(sql, params) : pool.query(sql, params))),
+    getConnection: async () => {
+      if (pool.getConnection) {
+        const c = await pool.getConnection();
+        return { query: async (s,p=[]) => normalize(await c.query(s,p)), release: c.release ? c.release.bind(c) : () => {} };
+      }
+      if (pool.connect) {
+        const c = await pool.connect();
+        return { query: async (s,p=[]) => normalize(await c.query(s,p)), release: c.release ? c.release.bind(c) : () => {} };
+      }
+      throw new Error('No connection API on underlying pool');
+    }
+  };
+}
+
+const f = function(){ return factory(); };
+f.default = f;
+f.getPool = impl.getPool ? impl.getPool.bind(impl) : (() => factory());
+f.query = async (sql, params=[]) => (await f().query(sql, params));
+f.__esModule = true;
+module.exports = f;

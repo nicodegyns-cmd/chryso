@@ -1,0 +1,15 @@
+"use strict";(()=>{var e={};e.id=9684,e.ids=[9684],e.modules={145:e=>{e.exports=require("next/dist/compiled/next-server/pages-api.runtime.prod.js")},5788:(e,a,r)=>{r.r(a),r.d(a,{config:()=>o,default:()=>l,routeModule:()=>d});var t={};r.r(t),r.d(t,{default:()=>handler});var n=r(1802),s=r(7153),u=r(6249);let{getPool:i}=r(6541);async function handler(e,a){let r=i();try{if("GET"===e.method)try{let[e]=await r.query(`SELECT p.*, u.email AS user_email, u.first_name AS user_firstName, u.last_name AS user_lastName, an.name AS analytic_name, an.code AS analytic_code
+           FROM prestations p
+           LEFT JOIN users u ON p.user_id = u.id
+           LEFT JOIN analytics an ON p.analytic_id = an.id
+           ORDER BY p.id DESC`);return a.status(200).json({items:e})}catch(e){return console.warn("prestations query error",e&&e.code),a.status(200).json({items:[]})}if("POST"===e.method){let{user_email:t,email:n,analytic_id:s,date:u,pay_type:i,hours_actual:l,garde_hours:o,sortie_hours:d,overtime_hours:_,remuneration_infi:m,remuneration_med:c,comments:p,expense_amount:S,expense_comment:A,proof_image:E,status:y}=e.body||{},f=t||n;if(!f)return a.status(400).json({error:"user_email required"});let[O]=await r.query("SELECT id FROM users WHERE LOWER(email) = ?",[(f||"").toLowerCase()]);if(!O||0===O.length)return a.status(404).json({error:"User not found"});let N=O[0].id,[h]=await r.query(`INSERT INTO prestations (
+          user_id, analytic_id, date, pay_type,
+          hours_actual, garde_hours, sortie_hours, overtime_hours,
+          remuneration_infi, remuneration_med,
+          comments, expense_amount, expense_comment, proof_image,
+          status, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW()) RETURNING id`,[N,s||null,u||null,i||null,l||null,o||null,d||null,_||null,m||null,c||null,p||null,S||null,A||null,E||null,y||"A saisir"]),T=h.rows[0].id,[[$]]=await r.query(`SELECT p.*, u.email AS user_email, u.role AS user_role, u.first_name AS user_first_name, u.last_name AS user_last_name, u.telephone AS user_phone, u.address AS user_address, u.bce AS user_bce, u.company AS company_name, u.account AS user_account, an.name AS analytic_name, an.code AS analytic_code
+         FROM prestations p
+         LEFT JOIN users u ON p.user_id = u.id
+         LEFT JOIN analytics an ON p.analytic_id = an.id
+         WHERE p.id = ? LIMIT 1`,[T]);return a.status(201).json($||{id:T})}a.setHeader("Allow","GET,POST"),a.status(405).end("Method Not Allowed")}catch(e){console.error("prestations API error",e),a.status(500).json({error:"internal"})}}let l=(0,u.l)(t,"default"),o=(0,u.l)(t,"config"),d=new n.PagesAPIRouteModule({definition:{kind:s.x.PAGES_API,page:"/api/admin/prestations",pathname:"/api/admin/prestations",bundlePath:"",filename:""},userland:t})}};var a=require("../../../webpack-api-runtime.js");a.C(e);var __webpack_exec__=e=>a(a.s=e),r=a.X(0,[4222,6541],()=>__webpack_exec__(5788));module.exports=r})();

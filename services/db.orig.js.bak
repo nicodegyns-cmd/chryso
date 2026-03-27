@@ -1,0 +1,184 @@
+const { Pool: PgPool } = require('pg')
+const fs = require('fs')
+const mysql = require('mysql2/promise')
+
+// Only load dotenv in development, not in production (Vercel sets env vars automatically)
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config()
+}
+
+const DATABASE_URL = process.env.DATABASE_URL
+
+let poolInstance = null
+
+// Detect if using MySQL or PostgreSQL
+const isMySQL = DATABASE_URL && DATABASE_URL.startsWith('mysql://')
+
+// MySQL native pool wrapper
+class MySQLPoolAdapter {
+  constructor(pool) {
+    this.pool = pool
+  }
+
+  async query(sql, params = []) {
+    try {
+      const [rows] = await this.pool.query(sql, params)
+      return [rows, null]
+    } catch (err) {
+      console.error('MySQL Query Error:', err.message)
+      throw err
+    }
+  }
+
+  async execute(sql, params = []) {
+    try {
+      const [result] = await this.pool.execute(sql, params)
+      return [
+        { insertId: result.insertId, affectedRows: result.affectedRows },
+        null
+      ]
+    } catch (err) {
+      console.error('MySQL Execute Error:', err.message)
+      throw err
+    }
+  }
+
+  async getConnection() {
+    const connection = await this.pool.getConnection()
+    return new MySQLConnectionAdapter(connection)
+  }
+
+  async end() {
+    await this.pool.end()
+  }
+}
+
+class MySQLConnectionAdapter {
+  constructor(connection) {
+    this.connection = connection
+  }
+
+  async query(sql, params = []) {
+    const [rows] = await this.connection.query(sql, params)
+    return [rows, null]
+  }
+
+  async release() {
+    return this.connection.release()
+  }
+}
+
+// PostgreSQL pool wrapper - converts MySQL syntax to PostgreSQL
+class PostgreSQLPoolAdapter {
+  constructor(pool) {
+    this.pool = pool
+  }
+
+  convertQuery(sql, params = []) {
+    let paramIndex = 1
+    const convertedSql = sql.replace(/\?/g, () => `$${paramIndex++}`)
+    return { sql: convertedSql, params }
+  }
+
+  async query(sql, params = []) {
+    try {
+      const { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
+      const result = await this.pool.query(convertedSql, convertedParams)
+      return [result.rows, result.fields]
+    } catch (err) {
+      console.error('PostgreSQL Query Error:', err.message)
+      throw err
+    }
+  }
+
+  async execute(sql, params = []) {
+    try {
+      let { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
+      
+      if (convertedSql.trim().toUpperCase().startsWith('INSERT') && !convertedSql.toUpperCase().includes('RETURNING')) {
+        convertedSql = convertedSql.trim().replace(/;?\s*$/, ' RETURNING id')
+      }
+      
+      const result = await this.pool.query(convertedSql, convertedParams)
+      return [{
+        insertId: result.rows[0]?.id || null,
+        affectedRows: result.rowCount || 0
+      }, null]
+    } catch (err) {
+      console.error('PostgreSQL Execute Error:', err.message)
+      throw err
+    }
+  }
+
+  async getConnection() {
+    const connection = await this.pool.connect()
+    return new PostgreSQLConnectionAdapter(connection)
+  }
+
+  async end() {
+    await this.pool.end()
+  }
+}
+
+class PostgreSQLConnectionAdapter {
+  constructor(connection) {
+    this.connection = connection
+  }
+
+  convertQuery(sql, params = []) {
+    let paramIndex = 1
+    const convertedSql = sql.replace(/\?/g, () => `$${paramIndex++}`)
+    return { sql: convertedSql, params }
+  }
+
+  async query(sql, params = []) {
+    const { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
+    const result = await this.connection.query(convertedSql, convertedParams)
+    return [result.rows, result.fields]
+  }
+
+  async release() {
+    return this.connection.release()
+  }
+}
+
+// Create and configure the pool
+function createPool() {
+  if (isMySQL) {
+    console.log('[DB] Using MySQL:', DATABASE_URL.split('@')[1]?.split('/')[0] || 'unknown')
+    const url = new URL(DATABASE_URL)
+    const mysqlPool = mysql.createPool({
+      host: url.hostname,
+      user: url.username || 'root',
+      password: url.password || '',
+      database: url.pathname.slice(1),
+      port: url.port || 3306,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
+    })
+    return new MySQLPoolAdapter(mysqlPool)
+  } else {
+    console.log('[DB] Using PostgreSQL:', DATABASE_URL.split('@')[1]?.split('/')[0] || 'unknown')
+    const pgPool = new PgPool({
+      connectionString: DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    })
+    return new PostgreSQLPoolAdapter(pgPool)
+  }
+}
+
+function getPool() {
+  if (!poolInstance) {
+    poolInstance = createPool()
+  }
+  return poolInstance
+}
+
+async function query(sql, params = []) {
+  const pool = getPool()
+  const [rows] = await pool.query(sql, params)
+  return rows
+}
+
+module.exports = { getPool, query }

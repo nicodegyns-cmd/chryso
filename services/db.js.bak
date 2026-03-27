@@ -1,0 +1,52 @@
+/*
+ Compatibility wrapper pour services/db.js
+ - charge l'implémentation originale depuis services/db.js.bak
+ - expose une fonction callable par défaut qui retourne une instance
+ - préserve les exports nommés (getPool, query)
+*/
+const orig = require('./db.orig.js');
+
+function makeInstance() {
+  try {
+    if (typeof orig === 'function') {
+      const inst = orig();
+      if (inst && (typeof inst.query === 'function' || typeof inst.execute === 'function')) {
+        return inst;
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  if (orig && typeof orig.query === 'function') {
+    return {
+      query: orig.query.bind(orig),
+      execute: orig.execute ? orig.execute.bind(orig) : undefined,
+      getConnection: orig.getConnection ? orig.getConnection.bind(orig) : undefined,
+    };
+  }
+
+  if (orig && typeof orig.getPool === 'function') {
+    try {
+      const pool = orig.getPool();
+      if (pool && typeof pool.query === 'function') {
+        return {
+          query: pool.query.bind(pool),
+          execute: pool.execute ? pool.execute.bind(pool) : undefined,
+          getConnection: pool.getConnection ? pool.getConnection.bind(pool) : undefined,
+        };
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  return orig || {};
+}
+
+function dbFactory() {
+  return makeInstance();
+}
+
+dbFactory.default = dbFactory;
+dbFactory.getPool = typeof orig.getPool === 'function' ? orig.getPool : undefined;
+dbFactory.query = typeof orig.query === 'function' ? orig.query : (async ()=>{ throw new Error('No query implementation available'); });
+dbFactory.__esModule = true;
+
+module.exports = dbFactory;

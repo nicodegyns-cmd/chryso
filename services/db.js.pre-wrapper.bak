@@ -1,0 +1,59 @@
+/*
+ Compatibility wrapper: always expose a callable default and make
+ `.query()` return { rows, fields } so compiled handlers work.
+*/
+const orig = require('./services/db.orig.js.real.bak') || require('./services/db.bak') || require('./services/db.js.bak');
+
+function normalizeResult(res) {
+  if (Array.isArray(res)) {
+    if (res.length === 2) return { rows: res[0], fields: res[1] };
+    return { rows: res };
+  }
+  if (res && typeof res === 'object') {
+    if ('rows' in res) return res;
+    return { rows: res };
+  }
+  return { rows: res };
+}
+
+function defaultFactory() {
+  const pool = (typeof orig === 'function' ? (orig.getPool ? orig.getPool() : orig()) : (orig.getPool ? orig.getPool() : orig));
+  return {
+    query: async (sql, params = []) => {
+      const r = await pool.query(sql, params);
+      return normalizeResult(r);
+    },
+    execute: async (sql, params = []) => {
+      const r = await (pool.execute ? pool.execute(sql, params) : pool.query ? pool.query(sql, params) : Promise.resolve([]));
+      return normalizeResult(r);
+    },
+    getConnection: async () => {
+      if (pool.getConnection) {
+        const conn = await pool.getConnection();
+        return {
+          query: async (sql, params = []) => normalizeResult(await conn.query(sql, params)),
+          release: conn.release ? conn.release.bind(conn) : () => {}
+        };
+      }
+      if (pool.connect) {
+        const conn = await pool.connect();
+        return {
+          query: async (sql, params = []) => normalizeResult(await conn.query(sql, params)),
+          release: conn.release ? conn.release.bind(conn) : () => {}
+        };
+      }
+      throw new Error('No connection API available on underlying pool');
+    }
+  };
+}
+
+const factory = function() { return defaultFactory(); };
+factory.default = factory;
+factory.getPool = (orig && orig.getPool) ? orig.getPool.bind(orig) : (() => { const p = defaultFactory(); return p; });
+factory.query = async (sql, params = []) => {
+  const inst = factory();
+  return inst.query(sql, params);
+};
+factory.__esModule = true;
+
+module.exports = factory;

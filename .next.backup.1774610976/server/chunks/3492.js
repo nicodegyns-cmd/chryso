@@ -1,0 +1,1 @@
+"use strict";exports.id=3492,exports.ids=[3492],exports.modules={3492:(e,t,s)=>{s.d(t,{_:()=>useLocalStorage});var u=s(6689);function useLocalStorage(e,t=null){let[s,o]=(0,u.useState)(t);return(0,u.useEffect)(()=>{},[e,t]),(0,u.useEffect)(()=>{},[e,t]),s}}};
