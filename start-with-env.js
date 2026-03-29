@@ -5,6 +5,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 
 // Load .env synchronously BEFORE starting Next.js
 function loadEnv(envPath) {
@@ -63,5 +64,23 @@ console.log('[STARTUP] Final env state:');
 console.log('  NODE_ENV:', process.env.NODE_ENV);
 console.log('  DATABASE_URL:', process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 80) + '...' : 'NOT SET');
 
-// Now start Next.js
-require('next/dist/bin/next')(process.argv.slice(2));
+// Now start Next.js via 'next start' command
+const args = process.argv.slice(2).length > 0 ? process.argv.slice(2) : ['start'];
+console.log('[STARTUP] Launching Next.js with args:', args.join(' '));
+
+const next = spawn('npx', ['next', ...args], {
+  cwd: __dirname,
+  stdio: 'inherit',
+  env: process.env
+});
+
+next.on('error', (err) => {
+  console.error('[STARTUP] Failed to start Next.js:', err);
+  process.exit(1);
+});
+
+next.on('exit', (code) => {
+  console.log('[STARTUP] Next.js exited with code:', code);
+  process.exit(code);
+});
+
