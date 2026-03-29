@@ -10,7 +10,7 @@ export default async function handler(req, res){
     }
 
     // Basic existence check
-    const [[row]] = await pool.query('SELECT id FROM activities WHERE id = $1', [id])
+    const result_row_outer = await pool.query('SELECT id FROM activities WHERE id = $1', [id])
     if (!row) return res.status(404).json({ error: 'not found' })
 
     // Simulate queueing a job to generate and send the document

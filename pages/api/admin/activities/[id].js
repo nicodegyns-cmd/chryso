@@ -5,7 +5,7 @@ export default async function handler(req, res){
   const { id } = req.query
   try{
     if (req.method === 'GET'){
-      const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, created_at FROM activities WHERE id = $1', [id])
+      const result_row_outer = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, created_at FROM activities WHERE id = $1', [id])
       if (!row) return res.status(404).json({ error: 'not found' })
       return res.status(200).json({ item: row })
     }
@@ -27,7 +27,7 @@ export default async function handler(req, res){
       params.push(id)
       const sql = `UPDATE activities SET ${updates.join(', ')} WHERE id = $${paramIndex}`
       await pool.query(sql, params)
-      const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, created_at FROM activities WHERE id = $1', [id])
+      const result_row_outer = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, created_at FROM activities WHERE id = $1', [id])
       return res.status(200).json({ item: row })
     }
 

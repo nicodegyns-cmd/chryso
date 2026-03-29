@@ -14,14 +14,14 @@ export default async function handler(req, res){
     }
 
     // Get analytic details (id is now the analytic_id)
-    const [[analytic]] = await pool.query(
+    const result_analytic_outer = await pool.query(
       'SELECT id, name as analytic_name, code as analytic_code FROM analytics WHERE id = ?',
       [id]
     )
     if (!analytic) return res.status(404).json({ error: 'Analytic not found' })
 
     // Get all prestations with a PDF file for this analytic
-    const [prestations] = await pool.query(
+    const q_prestations = await pool.query(
       'SELECT id, invoice_number, request_ref, pdf_url FROM prestations WHERE analytic_id = ? AND pdf_url IS NOT NULL AND pdf_url != "" ORDER BY id ASC',
       [id]
     )

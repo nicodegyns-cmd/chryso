@@ -34,7 +34,7 @@ export default async function handler(req, res) {
       ORDER BY d.created_at DESC
     `;
 
-    const [rows] = await pool.query(query);
+    const q_rows = await pool.query(query);
     
     return res.status(200).json({
       success: true,

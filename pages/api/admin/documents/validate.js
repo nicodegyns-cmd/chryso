@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       WHERE id = ?
     `;
 
-    const [updateResult] = await pool.query(updateQuery, [
+    const q_updateResult = await pool.query(updateQuery, [
       status,
       status === 'rejected' ? reason || null : null,
       documentId
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     }
 
     // Fetch updated row
-    const [rows] = await pool.query('SELECT * FROM documents WHERE id = ?', [documentId]);
+    const q_rows = await pool.query('SELECT * FROM documents WHERE id = ?', [documentId]);
     const doc = rows && rows[0] ? rows[0] : null;
 
     const message = status === 'approved' ? 'validé' : (status === 'rejected' ? 'rejeté' : 'encodé');

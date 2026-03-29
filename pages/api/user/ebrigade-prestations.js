@@ -32,7 +32,7 @@ export default async function handler(req, res) {
 
     // Get pool and fetch user by email
     const pool = getPool()
-    const [[userRow]] = await pool.query(
+    const result_userRow_outer = await pool.query(
       'SELECT id, email, liaison_ebrigade_id FROM users WHERE email = ? LIMIT 1',
       [email]
     )

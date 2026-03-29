@@ -48,7 +48,7 @@ export default async function handler(req, res) {
 
     try {
       const pool = getPool()
-      const [users] = await pool.query('SELECT id FROM users WHERE email = $1', [email])
+      const q_users = await pool.query('SELECT id FROM users WHERE email = $1', [email])
 
       if (!users?.[0]) {
         return res.status(404).json({ error: 'User not found' })
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       // No need to save to disk - storing file_data in database instead
       console.log('[UPLOAD] Storing in database with file content')
 
-      const [docs] = await pool.query(
+      const q_docs = await pool.query(
         `INSERT INTO documents (user_id, name, type, file_path, file_data, file_size, validation_status, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id`,
         [userId, uploadedFile.originalFilename, 'PDF', fileName, fileData, fileData.length, 'pending']

@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     const pool = getPool()
 
     // Get all documents with old /uploads/ or full paths
-    const [documents] = await pool.query(`
+    const q_documents = await pool.query(`
       SELECT id, file_path FROM documents 
       WHERE file_path LIKE '%/uploads/%' OR file_path LIKE '%tmp%' OR file_path LIKE '%public%'
     `)

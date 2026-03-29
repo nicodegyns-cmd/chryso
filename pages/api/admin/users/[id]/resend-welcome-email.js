@@ -13,7 +13,7 @@ export default async function handler(req, res) {
 
   try {
     // Get user details
-    const [[user]] = await pool.query('SELECT id, email, first_name FROM users WHERE id = ? LIMIT 1', [id])
+    const result_user_outer = await pool.query('SELECT id, email, first_name FROM users WHERE id = ? LIMIT 1', [id])
     if (!user) {
       return res.status(404).json({ error: 'User not found' })
     }

@@ -27,7 +27,7 @@ export default async function handler(req, res){
     await pool.query(`UPDATE prestations SET ${updates.join(', ')} WHERE id = $1`, params)
 
     // fetch refreshed row (include user and analytic info for rich invoice template)
-    const [[updatedRow]] = await pool.query(
+    const result_updatedRow_outer = await pool.query(
       `SELECT p.*, u.email AS user_email, u.role AS user_role, u.first_name AS user_first_name, u.last_name AS user_last_name, u.telephone AS user_phone, u.address AS user_address, u.bce AS user_bce, u.company AS company_name, u.account AS user_account, an.name AS analytic_name, an.code AS analytic_code
        FROM prestations p
        LEFT JOIN users u ON p.user_id = u.id
@@ -54,7 +54,7 @@ export default async function handler(req, res){
             try{
               const year = new Date().getFullYear()
               const like = `${year}-%`
-              const [resInv] = await pool.query('SELECT invoice_number FROM prestations WHERE invoice_number LIKE $1 ORDER BY invoice_number DESC LIMIT 1', [like])
+              const q_resInv = await pool.query('SELECT invoice_number FROM prestations WHERE invoice_number LIKE $1 ORDER BY invoice_number DESC LIMIT 1', [like])
               let nextNum = 1
               if (resInv && resInv.length > 0 && resInv[0].invoice_number){
                 const parts = String(resInv[0].invoice_number).split('-')
@@ -74,7 +74,7 @@ export default async function handler(req, res){
             try{
               const yearR = new Date().getFullYear()
               const likeR = `REQ-${yearR}-%`
-              const [resReq] = await pool.query('SELECT request_ref FROM prestations WHERE request_ref LIKE $1 ORDER BY request_ref DESC LIMIT 1', [likeR])
+              const q_resReq = await pool.query('SELECT request_ref FROM prestations WHERE request_ref LIKE $1 ORDER BY request_ref DESC LIMIT 1', [likeR])
               let nextReq = 1
               if (resReq && resReq.length > 0 && resReq[0].request_ref){
                 const partsR = String(resReq[0].request_ref).split('-')
@@ -132,7 +132,7 @@ export default async function handler(req, res){
           } else {
             // 2) try to fetch recent activities for this analytic to infer rates
             try{
-              const [acts] = await pool.query('SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [updatedRow.analytic_id])
+              const q_acts = await pool.query('SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [updatedRow.analytic_id])
                 if (acts && acts.length > 0){
                 // look for matching pay_type entries first, otherwise take first row
                 let chosen = null
@@ -171,7 +171,7 @@ export default async function handler(req, res){
           if (gardeH > 0){
             const gUnit = await (async ()=>{
               try{
-                const [actsG] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%garde%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                const q_actsG = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%garde%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
                 if (actsG && actsG.length>0){
                   const pref = isMed ? (actsG[0].remuneration_med ?? actsG[0].remuneration_infi) : (actsG[0].remuneration_infi ?? actsG[0].remuneration_med)
                   const val = Number(pref)
@@ -188,21 +188,21 @@ export default async function handler(req, res){
             const sUnit = await (async ()=>{
               try{
                 // prefer explicit 'sortie' entries
-                const [actsSortie] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%sortie%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                const q_actsSortie = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%sortie%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
                 if (actsSortie && actsSortie.length>0){
                   const pref = isMed ? (actsSortie[0].remuneration_med ?? actsSortie[0].remuneration_infi) : (actsSortie[0].remuneration_infi ?? actsSortie[0].remuneration_med)
                   const val = Number(pref)
                   if (val && !isNaN(val) && val > 0) return val
                 }
                 // else prefer permanence
-                const [actsPerm] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%permanence%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                const q_actsPerm = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%permanence%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
                 if (actsPerm && actsPerm.length>0){
                   const pref2 = isMed ? (actsPerm[0].remuneration_med ?? actsPerm[0].remuneration_infi) : (actsPerm[0].remuneration_infi ?? actsPerm[0].remuneration_med)
                   const val2 = Number(pref2)
                   if (val2 && !isNaN(val2) && val2 > 0) return val2
                 }
                 // else try astreinte
-                const [actsA] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%astreinte%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                const q_actsA = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%astreinte%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
                 if (actsA && actsA.length>0){
                   const pref3 = isMed ? (actsA[0].remuneration_med ?? actsA[0].remuneration_infi) : (actsA[0].remuneration_infi ?? actsA[0].remuneration_med)
                   const val3 = Number(pref3)
@@ -224,13 +224,13 @@ export default async function handler(req, res){
             // prefer permanence rate for overtime
             const overtimeUnit = await (async ()=>{
               try{
-                const [actsPerm] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%permanence%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                const q_actsPerm = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%permanence%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
                 if (actsPerm && actsPerm.length>0){
                   const pref = isMed ? (actsPerm[0].remuneration_med ?? actsPerm[0].remuneration_infi) : (actsPerm[0].remuneration_infi ?? actsPerm[0].remuneration_med)
                   const val = Number(pref)
                   if (val && !isNaN(val) && val > 0) return val
                 }
-                const [actsA] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%astreinte%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                const q_actsA = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%astreinte%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
                 if (actsA && actsA.length>0){
                   const pref2 = isMed ? (actsA[0].remuneration_med ?? actsA[0].remuneration_infi) : (actsA[0].remuneration_infi ?? actsA[0].remuneration_med)
                   const val2 = Number(pref2)

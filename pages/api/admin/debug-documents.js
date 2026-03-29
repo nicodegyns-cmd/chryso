@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     const pool = getPool()
     
     // Check table structure
-    const [columns] = await pool.query(`
+    const q_columns = await pool.query(`
       SELECT column_name, data_type, is_nullable
       FROM information_schema.columns
       WHERE table_name = 'documents'
@@ -20,11 +20,11 @@ export default async function handler(req, res) {
     `)
     
     // Count all documents
-    const [countResult] = await pool.query('SELECT COUNT(*) as total FROM documents')
+    const q_countResult = await pool.query('SELECT COUNT(*) as total FROM documents')
     const totalDocs = countResult[0]?.total || 0
     
     // Get pending documents with join
-    const [pending] = await pool.query(`
+    const q_pending = await pool.query(`
       SELECT 
         d.id, 
         d.user_id, 
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     `)
     
     // Get all documents for debugging
-    const [allDocs] = await pool.query(`
+    const q_allDocs = await pool.query(`
       SELECT 
         d.id, 
         d.user_id, 

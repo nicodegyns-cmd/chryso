@@ -12,7 +12,7 @@ export default async function handler(req, res){
 
     // Get send history for this analytic
     try{
-      const [sends] = await pool.query(
+      const q_sends = await pool.query(
         `SELECT id, sent_at, prestation_count, first_prestation_date, last_prestation_date, 
                 recipient_emails, status, filename
          FROM pdf_sends

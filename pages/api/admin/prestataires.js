@@ -27,7 +27,7 @@ export default async function handler(req, res) {
       LIMIT 2000
     `
 
-    const [rows] = await pool.query(sql)
+    const q_rows = await pool.query(sql)
     return res.status(200).json({ success: true, users: rows || [] })
   } catch (err) {
     console.error('[api/admin/prestataires] error', err)

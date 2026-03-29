@@ -6,7 +6,7 @@ export default async function handler(req, res){
     if (req.method === 'GET'){
       // Try to select from prestations table; if it doesn't exist, return empty list
       try{
-        const [rows] = await pool.query(
+        const q_rows = await pool.query(
           `SELECT p.*, u.email AS user_email, u.first_name AS user_firstName, u.last_name AS user_lastName, an.name AS analytic_name, an.code AS analytic_code
            FROM prestations p
            LEFT JOIN users u ON p.user_id = u.id
@@ -35,7 +35,7 @@ export default async function handler(req, res){
       if (!userEmail) return res.status(400).json({ error: 'user_email required' })
 
       // Find user by email
-      const [users] = await pool.query(
+      const q_users = await pool.query(
         'SELECT id FROM users WHERE LOWER(email) = ?',
         [(userEmail || '').toLowerCase()]
       )
@@ -46,7 +46,7 @@ export default async function handler(req, res){
       const userId = users[0].id
 
       // Insert new prestation
-      const [result] = await pool.query(
+      const q_result = await pool.query(
         `INSERT INTO prestations (
           user_id, analytic_id, date, pay_type,
           hours_actual, garde_hours, sortie_hours, overtime_hours,
@@ -76,7 +76,7 @@ export default async function handler(req, res){
       const insertId = result.rows[0].id
 
       // Fetch and return the newly created prestation with user and analytic info
-      const [[newRow]] = await pool.query(
+      const result_newRow_outer = await pool.query(
         `SELECT p.*, u.email AS user_email, u.role AS user_role, u.first_name AS user_first_name, u.last_name AS user_last_name, u.telephone AS user_phone, u.address AS user_address, u.bce AS user_bce, u.company AS company_name, u.account AS user_account, an.name AS analytic_name, an.code AS analytic_code
          FROM prestations p
          LEFT JOIN users u ON p.user_id = u.id

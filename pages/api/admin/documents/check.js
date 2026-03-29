@@ -20,7 +20,7 @@ export default async function handler(req, res) {
     let tableRows
     try {
       // pool.query() returns [rows, fields]
-      const [rows] = await pool.query(`
+      const q_rows = await pool.query(`
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public' AND table_name = 'documents'
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
     let columnRows
     try {
       // pool.query() returns [rows, fields]
-      const [rows] = await pool.query(`
+      const q_rows = await pool.query(`
         SELECT column_name, data_type 
         FROM information_schema.columns 
         WHERE table_name = 'documents'

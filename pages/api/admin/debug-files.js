@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     const pool = getPool()
 
     // Get documents from DB
-    const [docs] = await pool.query('SELECT id, file_path, created_at FROM documents LIMIT 5')
+    const q_docs = await pool.query('SELECT id, file_path, created_at FROM documents LIMIT 5')
 
     const locations = [
       '/tmp/uploads',

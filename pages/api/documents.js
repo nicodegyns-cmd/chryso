@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     const pool = getPool()
 
     // Find user by email
-    const [userRows] = await pool.query(
+    const q_userRows = await pool.query(
       'SELECT id FROM users WHERE email = ?',
       [email]
     )
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     const userId = userRows[0].id
 
     // Fetch documents for this user from the documents table
-    const [docRows] = await pool.query(
+    const q_docRows = await pool.query(
       `SELECT 
         id,
         name,
