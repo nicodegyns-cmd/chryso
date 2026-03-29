@@ -4,76 +4,7 @@ require('dotenv').config()
 let poolInstance = null
 
 class PostgreSQLPoolAdapter {
-  constructor(pool) { this.pool = pool }
-  convertQuery(sql, params = []) {
-    let i = 1
-    return { sql: sql.replace(/\?/g, () => `$${i++}`), params }
-  }
-  async query(sql, params = []) {
-    const { sql: s, params: p } = this.convertQuery(sql, params)
-    console.log("[DB SQL]", s, p)
-    const result = await this.pool.query(s, p)
-    const arr = [result.rows, result.fields]
-    arr.rows = result.rows
-    arr.fields = result.fields
-    return arr
-  }
-  async execute(sql, params = []) {
-    const { sql: s, params: p } = this.convertQuery(sql, params)
-    const result = await this.pool.query(s, p)
-    return [{ insertId: result.rows[0]?.id || null, affectedRows: result.rowCount || 0 }, null]
-  }
-  async getConnection() {
-    const conn = await this.pool.connect()
-    return new PostgreSQLConnectionAdapter(conn)
-  }
-  async end() { await this.pool.end() }
-}
-
-class PostgreSQLConnectionAdapter {
-  constructor(conn) { this.conn = conn }
-  convertQuery(sql, params = []) {
-    let i = 1
-    return { sql: sql.replace(/\?/g, () => `$${i++}`), params }
-  }
-  async query(sql, params = []) {
-    const { sql: s, params: p } = this.convertQuery(sql, params)
-    const result = await this.conn.query(s, p)
-    const arr = [result.rows, result.fields]
-    arr.rows = result.rows
-    arr.fields = result.fields
-    return arr
-  }
-  async release() { return this.conn.release() }
-}
-
-function createPool() {
-  console.log("[DB INIT] Creating PostgreSQL pool")
-  const user = process.env.DB_USER || "fenix"
-  const password = process.env.DB_PASSWORD || "Toulouse94"
-  const host = process.env.DB_HOST || "ay177071-001.eu.clouddb.ovh.net"
-  const port = process.env.DB_PORT || "35230"
-  const dbname = process.env.DB_NAME || "fenix"
-  const URL = `postgresql://${user}:${password}@${host}:${port}/${dbname}`
-  console.log("[DB INIT] PostgreSQL:", host, port, dbname)
-  return new PostgreSQLPoolAdapter(new PgPool({ connectionString: URL, ssl: { rejectUnauthorized: false } }))
-}
-
-function getPool() { if (!poolInstance) poolInstance = createPool(); return poolInstance }
-
-async function query(sql, params = []) {
-  const p = getPool()
-  const result = await p.query(sql, params)
-  const rows = result.rows || result[0]
-  const fields = result.fields || result[1]
-  const arr = [rows, fields]
-  arr.rows = rows
-  arr.fields = fields
-  return arr
-}
-
-module.exports = { getPool, query, executeQuery: query, executeNamedQuery: query, closePool: async () => { if (poolInstance) { await poolInstance.end(); poolInstance = null } } }
-
+  constructor(pool) {
     this.pool = pool
   }
 
@@ -86,7 +17,6 @@ module.exports = { getPool, query, executeQuery: query, executeNamedQuery: query
   async query(sql, params = []) {
     try {
       const { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
-      // Always emit the converted SQL and params so PM2 captures it for debugging
       console.log('[DB SQL]', convertedSql, convertedParams)
       const result = await this.pool.query(convertedSql, convertedParams)
       const arr = [result.rows, result.fields]
@@ -108,7 +38,6 @@ module.exports = { getPool, query, executeQuery: query, executeNamedQuery: query
   async execute(sql, params = []) {
     try {
       let { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
-      // Always emit execute SQL for debugging
       console.log('[DB EXEC]', convertedSql, convertedParams)
       
       if (convertedSql.trim().toUpperCase().startsWith('INSERT') && !convertedSql.toUpperCase().includes('RETURNING')) {
@@ -156,7 +85,6 @@ class PostgreSQLConnectionAdapter {
   async query(sql, params = []) {
     try {
       const { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params)
-      // Always emit connection-level SQL for debugging
       console.log('[DB CONN SQL]', convertedSql, convertedParams)
       const result = await this.connection.query(convertedSql, convertedParams)
       const arr = [result.rows, result.fields]
@@ -180,7 +108,7 @@ class PostgreSQLConnectionAdapter {
   }
 }
 
-// Create and configure the pool
+
 function createPool() {
   // Debug: log environment variables at startup
   console.log('[DB INIT] NODE_ENV:', process.env.NODE_ENV)
@@ -191,6 +119,12 @@ function createPool() {
   console.log('[DB INIT] DB_USER from env:', process.env.DB_USER || 'NOT SET')
   
   let DATABASE_URL = process.env.DATABASE_URL || ''
+  
+  // Fix short hostname to FQDN if necessary
+  if (DATABASE_URL && DATABASE_URL.includes('@ay177071-001:') && !DATABASE_URL.includes('ay177071-001.')) {
+    DATABASE_URL = DATABASE_URL.replace('@ay177071-001:', '@ay177071-001.eu.clouddb.ovh.net:')
+    console.log('[DB INIT] Fixed short hostname to FQDN')
+  }
   
   // If DATABASE_URL not provided, construct from individual DB_* variables or use OVH defaults
   if (!DATABASE_URL) {
@@ -205,35 +139,9 @@ function createPool() {
   }
   
   console.log('[DB INIT] FINAL DATABASE_URL:', DATABASE_URL.substring(0, 80))
-  const DB_CLIENT = (process.env.DB_CLIENT || 'pg').toLowerCase()
-
-  // Detect database type from URL if no explicit DB_CLIENT set
-  let isMySQL = false
-  if (DATABASE_URL.startsWith('mysql://')) {
-    isMySQL = true
-  } else if (DATABASE_URL.startsWith('postgresql://') || DATABASE_URL.startsWith('postgres://')) {
-    isMySQL = false
-  }
-  console.log('[DB INIT] Detected database type - isMySQL:', isMySQL, 'DB_CLIENT:', DB_CLIENT)
-
-  if (isMySQL) {
-    console.log('[DB] Using MySQL (by DB_CLIENT/DATABASE_URL):', DATABASE_URL.split('@')[1]?.split('/')[0] || 'unknown')
-    const url = new URL(DATABASE_URL)
-    const mysqlPool = mysql.createPool({
-      host: url.hostname,
-      user: url.username || 'root',
-      password: url.password || '',
-      database: url.pathname.slice(1),
-      port: url.port || 3306,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0
-    })
-    return new MySQLPoolAdapter(mysqlPool)
-  }
 
   // Fallback to PostgreSQL
-  console.log('[DB] Using PostgreSQL (by DB_CLIENT/DATABASE_URL):', DATABASE_URL.split('@')[1]?.split('/')[0] || 'unknown')
+  console.log('[DB] Using PostgreSQL:', DATABASE_URL.split('@')[1]?.split('/')[0] || 'unknown')
 
   const pgOptions = { connectionString: DATABASE_URL }
   try {
@@ -282,6 +190,7 @@ function createPool() {
   } catch (e) {
     console.warn('[DB] Error logging pgOptions.ssl info:', e && e.message)
   }
+
   // Ensure TLS `servername` matches the certificate's altname when possible.
   // Some OVH CloudDB certificates use a short hostname (e.g. "ay177071-001")
   // while the connection host is a longer FQDN. Set `ssl.servername` to the
@@ -354,8 +263,7 @@ function getPool() {
 async function query(sql, params = []) {
   const pool = getPool()
   try {
-    // Always log named queries so we can capture SQL/params in PM2 logs
-    console.log('[DB CALL] named query', sql, params)
+    console.log('[DB CALL] query', sql, params)
     const result = await pool.query(sql, params)
     // Ensure we return an array-like result compatible with both
     // destructuring (const [rows, fields] = ...) and property access (res.rows)
@@ -369,28 +277,28 @@ async function query(sql, params = []) {
     try {
       if (pool && typeof pool.convertQuery === 'function') {
         const c = pool.convertQuery(sql, params)
-        console.error('[DB ERROR SQL] named query', c.sql, c.params)
+        console.error('[DB ERROR SQL] query', c.sql, c.params)
       } else {
-        console.error('[DB ERROR SQL] named query (raw)', sql, params)
+        console.error('[DB ERROR SQL] query (raw)', sql, params)
       }
     } catch (e) { /* ignore */ }
-    console.error('named query error', err && err.stack ? err.stack : err)
+    console.error('query error', err && err.stack ? err.stack : err)
     throw err
   }
 }
 
-// Ensure compiled bundles that expect a default callable export work.
-function dbFactory() {
-  return defaultExport()
+async function closePool() {
+  if (poolInstance) {
+    await poolInstance.end()
+    poolInstance = null
+  }
 }
 
-// Attach common interop shapes so compiled bundles and ESM interop work:
-// - `require('./services/db')` is a callable function
-// - `require('./services/db').default` is the callable factory
-// - named exports like `.getPool` and `.query` are available
-dbFactory.default = dbFactory
-dbFactory.getPool = getPool
-dbFactory.query = query
-dbFactory.__esModule = true
+module.exports = {
+  getPool,
+  query,
+  executeQuery: query,
+  executeNamedQuery: query,
+  closePool
+}
 
-module.exports = dbFactory
