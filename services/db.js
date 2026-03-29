@@ -1,11 +1,45 @@
 const { Pool: PgPool } = require('pg')
 const path = require('path')
+const fs = require('fs')
 
-// Force load .env from project root, OVERWRITING existing env vars, regardless of NODE_ENV
-require('dotenv').config({ 
-  path: path.resolve(__dirname, '..', '.env'),
-  override: true  // CRITICAL: Overwrite existing process.env variables from .env file
-})
+// CRITICAL: Load .env file directly and FORCE process.env to ensure PostgreSQL connection
+// Do this BEFORE any other code that might have set process.env.DATABASE_URL to old MySQL value
+function loadEnv() {
+  try {
+    const envFile = path.resolve(__dirname, '..', '.env')
+    if (fs.existsSync(envFile)) {
+      const envContent = fs.readFileSync(envFile, 'utf8')
+      const lines = envContent.split('\n')
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (trimmed && !trimmed.startsWith('#')) {
+          const [key, ...valueParts] = trimmed.split('=')
+          const value = valueParts.join('=').trim()
+          if (key && value) {
+            // FORCE override - directly set process.env
+            process.env[key] = value
+          }
+        }
+      }
+      console.log('[DB] ✓ .env file directly loaded and forced into process.env')
+    }
+  } catch (err) {
+    console.error('[DB] Error loading .env file:', err.message)
+  }
+}
+
+// Load .env IMMEDIATELY, before anything else
+loadEnv()
+
+// Also try dotenv for redundancy
+try {
+  require('dotenv').config({ 
+    path: path.resolve(__dirname, '..', '.env'),
+    override: true
+  })
+} catch (e) {
+  console.log('[DB] dotenv.config() - using direct file load instead')
+}
 
 let poolInstance = null
 
