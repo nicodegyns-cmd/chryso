@@ -154,7 +154,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     console.log('[openEdit] called with:', p)
     // If this is an activity (not a prestation), create a new prestation from it
     if (p.isActivity) {
-      console.log('[openEdit] ACTIVITY DETECTED - showing hours form')
+      console.log('[openEdit] ACTIVITY DETECTED - showing hours form, setting isActivity: true')
       console.log('[openEdit] Opening activity:', { 
         id: p.id, 
         analytic_name: p.analytic_name, 
@@ -186,7 +186,8 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         expense_amount: null,
         expense_comment: null,
         comments: null,
-        proof_image: null
+        proof_image: null,
+        isActivity: true  // Flag to force editable form for activities
       })
       return
     }
@@ -599,9 +600,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
               </div>
             )}
 
-            {role === 'admin' || editing.status === "En attente d'envoie" ? (
+            {role === 'admin' && !editing.isActivity || editing.status === "En attente d'envoie" ? (
               // Admin read-only view OR blocked prestation: show submitted values with styled sections
               <div className="edit-grid" style={{gridTemplateColumns:'1fr',gap:16}}>
+                {console.log('[PrestationsTable] Rendering ADMIN/READ-ONLY view. role:', role, 'isActivity:', editing.isActivity)}
                 {/* User & Document Info */}
                 <div style={{padding:12,border:'1px solid #e5e7eb',borderRadius:8,background:'#f9fafb'}}>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
@@ -716,8 +718,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                 )}
               </div>
             ) : (
-              // existing editable form for non-admin (same as before)
+              // existing editable form for non-admin and activities
               <div className="edit-grid" style={{gridTemplateColumns:'1fr',gap:16}}>
+                {console.log('[PrestationsTable] Rendering EDITABLE view. role:', role, 'isActivity:', editing.isActivity)}
                 {/* Section Heures */}
                 <div style={{padding:12,border:'1px solid #e5e7eb',borderRadius:8,background:'#f9fafb'}}>
                   <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#1f2937'}}>📊 Heures de travail</div>
