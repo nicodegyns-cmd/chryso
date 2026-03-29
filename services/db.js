@@ -1,53 +1,78 @@
 const { Pool: PgPool } = require('pg')
-const mysql = require('mysql2/promise')
-const fs = require('fs')
-const path = require('path')
-
-// Always load .env, even in production - with explicit path
-require('dotenv').config({ path: path.resolve(process.cwd(), '.env') })
-// Also try loading from app root if not found above
-if (!process.env.DB_HOST) {
-  require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
-}
+require('dotenv').config()
 
 let poolInstance = null
-// MySQL native pool wrapper
-class MySQLPoolAdapter {
-  constructor(pool) {
-    this.pool = pool
-  }
 
+class PostgreSQLPoolAdapter {
+  constructor(pool) { this.pool = pool }
+  convertQuery(sql, params = []) {
+    let i = 1
+    return { sql: sql.replace(/\?/g, () => `$${i++}`), params }
+  }
   async query(sql, params = []) {
-    try {
-      const [rows, fields] = await this.pool.query(sql, params)
-      return { rows, fields }
-    } catch (err) {
-      console.error('MySQL Query Error:', err.message)
-      throw err
-    }
+    const { sql: s, params: p } = this.convertQuery(sql, params)
+    console.log("[DB SQL]", s, p)
+    const result = await this.pool.query(s, p)
+    const arr = [result.rows, result.fields]
+    arr.rows = result.rows
+    arr.fields = result.fields
+    return arr
   }
-
   async execute(sql, params = []) {
-    try {
-      const [result] = await this.pool.execute(sql, params)
-      return [
-        { insertId: result.insertId, affectedRows: result.affectedRows },
-        null
-      ]
-    } catch (err) {
-      console.error('MySQL Execute Error:', err.message)
-      throw err
-    }
+    const { sql: s, params: p } = this.convertQuery(sql, params)
+    const result = await this.pool.query(s, p)
+    return [{ insertId: result.rows[0]?.id || null, affectedRows: result.rowCount || 0 }, null]
   }
-
   async getConnection() {
-    const connection = await this.pool.getConnection()
-    return new MySQLConnectionAdapter(connection)
+    const conn = await this.pool.connect()
+    return new PostgreSQLConnectionAdapter(conn)
   }
+  async end() { await this.pool.end() }
+}
 
-  async end() {
-    await this.pool.end()
+class PostgreSQLConnectionAdapter {
+  constructor(conn) { this.conn = conn }
+  convertQuery(sql, params = []) {
+    let i = 1
+    return { sql: sql.replace(/\?/g, () => `$${i++}`), params }
   }
+  async query(sql, params = []) {
+    const { sql: s, params: p } = this.convertQuery(sql, params)
+    const result = await this.conn.query(s, p)
+    const arr = [result.rows, result.fields]
+    arr.rows = result.rows
+    arr.fields = result.fields
+    return arr
+  }
+  async release() { return this.conn.release() }
+}
+
+function createPool() {
+  console.log("[DB INIT] Creating PostgreSQL pool")
+  const user = process.env.DB_USER || "fenix"
+  const password = process.env.DB_PASSWORD || "Toulouse94"
+  const host = process.env.DB_HOST || "ay177071-001.eu.clouddb.ovh.net"
+  const port = process.env.DB_PORT || "35230"
+  const dbname = process.env.DB_NAME || "fenix"
+  const URL = `postgresql://${user}:${password}@${host}:${port}/${dbname}`
+  console.log("[DB INIT] PostgreSQL:", host, port, dbname)
+  return new PostgreSQLPoolAdapter(new PgPool({ connectionString: URL, ssl: { rejectUnauthorized: false } }))
+}
+
+function getPool() { if (!poolInstance) poolInstance = createPool(); return poolInstance }
+
+async function query(sql, params = []) {
+  const p = getPool()
+  const result = await p.query(sql, params)
+  const rows = result.rows || result[0]
+  const fields = result.fields || result[1]
+  const arr = [rows, fields]
+  arr.rows = rows
+  arr.fields = fields
+  return arr
+}
+
+module.exports = { getPool, query, executeQuery: query, executeNamedQuery: query, closePool: async () => { if (poolInstance) { await poolInstance.end(); poolInstance = null } } }
 }
 
 class MySQLConnectionAdapter {
@@ -178,43 +203,37 @@ class PostgreSQLConnectionAdapter {
 function createPool() {
   // Debug: log environment variables at startup
   console.log('[DB INIT] NODE_ENV:', process.env.NODE_ENV)
-  console.log('[DB INIT] DATABASE_URL:', (process.env.DATABASE_URL || 'NOT SET'))
-  console.log('[DB INIT] DB_HOST:', process.env.DB_HOST)
-  console.log('[DB INIT] DB_PORT:', process.env.DB_PORT)
-  console.log('[DB INIT] DB_NAME:', process.env.DB_NAME)
-  console.log('[DB INIT] DB_USER:', process.env.DB_USER)
-  console.log('[DB INIT] DB_PASSWORD present:', !!process.env.DB_PASSWORD)
+  console.log('[DB INIT] DATABASE_URL from env:', (process.env.DATABASE_URL || 'NOT SET'))
+  console.log('[DB INIT] DB_HOST from env:', process.env.DB_HOST || 'NOT SET')
+  console.log('[DB INIT] DB_PORT from env:', process.env.DB_PORT || 'NOT SET')
+  console.log('[DB INIT] DB_NAME from env:', process.env.DB_NAME || 'NOT SET')
+  console.log('[DB INIT] DB_USER from env:', process.env.DB_USER || 'NOT SET')
   
   let DATABASE_URL = process.env.DATABASE_URL || ''
   
-  // If DATABASE_URL not provided, construct from individual DB_* variables
-  if (!DATABASE_URL && process.env.DB_HOST) {
-    const user = process.env.DB_USER || ''
-    const password = process.env.DB_PASSWORD || ''
-    const host = process.env.DB_HOST
-    const port = process.env.DB_PORT || 5432
-    const dbname = process.env.DB_NAME || 'postgres'
+  // If DATABASE_URL not provided, construct from individual DB_* variables or use OVH defaults
+  if (!DATABASE_URL) {
+    const user = process.env.DB_USER || 'fenix'
+    const password = process.env.DB_PASSWORD || 'Toulouse94'
+    const host = process.env.DB_HOST || 'ay177071-001.eu.clouddb.ovh.net'
+    const port = process.env.DB_PORT || '35230'
+    const dbname = process.env.DB_NAME || 'fenix'
     
-    if (password) {
-      DATABASE_URL = `postgresql://${user}:${password}@${host}:${port}/${dbname}`
-    } else {
-      DATABASE_URL = `postgresql://${user}@${host}:${port}/${dbname}`
-    }
-    console.log('[DB INIT] Constructed DATABASE_URL from DB_* variables:', DATABASE_URL.replace(/:[^:/@]*@/, ':***@'))
+    DATABASE_URL = `postgresql://${user}:${password}@${host}:${port}/${dbname}`
+    console.log('[DB INIT] HARDCODED OVH PostgreSQL - host:', host, 'port:', port)
   }
   
-  console.log('[DB INIT] FINAL DATABASE_URL:', DATABASE_URL.substring(0, 50))
-  const DB_CLIENT = (process.env.DB_CLIENT || '').toLowerCase()
+  console.log('[DB INIT] FINAL DATABASE_URL:', DATABASE_URL.substring(0, 80))
+  const DB_CLIENT = (process.env.DB_CLIENT || 'pg').toLowerCase()
 
-  // Prefer explicit DB_CLIENT env if provided, otherwise detect from DATABASE_URL
-  let isMySQL
-  if (DB_CLIENT === 'mysql') {
+  // Detect database type from URL if no explicit DB_CLIENT set
+  let isMySQL = false
+  if (DATABASE_URL.startsWith('mysql://')) {
     isMySQL = true
-  } else if (DB_CLIENT === 'pg' || DB_CLIENT === 'postgres' || DB_CLIENT === 'postgresql') {
+  } else if (DATABASE_URL.startsWith('postgresql://') || DATABASE_URL.startsWith('postgres://')) {
     isMySQL = false
-  } else {
-    isMySQL = DATABASE_URL.startsWith('mysql://')
   }
+  console.log('[DB INIT] Detected database type - isMySQL:', isMySQL, 'DB_CLIENT:', DB_CLIENT)
 
   if (isMySQL) {
     console.log('[DB] Using MySQL (by DB_CLIENT/DATABASE_URL):', DATABASE_URL.split('@')[1]?.split('/')[0] || 'unknown')
