@@ -1,5 +1,8 @@
 const { Pool: PgPool } = require('pg')
-require('dotenv').config()
+const path = require('path')
+
+// Force load .env from project root, regardless of NODE_ENV
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') })
 
 let poolInstance = null
 
