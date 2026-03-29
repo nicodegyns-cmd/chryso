@@ -139,7 +139,14 @@ function createPool() {
   }
   
   console.log('[DB INIT] FINAL DATABASE_URL:', DATABASE_URL.substring(0, 80))
-
+  console.log('[DB INIT] DATABASE_URL includes ?:', DATABASE_URL.includes('?'))
+  
+  // Strip sslmode query param if present (causes routing issues)
+  if (DATABASE_URL.includes('?sslmode=disable')) {
+    DATABASE_URL = DATABASE_URL.replace('?sslmode=disable', '')
+    console.log('[DB INIT] Removed sslmode=disable query param')
+  }
+  
   // Fallback to PostgreSQL
   console.log('[DB] Using PostgreSQL:', DATABASE_URL.split('@')[1]?.split('/')[0] || 'unknown')
 
