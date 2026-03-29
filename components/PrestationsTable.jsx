@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useImperativeHandle, forwardRef } from 'react'
 
-export default function PrestationsTable({ email }) {
+const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -18,6 +18,11 @@ export default function PrestationsTable({ email }) {
   const [confirmPreview, setConfirmPreview] = useState(null)
   // read role from localStorage into reactive state so updates are picked up
   const [clientRole, setClientRole] = useState(typeof window !== 'undefined' ? localStorage.getItem('role') : null)
+
+  // Expose openEdit method to parent components via ref
+  useImperativeHandle(ref, () => ({
+    openEdit
+  }), [])
 
   // Handle closing the modal
   const handleCloseModal = () => {
@@ -164,6 +169,10 @@ export default function PrestationsTable({ email }) {
         garde_hours: null,
         sortie_hours: null,
         overtime_hours: null,
+        // eBrigade data for Garde/activity hours
+        ebrigade_duration_hours: p.duration || null,
+        ebrigade_start_time: p.startTime || null,
+        ebrigade_end_time: p.endTime || null,
         status: 'A saisir',
         user_email: email,
         expense_amount: null,
@@ -883,4 +892,6 @@ export default function PrestationsTable({ email }) {
       )}
     </div>
   )
-}
+})
+
+export default PrestationsTable

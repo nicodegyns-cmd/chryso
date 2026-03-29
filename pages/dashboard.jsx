@@ -2,6 +2,7 @@ import React from 'react'
 import { useRouter } from 'next/router'
 import AdminHeader from '../components/AdminHeader'
 import UserSidebar from '../components/UserSidebar'
+import ActivitiesCards from '../components/ActivitiesCards'
 import PrestationsTable from '../components/PrestationsTable'
 import PrestationsStats from '../components/PrestationsStats'
 import EBrigadePrestationsDisplay from '../components/eBrigadePrestationsDisplay'
@@ -13,6 +14,14 @@ export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const userEmail = useLocalStorage('email', '')
   const userRole = useLocalStorage('role', null)
+  const prestationsTableRef = React.useRef(null)
+
+  // Handle when user clicks on an activity card to edit/declare hours
+  const handleEditActivity = React.useCallback((activity) => {
+    if (prestationsTableRef.current?.openEdit) {
+      prestationsTableRef.current.openEdit(activity)
+    }
+  }, [])
 
   // Redirect comptabilité users to comptabilite page
   React.useEffect(() => {
@@ -46,9 +55,11 @@ export default function DashboardPage() {
               
               <RIBUploadBanner email={userEmail} />
               
+              <ActivitiesCards email={userEmail} onEditActivity={handleEditActivity} />
+              
               <EBrigadePrestationsDisplay email={userEmail} />
               <PrestationsStats email={userEmail} />
-              <PrestationsTable email={userEmail} />
+              <PrestationsTable ref={prestationsTableRef} email={userEmail} />
             </div>
           </>
         )}
