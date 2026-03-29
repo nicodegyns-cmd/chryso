@@ -1,9 +1,14 @@
 const { Pool: PgPool } = require('pg')
 const mysql = require('mysql2/promise')
 const fs = require('fs')
+const path = require('path')
 
-// Always load .env, even in production - environment variables should be available
-require('dotenv').config()
+// Always load .env, even in production - with explicit path
+require('dotenv').config({ path: path.resolve(process.cwd(), '.env') })
+// Also try loading from app root if not found above
+if (!process.env.DB_HOST) {
+  require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
+}
 
 let poolInstance = null
 // MySQL native pool wrapper
