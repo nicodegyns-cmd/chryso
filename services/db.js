@@ -73,26 +73,7 @@ async function query(sql, params = []) {
 }
 
 module.exports = { getPool, query, executeQuery: query, executeNamedQuery: query, closePool: async () => { if (poolInstance) { await poolInstance.end(); poolInstance = null } } }
-}
 
-class MySQLConnectionAdapter {
-  constructor(connection) {
-    this.connection = connection
-  }
-
-  async query(sql, params = []) {
-    const [rows, fields] = await this.connection.query(sql, params)
-    return { rows, fields }
-  }
-
-  async release() {
-    return this.connection.release()
-  }
-}
-
-// PostgreSQL pool wrapper - converts MySQL syntax to PostgreSQL
-class PostgreSQLPoolAdapter {
-  constructor(pool) {
     this.pool = pool
   }
 
