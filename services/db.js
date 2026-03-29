@@ -79,22 +79,52 @@ function createPool() {
     }
   }
 
+  console.log('[DB INIT] PostgreSQL')
   const pgPool = createPgPool(DATABASE_URL)
+  
+  function convertSQL(sql, params) {
+    if (!sql.includes('?')) return { sql, params }
+    let idx = 1, out = ''
+    for (let i = 0; i < sql.length; i++) {
+      out += sql[i] === '?' ? '$' + (idx++) : sql[i]
+    }
+    return { sql: out, params }
+  }
+  
   return {
     query: async (sql, params = []) => {
-      const result = await pgPool.query(sql, params)
-      return { rows: result.rows, fields: result.fields }
+      const c = convertSQL(sql, params)
+      console.log('[DB]', c.sql, c.params)
+      try {
+        const result = await pgPool.query(c.sql, c.params)
+        return { rows: result.rows, fields: result.fields }
+      } catch (err) {
+        console.error('[DB ERROR]', err.message)
+        throw err
+      }
     },
     execute: async (sql, params = []) => {
-      const result = await pgPool.query(sql, params)
-      return [{ insertId: result.rows[0]?.id || null, affectedRows: result.rowCount || 0 }, null]
+      const c = convertSQL(sql, params)
+      try {
+        const result = await pgPool.query(c.sql, c.params)
+        return [{ insertId: result.rows[0]?.id || null, affectedRows: result.rowCount || 0 }, null]
+      } catch (err) {
+        console.error('[DB ERROR]', err.message)
+        throw err
+      }
     },
     getConnection: async () => {
       const conn = await pgPool.connect()
       return {
         query: async (s, p = []) => {
-          const r = await conn.query(s, p)
-          return { rows: r.rows, fields: r.fields }
+          const c = convertSQL(s, p)
+          try {
+            const r = await conn.query(c.sql, c.params)
+            return { rows: r.rows, fields: r.fields }
+          } catch (err) {
+            console.error('[DB ERROR]', err.message)
+            throw err
+          }
         },
         release: () => conn.release()
       }
