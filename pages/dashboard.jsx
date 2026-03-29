@@ -18,8 +18,13 @@ export default function DashboardPage() {
 
   // Handle when user clicks on an activity card to edit/declare hours
   const handleEditActivity = React.useCallback((activity) => {
+    console.log('[dashboard] handleEditActivity called with:', activity)
+    console.log('[dashboard] prestationsTableRef.current:', prestationsTableRef.current)
     if (prestationsTableRef.current?.openEdit) {
+      console.log('[dashboard] calling openEdit()')
       prestationsTableRef.current.openEdit(activity)
+    } else {
+      console.warn('[dashboard] openEdit not found on ref:', prestationsTableRef.current)
     }
   }, [])
 

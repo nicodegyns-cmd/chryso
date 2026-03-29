@@ -151,9 +151,11 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   })
 
   async function openEdit(p){
+    console.log('[openEdit] called with:', p)
     // If this is an activity (not a prestation), create a new prestation from it
     if (p.isActivity) {
-      console.log('[PrestationsTable] Opening activity:', { 
+      console.log('[openEdit] ACTIVITY DETECTED - showing hours form')
+      console.log('[openEdit] Opening activity:', { 
         id: p.id, 
         analytic_name: p.analytic_name, 
         pay_type: p.pay_type,
@@ -188,6 +190,8 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       })
       return
     }
+    
+    console.log('[openEdit] NOT an activity, treating as prestation edit')
 
     // For existing prestations, ensure invoice/request references exist
     try{
