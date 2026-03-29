@@ -24,9 +24,11 @@ export default async function handler(req, res) {
       endDate = nextMonth.toISOString().split('T')[0]
     }
 
-    // Build prestations query (existing behaviour)
-    let pQuery = `
-      SELECT 
+    const getRows = (q) => Array.isArray(q) ? q : (q && q.rows) ? q.rows : []
+
+    // Build prestations query using guarded clauses to avoid dangling ANDs
+    const pBase = `
+      SELECT
         p.id,
         p.user_id,
         p.analytic_id,
@@ -43,32 +45,33 @@ export default async function handler(req, res) {
       FROM prestations p
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN analytics a ON p.analytic_id = a.id
-      WHERE p.date >= ? AND p.date < ?
     `
 
+    const pClauses = ['p.date >= ? AND p.date < ?']
     const params = [startDate, endDate]
 
     if (role && role !== '') {
-      pQuery += ` AND u.role = ?`
+      pClauses.push('u.role = ?')
       params.push(role)
     }
 
     if (userId && userId !== '') {
-      pQuery += ` AND p.user_id = ?`
+      pClauses.push('p.user_id = ?')
       params.push(parseInt(userId))
     }
 
     if (analyticId && analyticId !== '') {
-      pQuery += ` AND p.analytic_id = ?`
+      pClauses.push('p.analytic_id = ?')
       params.push(parseInt(analyticId))
     }
 
-    pQuery += ` ORDER BY p.date DESC`
+    const pQuery = `${pBase} WHERE ${pClauses.join(' AND ')} ORDER BY p.date DESC`
 
-    const prestRows = await db.query(pQuery, params)
+    console.log('[SQL DEBUG] statistics pQuery', pQuery, params)
+    const prestRows = getRows(await db.query(pQuery, params))
 
     // Also fetch invoices so the frontend can display statistics based on invoices
-    let iQuery = `
+    const iBase = `
       SELECT
         i.id,
         i.invoice_number,
@@ -88,25 +91,27 @@ export default async function handler(req, res) {
       FROM invoices i
       LEFT JOIN users u ON i.user_id = u.id
       LEFT JOIN analytics a ON i.analytic_id = a.id
-      WHERE i.created_at >= ? AND i.created_at < ?
     `
 
+    const iClauses = ['i.created_at >= ? AND i.created_at < ?']
     const iParams = [startDate, endDate]
     if (role && role !== '') {
-      iQuery += ` AND u.role = ?`
+      iClauses.push('u.role = ?')
       iParams.push(role)
     }
     if (userId && userId !== '') {
-      iQuery += ` AND i.user_id = ?`
+      iClauses.push('i.user_id = ?')
       iParams.push(parseInt(userId))
     }
     if (analyticId && analyticId !== '') {
-      iQuery += ` AND i.analytic_id = ?`
+      iClauses.push('i.analytic_id = ?')
       iParams.push(parseInt(analyticId))
     }
-    iQuery += ` ORDER BY i.created_at DESC`
 
-    const invRows = await db.query(iQuery, iParams)
+    const iQuery = `${iBase} WHERE ${iClauses.join(' AND ')} ORDER BY i.created_at DESC`
+
+    console.log('[SQL DEBUG] statistics iQuery', iQuery, iParams)
+    const invRows = getRows(await db.query(iQuery, iParams))
 
     return res.status(200).json({
       prestations: Array.isArray(prestRows) ? prestRows.map(row => ({

@@ -10,8 +10,8 @@ export default async function handler(req, res) {
     const pool = getPool()
     const { status, period } = req.query
 
-    let sql = `
-      SELECT 
+    const base = `
+      SELECT
         i.id,
         i.invoice_number,
         i.analytic_id,
@@ -28,13 +28,14 @@ export default async function handler(req, res) {
       FROM invoices i
       LEFT JOIN users u ON i.user_id = u.id
       LEFT JOIN analytics a ON i.analytic_id = a.id
-      WHERE 1=1
     `
+
+    const clauses = []
     const params = []
 
     // Filter by status
     if (status && status !== 'tous') {
-      sql += ` AND i.status = ?`
+      clauses.push('i.status = ?')
       params.push(status)
     }
 
@@ -53,15 +54,18 @@ export default async function handler(req, res) {
       }
 
       if (startDate) {
-        sql += ` AND i.created_at >= ?`
+        clauses.push('i.created_at >= ?')
         params.push(startDate.toISOString())
       }
     }
 
-    sql += ` ORDER BY i.created_at DESC`
+    const where = clauses.length > 0 ? ` WHERE ${clauses.join(' AND ')}` : ''
+    const sql = `${base}${where} ORDER BY i.created_at DESC`
 
-    const invoices = await getPool().query(sql, params)
-    
+    console.log('[SQL DEBUG] admin/invoices', sql, params)
+    const q = await getPool().query(sql, params)
+    const invoices = Array.isArray(q) ? q : (q && q.rows) ? q.rows : q
+
     return res.status(200).json(invoices)
   } catch (err) {
     console.error('[api/admin/invoices]', err)

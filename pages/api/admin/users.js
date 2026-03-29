@@ -17,7 +17,8 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const [rows] = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction FROM users ORDER BY id DESC')
+      const q = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction FROM users ORDER BY id DESC')
+      const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
       // return rows as-is; `role` may contain comma-separated canonical codes
       return res.status(200).json({ users: rows })
     } catch (err) {
@@ -53,7 +54,7 @@ export default async function handler(req, res) {
     const passwordHash = await bcrypt.hash(plainPassword, 10)
 
     try {
-      const [result] = await pool.query(
+      const q = await pool.query(
         `INSERT INTO users (email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, password_hash)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
         [
@@ -74,8 +75,12 @@ export default async function handler(req, res) {
         ]
       )
 
-      const insertedId = result.rows[0].id
-      const [rows] = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction FROM users WHERE id = $1', [insertedId])
+      const result = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
+      const insertedId = result && result[0] ? result[0].id : null
+      if (!insertedId) throw new Error('Failed to get inserted user ID')
+      
+      const q2 = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction FROM users WHERE id = $1', [insertedId])
+      const rows = (q2 && q2.rows) ? q2.rows : Array.isArray(q2) ? q2[0] : []
       const user = rows && rows[0] ? rows[0] : null
 
       console.log('[api/admin/users] Created user with auto-generated password:', { email })

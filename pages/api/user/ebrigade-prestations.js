@@ -32,10 +32,11 @@ export default async function handler(req, res) {
 
     // Get pool and fetch user by email
     const pool = getPool()
-    const [[userRow]] = await pool.query(
-      'SELECT id, email, liaison_ebrigade_id FROM users WHERE email = ? LIMIT 1',
+    const q = await pool.query(
+      'SELECT id, email, liaison_ebrigade_id FROM users WHERE email = $1 LIMIT 1',
       [email]
     )
+    const userRow = (q && q.rows) ? q.rows[0] : null
 
     if (!userRow) {
       return res.status(404).json({ error: 'User not found' })

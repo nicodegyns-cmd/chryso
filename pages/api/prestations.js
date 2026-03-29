@@ -21,13 +21,14 @@ export default async function handler(req, res) {
     }
   }
 
-  // If no external service configured, read from local MySQL database.
+  // If no external service configured, read from local PostgreSQL database.
   const pool = getPool()
   try {
     if (!email) return res.status(200).json({ prestations: [] })
 
     // find user id by email
-    const [urows] = await pool.query('SELECT id FROM users WHERE LOWER(email) = ?', [(email || '').toLowerCase()])
+    const q = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [(email || '').toLowerCase()])
+    const urows = (q && q.rows) ? q.rows : []
     if (!urows || urows.length === 0) return res.status(200).json({ prestations: [] })
     const userId = urows[0].id
 
@@ -37,13 +38,13 @@ export default async function handler(req, res) {
             an.code AS analytic_code, an.name AS analytic_name
              FROM prestations p
                LEFT JOIN analytics an ON p.analytic_id = an.id
-               WHERE p.user_id = ?
+               WHERE p.user_id = $1
                ORDER BY p.date DESC, p.id DESC
                LIMIT 500`
     let rows
     try{
       const resRows = await pool.query(sql, [userId])
-      rows = resRows[0] || resRows
+      rows = (resRows && resRows.rows) ? resRows.rows : []
     }catch(qerr){
       console.warn('[api/prestations] primary query failed, retrying without expense columns', qerr && qerr.code)
       // fallback: older schema without expense_* columns
@@ -51,11 +52,11 @@ export default async function handler(req, res) {
                         an.code AS analytic_code, an.name AS analytic_name
                  FROM prestations p
                  LEFT JOIN analytics an ON p.analytic_id = an.id
-                 WHERE p.user_id = ?
+                 WHERE p.user_id = $1
                  ORDER BY p.date DESC, p.id DESC
                  LIMIT 500`
       const res2 = await pool.query(fallback, [userId])
-      rows = res2[0] || res2
+      rows = (res2 && res2.rows) ? res2.rows : []
     }
 
     // Normalize/format rows for frontend display:

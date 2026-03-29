@@ -1,0 +1,61 @@
+import { getPool } from '../../services/db'
+
+export default async function handler(req, res){
+  try {
+    if (req.method !== 'GET') {
+      res.setHeader('Allow', 'GET')
+      return res.status(405).end('Method Not Allowed')
+    }
+
+    const { email } = req.query
+    
+    if (!email) return res.status(401).json({ error: 'Email required' })
+    if (!process.env.EBRIGADE_TOKEN) return res.status(500).json({ error: 'EBRIGADE_TOKEN not set' })
+    if (!process.env.EBRIGADE_URL) return res.status(500).json({ error: 'EBRIGADE_URL not set' })
+
+    const pool = getPool()
+    const userResult = await pool.query('SELECT liaison_ebrigade_id FROM users WHERE email = $1', [email])
+    const user = userResult.rows?.[0]
+
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (!user.liaison_ebrigade_id) return res.status(200).json({ activities: [] })
+
+    const baseUrl = process.env.EBRIGADE_URL.replace(/\/$/, '')
+    const response = await fetch(`${baseUrl}/api/export/participation.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: process.env.EBRIGADE_TOKEN,
+        dDebut: '2024-01-01',
+        dFin: '2026-12-31'
+      })
+    })
+
+    if (!response.ok) return res.status(200).json({ activities: [] })
+
+    const data = await response.json()
+    const allParticipations = Array.isArray(data) ? data : data.data || data.participations || []
+
+    const userParticipations = allParticipations.filter(p => p.P_ID?.toString() === user.liaison_ebrigade_id.toString())
+    const unfilled = userParticipations.filter(p => !p.hours_actual && !p.remuneration_infi && !p.remuneration_med)
+
+    const activities = unfilled.map(p => ({
+      id: `${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`,
+      date: p.EH_DATE_DEBUT,
+      startTime: p.EH_DEBUT,
+      endTime: p.EH_FIN,
+      duration: p.EP_DUREE,
+      analytic_code: p.E_CODE,
+      analytic_name: p.E_LIBELLE,
+      activity: p.E_LIBELLE,
+      pay_type: p.TE_LIBELLE || 'Garde',
+      status: 'À saisir',
+      isActivity: true
+    }))
+
+    return res.status(200).json({ activities })
+  } catch (err) {
+    console.error('[activities]', err)
+    return res.status(200).json({ activities: [], error: err.message })
+  }
+}

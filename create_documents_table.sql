@@ -1,4 +1,4 @@
--- Create documents table for RIB uploads
+-- Create documents table for RIB uploads (Postgres compatible)
 CREATE TABLE IF NOT EXISTS documents (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL,

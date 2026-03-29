@@ -2,5 +2,6 @@
 -- Add activity_id to prestations to link a prestation to the originating activity
 
 ALTER TABLE prestations
-  ADD COLUMN activity_id BIGINT UNSIGNED DEFAULT NULL,
-  ADD INDEX idx_activity_id (activity_id);
+  ADD COLUMN IF NOT EXISTS activity_id BIGINT DEFAULT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_activity_id ON prestations (activity_id);

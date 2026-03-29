@@ -34,8 +34,10 @@ export default async function handler(req, res) {
       ORDER BY d.created_at DESC
     `;
 
-    const [rows] = await pool.query(query);
-    
+    console.log('[SQL DEBUG] admin/documents/pending', query, [])
+    const q = await pool.query(query)
+    const rows = Array.isArray(q) ? q : (q && q.rows) ? q.rows : []
+
     return res.status(200).json({
       success: true,
       documents: rows || [],

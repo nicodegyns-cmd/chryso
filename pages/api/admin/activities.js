@@ -6,13 +6,17 @@ export default async function handler(req, res){
     if (req.method === 'GET'){
       try {
         // Try getting all activities with standard columns only
-        const [rows] = await pool.query('SELECT a.id, a.analytic_id, a.pay_type, a.date, a.remuneration_infi, a.remuneration_med, a.created_at FROM activities a ORDER BY a.id DESC')
+        const q = await pool.query('SELECT a.id, a.analytic_id, a.pay_type, a.date, a.remuneration_infi, a.remuneration_med, a.created_at FROM activities a ORDER BY a.id DESC')
+        const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
         
         // If there are rows, try to get analytics and add ebrigade_activity_type if it exists
         let result = rows
         if (rows && rows.length > 0) {
           // Get analytics data
-          const [analytics] = await pool.query('SELECT id, name, code FROM analytics')
+            const q2sql = 'SELECT id, name, code FROM analytics'
+            console.log('[SQL DEBUG] admin/activities analytics', q2sql, [])
+            const q2 = await pool.query(q2sql)
+          const analytics = (q2 && q2.rows) ? q2.rows : Array.isArray(q2) ? q2[0] : []
           const analyticsMap = {}
           if (Array.isArray(analytics)) {
             analytics.forEach(a => analyticsMap[a.id] = a)
@@ -20,7 +24,10 @@ export default async function handler(req, res){
           
           // Try to get ebrigade_activity_type for each activity
           try {
-            const [activitiesWithTypes] = await pool.query('SELECT id, ebrigade_activity_type FROM activities')
+            const q3sql = 'SELECT id, ebrigade_activity_type FROM activities'
+            console.log('[SQL DEBUG] admin/activities types', q3sql, [])
+            const q3 = await pool.query(q3sql)
+            const activitiesWithTypes = (q3 && q3.rows) ? q3.rows : Array.isArray(q3) ? q3[0] : []
             const typesMap = {}
             if (Array.isArray(activitiesWithTypes)) {
               activitiesWithTypes.forEach(a => typesMap[a.id] = a.ebrigade_activity_type)
@@ -69,26 +76,28 @@ export default async function handler(req, res){
         
         // Try to save with both fields if column exists
         try {
-          const [result] = await pool.query(
+          const insertQ = await pool.query(
             'INSERT INTO activities (analytic_id, analytic_name, analytic_code, pay_type, ebrigade_activity_type, date, remuneration_infi, remuneration_med) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
             [analytic_id, analytic_name||null, analytic_code||null, typeToSave||null, typeToSave||null, date||null, (typeof remuneration_infi !== 'undefined' ? remuneration_infi : null), (typeof remuneration_med !== 'undefined' ? remuneration_med : null)]
           )
-          const insertId = result.rows[0].id
+          const insertId = (insertQ && insertQ.rows && insertQ.rows[0]) ? insertQ.rows[0].id : (Array.isArray(insertQ) && insertQ[0] && insertQ[0].insertId) ? insertQ[0].insertId : null
           console.log('[api/admin/activities] Inserted activity:', insertId)
           
-          const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, created_at FROM activities WHERE id = $1', [insertId])
+          const selQ = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, created_at FROM activities WHERE id = $1', [insertId])
+          const row = (selQ && selQ.rows && selQ.rows[0]) ? selQ.rows[0] : (Array.isArray(selQ) ? selQ[0] : null)
           return res.status(201).json({ item: { ...row, ebrigade_activity_type: typeToSave } })
         } catch (err) {
           // If ebrigade_activity_type column doesn't exist, save without it
-          if (err.code === '42703' || err.message.includes('ebrigade_activity_type')) {
+          if (err && (err.code === '42703' || (err.message && err.message.includes('ebrigade_activity_type')))) {
             console.log('[api/admin/activities] Column ebrigade_activity_type not available, saving with pay_type only')
-            const [result] = await pool.query(
+            const insertQ2 = await pool.query(
               'INSERT INTO activities (analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
               [analytic_id, analytic_name||null, analytic_code||null, typeToSave||null, date||null, (typeof remuneration_infi !== 'undefined' ? remuneration_infi : null), (typeof remuneration_med !== 'undefined' ? remuneration_med : null)]
             )
-            const insertId = result.rows[0].id
-            const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, created_at FROM activities WHERE id = $1', [insertId])
-            return res.status(201).json({ item: { ...row, ebrigade_activity_type: typeToSave } })
+            const insertId2 = (insertQ2 && insertQ2.rows && insertQ2.rows[0]) ? insertQ2.rows[0].id : (Array.isArray(insertQ2) && insertQ2[0] && insertQ2[0].insertId) ? insertQ2[0].insertId : null
+            const selQ2 = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, created_at FROM activities WHERE id = $1', [insertId2])
+            const row2 = (selQ2 && selQ2.rows && selQ2.rows[0]) ? selQ2.rows[0] : (Array.isArray(selQ2) ? selQ2[0] : null)
+            return res.status(201).json({ item: { ...row2, ebrigade_activity_type: typeToSave } })
           }
           throw err
         }

@@ -24,7 +24,8 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'GET') {
-      const [rows] = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at FROM analytics ORDER BY id DESC')
+      const q = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at FROM analytics ORDER BY id DESC')
+      const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
       const mapped = rows.map(r => ({
         id: r.id,
         name: r.name,
@@ -49,13 +50,14 @@ export default async function handler(req, res) {
       const distArr = Array.isArray(distribution) ? distribution : (typeof distribution === 'string' ? distribution.split(/[,;\n]+/).map(s=>s.trim()).filter(Boolean) : [])
 
       try {
-        const [result] = await pool.query(
+        const result = await pool.query(
           'INSERT INTO analytics (name, analytic_type, code, entite, distribution, description) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
           [name, analytic || 'PDF', cleanedCode, entite || null, distArr.length ? JSON.stringify(distArr) : null, description || null]
         )
 
-        const insertId = result.rows[0].id
-        const [[row]] = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at FROM analytics WHERE id = $1', [insertId])
+        const insertId = (result && result.rows && result.rows[0]) ? result.rows[0].id : null
+        const q2 = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at FROM analytics WHERE id = $1', [insertId])
+        const row = (q2 && q2.rows && q2.rows[0]) ? q2.rows[0] : null
         const item = {
           id: row.id,
           name: row.name,

@@ -64,6 +64,10 @@ function getTransporter() {
  */
 async function sendUserCreationEmail(email, plainPassword, firstName) {
   try {
+    // Email sending temporarily disabled - awaiting SMTP configuration
+    console.log('[EmailService] Email sending disabled - user:', email)
+    return { sent: false, messageId: 'disabled', message: 'Email sending temporarily disabled' }
+
     const mailer = getTransporter()
 
     const appName = process.env.APP_NAME || 'Fénix'
