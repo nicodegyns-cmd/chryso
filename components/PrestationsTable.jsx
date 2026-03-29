@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useImperativeHandle, forwardRef } from 'react'
+import React, { useEffect, useMemo, useState, useImperativeHandle, forwardRef, useRef, useCallback } from 'react'
 
 const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   const [items, setItems] = useState([])
@@ -19,9 +19,12 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   // read role from localStorage into reactive state so updates are picked up
   const [clientRole, setClientRole] = useState(typeof window !== 'undefined' ? localStorage.getItem('role') : null)
 
-  // Expose openEdit method to parent components via ref
+  // Ref to store openEdit function for imperative access
+  const openEditRef = useRef(null)
+
+  // Expose openEdit via imperative handle
   useImperativeHandle(ref, () => ({
-    openEdit
+    openEdit: (activity) => openEditRef.current?.(activity)
   }), [])
 
   // Handle closing the modal
@@ -199,6 +202,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     }catch(e){ /* ignore and fall back to local object */ }
     setEditing({...p})
   }
+  
+  // Update ref for imperative access to openEdit
+  openEditRef.current = openEdit
 
   // responsive: detect mobile width to render simplified cards
   const [isMobile, setIsMobile] = useState(false)
