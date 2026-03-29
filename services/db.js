@@ -1,8 +1,11 @@
 const { Pool: PgPool } = require('pg')
 const path = require('path')
 
-// Force load .env from project root, regardless of NODE_ENV
-require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') })
+// Force load .env from project root, OVERWRITING existing env vars, regardless of NODE_ENV
+require('dotenv').config({ 
+  path: path.resolve(__dirname, '..', '.env'),
+  override: true  // CRITICAL: Overwrite existing process.env variables from .env file
+})
 
 let poolInstance = null
 
