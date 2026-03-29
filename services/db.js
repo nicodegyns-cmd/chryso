@@ -294,11 +294,17 @@ async function closePool() {
   }
 }
 
-module.exports = {
+// Export both CommonJS and ES6 style for compatibility
+const dbExports = {
   getPool,
   query,
   executeQuery: query,
   executeNamedQuery: query,
   closePool
 }
+
+// Support ES6 default import
+dbExports.default = dbExports
+
+module.exports = dbExports
 
