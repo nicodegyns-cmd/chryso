@@ -1,6 +1,6 @@
-const { getPool } = require('../../../services/db')
-const bcrypt = require('bcryptjs')
-const { sendUserCreationEmail } = require('../../../services/emailService')
+import { getPool } from '../../../services/db'
+import bcrypt from 'bcryptjs'
+import { sendUserCreationEmail } from '../../../services/emailService'
 
 // Generate a random password (10 characters: mix of letters, numbers, special chars)
 function generateRandomPassword() {
