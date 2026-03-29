@@ -171,6 +171,15 @@ class PostgreSQLConnectionAdapter {
 
 // Create and configure the pool
 function createPool() {
+  // Debug: log environment variables at startup
+  console.log('[DB INIT] NODE_ENV:', process.env.NODE_ENV)
+  console.log('[DB INIT] DATABASE_URL:', (process.env.DATABASE_URL || 'NOT SET'))
+  console.log('[DB INIT] DB_HOST:', process.env.DB_HOST)
+  console.log('[DB INIT] DB_PORT:', process.env.DB_PORT)
+  console.log('[DB INIT] DB_NAME:', process.env.DB_NAME)
+  console.log('[DB INIT] DB_USER:', process.env.DB_USER)
+  console.log('[DB INIT] DB_PASSWORD present:', !!process.env.DB_PASSWORD)
+  
   let DATABASE_URL = process.env.DATABASE_URL || ''
   
   // If DATABASE_URL not provided, construct from individual DB_* variables
@@ -186,9 +195,10 @@ function createPool() {
     } else {
       DATABASE_URL = `postgresql://${user}@${host}:${port}/${dbname}`
     }
-    console.log('[DB] Constructed DATABASE_URL from DB_* variables:', DATABASE_URL.replace(/:[^:/@]*@/, ':***@'))
+    console.log('[DB INIT] Constructed DATABASE_URL from DB_* variables:', DATABASE_URL.replace(/:[^:/@]*@/, ':***@'))
   }
   
+  console.log('[DB INIT] FINAL DATABASE_URL:', DATABASE_URL.substring(0, 50))
   const DB_CLIENT = (process.env.DB_CLIENT || '').toLowerCase()
 
   // Prefer explicit DB_CLIENT env if provided, otherwise detect from DATABASE_URL
