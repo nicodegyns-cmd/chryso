@@ -6,40 +6,46 @@ const fs = require('fs')
 // Do this BEFORE any other code that might have set process.env.DATABASE_URL to old MySQL value
 function loadEnv() {
   try {
-    const envFile = path.resolve(__dirname, '..', '.env')
-    if (fs.existsSync(envFile)) {
-      const envContent = fs.readFileSync(envFile, 'utf8')
-      const lines = envContent.split('\n')
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (trimmed && !trimmed.startsWith('#')) {
-          const [key, ...valueParts] = trimmed.split('=')
-          const value = valueParts.join('=').trim()
-          if (key && value) {
-            // FORCE override - directly set process.env
-            process.env[key] = value
+    // Try multiple paths - relative and absolute
+    // In production with __dirname, it may point to .next/server/chunks, not project root
+    const possiblePaths = [
+      // Try relative from likely compiled location
+      path.resolve(__dirname, '..', '..', '..', '.env'),  // From .next/server/chunks
+      path.resolve(__dirname, '..', '.env'),                // From .next/server
+      // Try absolute path based on NODE_ENV
+      '/home/ubuntu/chryso/.env',                           // Production VPS path
+      '/var/www/chryso/.env',                               // Alternative production
+      process.cwd() + '/.env'                               // From working directory
+    ]
+    
+    for (const envFile of possiblePaths) {
+      if (fs.existsSync(envFile)) {
+        const envContent = fs.readFileSync(envFile, 'utf8')
+        const lines = envContent.split('\n')
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (trimmed && !trimmed.startsWith('#')) {
+            const [key, ...valueParts] = trimmed.split('=')
+            const value = valueParts.join('=').trim()
+            if (key && value) {
+              // FORCE override - directly set process.env
+              process.env[key] = value
+            }
           }
         }
+        console.log('[DB] ✓ .env loaded from:', envFile)
+        console.log('[DB] DATABASE_URL is now:', process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 60) + '...' : 'NOT SET')
+        return  // Success, exit
       }
-      console.log('[DB] ✓ .env file directly loaded and forced into process.env')
     }
+    console.warn('[DB] WARNING: .env not found in any expected location')
   } catch (err) {
     console.error('[DB] Error loading .env file:', err.message)
   }
 }
 
-// Load .env IMMEDIATELY, before anything else
+// Load .env IMMEDIATELY, before anything else runs
 loadEnv()
-
-// Also try dotenv for redundancy
-try {
-  require('dotenv').config({ 
-    path: path.resolve(__dirname, '..', '.env'),
-    override: true
-  })
-} catch (e) {
-  console.log('[DB] dotenv.config() - using direct file load instead')
-}
 
 let poolInstance = null
 
