@@ -52,7 +52,7 @@ export default function ActivitiesCards({ email, onEditActivity }) {
           {activities.map((activity) => (
             <div
               key={activity.id}
-              onClick={() => onEditActivity && onEditActivity(activity)}
+              onClick={() => onEditActivity && onEditActivity({ ...activity, isActivity: true })}
               style={{
                 background:'#fff',
                 border:'2px solid #e5e7eb',
