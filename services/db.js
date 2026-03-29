@@ -2,9 +2,8 @@ const { Pool: PgPool } = require('pg')
 const mysql = require('mysql2/promise')
 const fs = require('fs')
 
-if (process.env.NODE_ENV !== 'production') {
-  require('dotenv').config()
-}
+// Always load .env, even in production - environment variables should be available
+require('dotenv').config()
 
 let poolInstance = null
 // MySQL native pool wrapper
@@ -172,7 +171,24 @@ class PostgreSQLConnectionAdapter {
 
 // Create and configure the pool
 function createPool() {
-  const DATABASE_URL = process.env.DATABASE_URL || ''
+  let DATABASE_URL = process.env.DATABASE_URL || ''
+  
+  // If DATABASE_URL not provided, construct from individual DB_* variables
+  if (!DATABASE_URL && process.env.DB_HOST) {
+    const user = process.env.DB_USER || ''
+    const password = process.env.DB_PASSWORD || ''
+    const host = process.env.DB_HOST
+    const port = process.env.DB_PORT || 5432
+    const dbname = process.env.DB_NAME || 'postgres'
+    
+    if (password) {
+      DATABASE_URL = `postgresql://${user}:${password}@${host}:${port}/${dbname}`
+    } else {
+      DATABASE_URL = `postgresql://${user}@${host}:${port}/${dbname}`
+    }
+    console.log('[DB] Constructed DATABASE_URL from DB_* variables:', DATABASE_URL.replace(/:[^:/@]*@/, ':***@'))
+  }
+  
   const DB_CLIENT = (process.env.DB_CLIENT || '').toLowerCase()
 
   // Prefer explicit DB_CLIENT env if provided, otherwise detect from DATABASE_URL
