@@ -59,30 +59,15 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
   async function saveEbrigadeMapping(ebrigadeName, analyticIdValue) {
     if (!ebrigadeName || !analyticIdValue) return
     try {
-      // Check if mapping already exists
-      const existing = ebrigadeAnalytics.find(a => a.ebrigade_analytic_name === ebrigadeName)
-      if (existing && existing.local_analytic_id !== analyticIdValue) {
-        // Update existing mapping
-        await fetch('/api/admin/ebrigade-analytics-mapping', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: existing.id,
-            ebrigade_analytic_name: ebrigadeName,
-            local_analytic_id: analyticIdValue
-          })
+      // Always use POST with ON CONFLICT for automatic upsert
+      await fetch('/api/admin/ebrigade-analytics-mapping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ebrigade_analytic_name: ebrigadeName,
+          local_analytic_id: analyticIdValue
         })
-      } else if (!existing) {
-        // Create new mapping
-        await fetch('/api/admin/ebrigade-analytics-mapping', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ebrigade_analytic_name: ebrigadeName,
-            local_analytic_id: analyticIdValue
-          })
-        })
-      }
+      })
     } catch (e) {
       console.warn('[CreateActivityModal] Failed to save eBrigade mapping:', e)
       // Don't throw - allow activity creation even if mapping fails

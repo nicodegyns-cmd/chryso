@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      // Create new mapping
+      // Create or update mapping (upsert by ebrigade_analytic_name)
       const { ebrigade_analytic_name, local_analytic_id } = req.body
       
       if (!ebrigade_analytic_name || !local_analytic_id) {
@@ -45,6 +45,8 @@ export default async function handler(req, res) {
       const result = await pool.query(
         `INSERT INTO ebrigade_analytics_mapping (ebrigade_analytic_name, local_analytic_id)
          VALUES ($1, $2)
+         ON CONFLICT (ebrigade_analytic_name) 
+         DO UPDATE SET local_analytic_id = $2, updated_at = CURRENT_TIMESTAMP
          RETURNING *`,
         [ebrigade_analytic_name, local_analytic_id]
       )

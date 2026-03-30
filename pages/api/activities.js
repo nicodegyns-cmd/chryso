@@ -56,8 +56,15 @@ export default async function handler(req, res){
     const unfilled = userParticipations.filter(p => !p.hours_actual && !p.remuneration_infi && !p.remuneration_med)
 
     const activities = unfilled.map(p => {
-      // Look up mapping for this eBrigade analytic
-      const mapping = mappings.find(m => m.ebrigade_analytic_name === p.E_LIBELLE)
+      // Extract prefix from eBrigade analytic name (before ' - ' or ' | ')
+      const extractPrefix = (name) => {
+        const match = name.match(/^([^-|]+?)(?:\s*[-|])/)
+        return match ? match[1].trim() : name
+      }
+      
+      const analyticsPrefix = extractPrefix(p.E_LIBELLE)
+      // Look up mapping for this eBrigade analytic prefix
+      const mapping = mappings.find(m => m.ebrigade_analytic_name === analyticsPrefix)
       
       return {
         id: `${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`,
