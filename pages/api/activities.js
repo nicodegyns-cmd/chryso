@@ -33,10 +33,10 @@ export default async function handler(req, res){
     const userResult = await pool.query('SELECT liaison_ebrigade_id FROM users WHERE email = $1', [email])
     const user = userResult.rows?.[0]
 
-    if (!user) return res.status(404).json({ error: 'User not found' })
-    if (!user.liaison_ebrigade_id) return res.status(200).json({ activities: [] })
+    if (!user) return res.status(404).json({ error: 'User not found', email })
+    if (!user.liaison_ebrigade_id) return res.status(200).json({ activities: [], debug: 'No liaison_ebrigade_id for user', email, user })
 
-    console.log('[activities] User liaison_ebrigade_id:', user.liaison_ebrigade_id)
+    console.log('[activities] User found:', email, 'liaison_ebrigade_id:', user.liaison_ebrigade_id)
 
     const baseUrl = process.env.EBRIGADE_URL.replace(/\/$/, '')
     const response = await fetch(`${baseUrl}/api/export/participation.php`, {
@@ -63,7 +63,10 @@ export default async function handler(req, res){
     }
 
     const userParticipations = allParticipations.filter(p => p.P_ID?.toString() === user.liaison_ebrigade_id.toString())
-    console.log('[activities] User participations found:', userParticipations.length)
+    console.log('[activities] Filtering participations:')
+    console.log('  - Looking for P_ID:', user.liaison_ebrigade_id, '(type:', typeof user.liaison_ebrigade_id, ')')
+    console.log('  - Available P_IDs:', allParticipations.slice(0, 10).map(p => ({ P_ID: p.P_ID, type: typeof p.P_ID })))
+    console.log('  - Matches found:', userParticipations.length)
     const unfilled = userParticipations.filter(p => !p.hours_actual && !p.remuneration_infi && !p.remuneration_med)
 
     const activities = unfilled.map(p => {
