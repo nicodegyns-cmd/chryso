@@ -116,9 +116,9 @@ export default function EBrigadeAnalyticsMappingManager() {
 
   if (loading) return <div style={{ padding: 20 }}>Chargement...</div>
 
-  const getAnalyticName = (id) => {
+  function getAnalyticName(id) {
     const analytic = analytics.find(a => a.id === id)
-    return analytic ? `${analytic.analytic_code} - ${analytic.analytic_name}` : 'Non trouvé'
+    return analytic ? `${analytic.code} - ${analytic.name}` : 'Non trouvé'
   }
 
   return (
@@ -188,7 +188,7 @@ export default function EBrigadeAnalyticsMappingManager() {
               <option value="">-- Sélectionner --</option>
               {analytics.map(a => (
                 <option key={a.id} value={a.id}>
-                  {a.analytic_code} - {a.analytic_name}
+                  {a.code} - {a.name}
                 </option>
               ))}
             </select>
