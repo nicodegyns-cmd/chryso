@@ -8,22 +8,28 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' })
     }
 
-    // Fetch all unique eBrigade analytics from activities that haven't been filled
+    // Fetch all unique eBrigade analytics from unfilled activities, with their mappings if they exist
     const result = await pool.query(`
-      SELECT 
-        eam.id,
-        eam.ebrigade_analytic_name,
-        eam.local_analytic_id,
-        a.code,
-        a.name
-      FROM ebrigade_analytics_mapping eam
-      LEFT JOIN analytics a ON eam.local_analytic_id = a.id
-      ORDER BY eam.ebrigade_analytic_name ASC
+      SELECT DISTINCT
+        COALESCE(eam.id, 0) as id,
+        a.ebrigade_analytic_name,
+        a.local_analytic_id,
+        ana.code,
+        ana.name
+      FROM (
+        SELECT DISTINCT
+          E_LIBELLE as ebrigade_analytic_name
+        FROM prestations
+        WHERE hours_infiemerie IS NULL AND hours_medecin IS NULL
+      ) a
+      LEFT JOIN ebrigade_analytics_mapping eam ON a.ebrigade_analytic_name = eam.ebrigade_analytic_name
+      LEFT JOIN analytics ana ON eam.local_analytic_id = ana.id
+      ORDER BY a.ebrigade_analytic_name ASC
     `)
 
-    const mappedAnalytics = result.rows || []
+    const availableAnalytics = result.rows || []
     
-    return res.status(200).json({ analytics: mappedAnalytics })
+    return res.status(200).json({ analytics: availableAnalytics })
   } catch (error) {
     console.error('[ebrigade-analytics/available]', error.message)
     res.status(500).json({ error: error.message })
