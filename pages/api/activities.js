@@ -19,7 +19,7 @@ export default async function handler(req, res){
     let mappings = []
     try {
       const mappingsResult = await pool.query(`
-        SELECT ebrigade_analytic_name, local_analytic_id, a.analytic_code, a.analytic_name
+        SELECT ebrigade_analytic_name, local_analytic_id, a.code, a.name
         FROM ebrigade_analytics_mapping eam
         LEFT JOIN analytics a ON eam.local_analytic_id = a.id
       `)
@@ -83,8 +83,8 @@ export default async function handler(req, res){
         startTime: p.EH_DEBUT,
         endTime: p.EH_FIN,
         duration: p.EP_DUREE,
-        analytic_code: mapping?.analytic_code || p.E_CODE,
-        analytic_name: mapping?.analytic_name || p.E_LIBELLE,
+        analytic_code: mapping?.code || p.E_CODE,
+        analytic_name: mapping?.name || p.E_LIBELLE,
         analytic_id: mapping?.local_analytic_id || null,
         activity: p.E_LIBELLE,
         pay_type: p.TE_LIBELLE || 'Garde',
