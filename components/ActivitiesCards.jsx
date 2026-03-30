@@ -49,7 +49,14 @@ export default function ActivitiesCards({ email, onEditActivity }) {
         <div className="small-muted">Aucune activité disponible pour le moment.</div>
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))',gap:12}}>
-          {activities.map((activity) => (
+          {activities
+            .sort((a, b) => {
+              // Sort by date (newest first)
+              const dateA = a.date ? new Date(a.date).getTime() : 0
+              const dateB = b.date ? new Date(b.date).getTime() : 0
+              return dateB - dateA
+            })
+            .map((activity) => (
             <div
               key={activity.id}
               onClick={() => onEditActivity && onEditActivity({ ...activity, isActivity: true })}
