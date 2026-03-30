@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
     // Load all mappings from database
     const mappingsResult = await pool.query(`
-      SELECT id, ebrigade_analytic_name, local_analytic_id, a.code, a.name
+      SELECT eam.id, eam.ebrigade_analytic_name, eam.local_analytic_id, a.code, a.name
       FROM ebrigade_analytics_mapping eam
       LEFT JOIN analytics a ON eam.local_analytic_id = a.id
       ORDER BY eam.ebrigade_analytic_name ASC
