@@ -3,12 +3,15 @@ import React, { useEffect, useState } from 'react'
 export default function CreateActivityModal({ open, onClose, onCreate, initial, onUpdate }){
   const [analyticId, setAnalyticId] = useState('')
   const [analytics, setAnalytics] = useState([])
+  const [ebrigadeAnalytics, setEbrigadeAnalytics] = useState([])
+  const [ebrigadeAnalyticName, setEbrigadeAnalyticName] = useState('')
   const [payType, setPayType] = useState('Permanence')
   const [ebrigadeType, setEbrigadeType] = useState('Permanence')  // NEW: explicit eBrigade type
   const [date, setDate] = useState('')
   const [remuInfi, setRemuInfi] = useState('')
   const [remuMed, setRemuMed] = useState('')
   const [error, setError] = useState(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   // eBrigade activity types
   const EBRIGADE_TYPES = ['Permanence', 'Garde', 'RMP', 'APS', 'Sortie', 'Formation', 'Réunion']
@@ -22,6 +25,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       setDate(initial.date || '')
       setRemuInfi(typeof initial.remuneration_infi !== 'undefined' && initial.remuneration_infi !== null ? String(initial.remuneration_infi) : '')
       setRemuMed(typeof initial.remuneration_med !== 'undefined' && initial.remuneration_med !== null ? String(initial.remuneration_med) : '')
+      setEbrigadeAnalyticName('')
       setError(null)
     } else if (!open) {
       // reset when modal closed
@@ -31,6 +35,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       setDate('')
       setRemuInfi('')
       setRemuMed('')
+      setEbrigadeAnalyticName('')
       setError(null)
     }
   }, [initial, open])
@@ -41,12 +46,52 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       if (!r.ok) throw new Error('failed')
       const d = await r.json()
       setAnalytics(d.items || [])
+
+      // Load eBrigade analytics
+      const er = await fetch('/api/admin/ebrigade-analytics/available')
+      if (er.ok) {
+        const ed = await er.json()
+        setEbrigadeAnalytics(ed.analytics || [])
+      }
     }catch(e){ console.error(e) }
+  }
+
+  async function saveEbrigadeMapping(ebrigadeName, analyticIdValue) {
+    if (!ebrigadeName || !analyticIdValue) return
+    try {
+      // Check if mapping already exists
+      const existing = ebrigadeAnalytics.find(a => a.ebrigade_analytic_name === ebrigadeName)
+      if (existing && existing.local_analytic_id !== analyticIdValue) {
+        // Update existing mapping
+        await fetch('/api/admin/ebrigade-analytics-mapping', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: existing.id,
+            ebrigade_analytic_name: ebrigadeName,
+            local_analytic_id: analyticIdValue
+          })
+        })
+      } else if (!existing) {
+        // Create new mapping
+        await fetch('/api/admin/ebrigade-analytics-mapping', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ebrigade_analytic_name: ebrigadeName,
+            local_analytic_id: analyticIdValue
+          })
+        })
+      }
+    } catch (e) {
+      console.warn('[CreateActivityModal] Failed to save eBrigade mapping:', e)
+      // Don't throw - allow activity creation even if mapping fails
+    }
   }
 
   if (!open) return null
 
-  function submit(e){
+  async function submit(e){
     e.preventDefault(); setError(null)
     if (!analyticId) { setError('Choisissez une analytique'); return }
     // validate amounts as numbers (allow empty but convert to null)
@@ -55,27 +100,38 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
     if (remuInfi !== '' && (isNaN(infi) || infi < 0)) { setError('Montant rémunération infi invalide'); return }
     if (remuMed !== '' && (isNaN(med) || med < 0)) { setError('Montant rémunération med invalide'); return }
 
-    const selected = analytics.find(a => Number(a.id) === Number(analyticId))
-    const payload = {
-      analytic_id: Number(analyticId),
-      analytic_name: selected ? selected.name : '',
-      analytic_code: selected ? selected.code : '',
-      pay_type: payType,
-      ebrigade_activity_type: ebrigadeType,  // NEW: explicit eBrigade type link
-      date: date || null,
-      remuneration_infi: infi,
-      remuneration_med: med
-    }
-    console.log('[CreateActivityModal] SUBMITTING:', {
-      payType: payType,
-      ebrigadeType: ebrigadeType,
-      payload: payload
-    })
-    const isEdit = initial && (initial.id || initial.id === 0)
-    if (isEdit && typeof onUpdate === 'function') {
-      onUpdate(initial.id, payload)
-    } else {
-      onCreate(payload)
+    setIsSaving(true)
+    try {
+      // Save eBrigade mapping if selected
+      if (ebrigadeAnalyticName) {
+        await saveEbrigadeMapping(ebrigadeAnalyticName, Number(analyticId))
+      }
+
+      const selected = analytics.find(a => Number(a.id) === Number(analyticId))
+      const payload = {
+        analytic_id: Number(analyticId),
+        analytic_name: selected ? selected.name : '',
+        analytic_code: selected ? selected.code : '',
+        pay_type: payType,
+        ebrigade_activity_type: ebrigadeType,  // NEW: explicit eBrigade type link
+        date: date || null,
+        remuneration_infi: infi,
+        remuneration_med: med
+      }
+      console.log('[CreateActivityModal] SUBMITTING:', {
+        payType: payType,
+        ebrigadeType: ebrigadeType,
+        ebrigadeAnalyticName: ebrigadeAnalyticName,
+        payload: payload
+      })
+      const isEdit = initial && (initial.id || initial.id === 0)
+      if (isEdit && typeof onUpdate === 'function') {
+        onUpdate(initial.id, payload)
+      } else {
+        onCreate(payload)
+      }
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -99,7 +155,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
             {/* Section: Analytique */}
             <div style={{borderLeft:'3px solid #10b981',paddingLeft:16}}>
               <label style={{display:'block',marginBottom:12}}>
-                <strong style={{display:'block',marginBottom:4,color:'#1f2937',fontSize:14}}>📊 Analytique</strong>
+                <strong style={{display:'block',marginBottom:4,color:'#1f2937',fontSize:14}}>📊 Analytique locale</strong>
                 <select 
                   value={analyticId} 
                   onChange={e=>setAnalyticId(e.target.value)} 
@@ -109,6 +165,28 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
                   <option value="">-- Choisir une analytique --</option>
                   {analytics.map(a => <option key={a.id} value={a.id}>{a.name} — {a.code}</option>)}
                 </select>
+              </label>
+            </div>
+
+            {/* Section: Mapping eBrigade */}
+            <div style={{borderLeft:'3px solid #0ea5e9',paddingLeft:16,background:'#f0f9ff',padding:'12px',borderRadius:6}}>
+              <label style={{display:'block',marginBottom:12}}>
+                <strong style={{display:'block',marginBottom:4,color:'#1f2937',fontSize:14}}>🔗 Associer à une analytique eBrigade</strong>
+                <select 
+                  value={ebrigadeAnalyticName} 
+                  onChange={e=>setEbrigadeAnalyticName(e.target.value)}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #bfdbfe',borderRadius:6,fontSize:14}}
+                >
+                  <option value="">-- Optionnel: lier à une analytique eBrigade --</option>
+                  {ebrigadeAnalytics.map(a => (
+                    <option key={a.ebrigade_analytic_name} value={a.ebrigade_analytic_name}>
+                      {a.ebrigade_analytic_name}
+                    </option>
+                  ))}
+                </select>
+                <small style={{display:'block',marginTop:6,color:'#0369a1',fontSize:12}}>
+                  Si sélectionnée, cette activité sera associée à l'analytique eBrigade correspondante.
+                </small>
               </label>
             </div>
 
@@ -202,11 +280,12 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
               <button 
                 className="primary" 
                 type="submit"
-                style={{padding:'10px 24px',background:'#10b981',color:'white',border:'none',borderRadius:6,fontSize:14,fontWeight:600,cursor:'pointer',transition:'all 0.2s'}}
-                onMouseEnter={(e) => e.target.style.background = '#059669'}
-                onMouseLeave={(e) => e.target.style.background = '#10b981'}
+                disabled={isSaving}
+                style={{padding:'10px 24px',background: isSaving ? '#9ca3af' : '#10b981',color:'white',border:'none',borderRadius:6,fontSize:14,fontWeight:600,cursor: isSaving ? 'not-allowed' : 'pointer',transition:'all 0.2s'}}
+                onMouseEnter={(e) => { if (!isSaving) e.target.style.background = '#059669' }}
+                onMouseLeave={(e) => { if (!isSaving) e.target.style.background = '#10b981' }}
               >
-                {isEdit ? '💾 Enregistrer' : '✨ Créer activité'}
+                {isSaving ? '⏳ Sauvegarde...' : (isEdit ? '💾 Enregistrer' : '✨ Créer activité')}
               </button>
             </div>
           </form>

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import CreateActivityModal from './CreateActivityModal'
-import EBrigadeAnalyticsMappingSection from './EBrigadeAnalyticsMappingSection'
 
 export default function ActivitiesTable(){
   const [items, setItems] = useState([])
@@ -98,9 +97,6 @@ export default function ActivitiesTable(){
           </button>
         </div>
       </div>
-
-      {/* Section Mappings eBrigade */}
-      <EBrigadeAnalyticsMappingSection />
 
       {/* Tableau */}
       {loading ? (
