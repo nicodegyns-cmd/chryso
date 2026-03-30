@@ -3,6 +3,15 @@
 // Returns the raw JSON response from eBrigade.
 
 export default async function handler(req, res){
+  // Handle CORS preflight requests (Firefox sends OPTIONS before POST)
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Allow', 'OPTIONS, POST')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, POST')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    return res.status(200).end()
+  }
+
   if (req.method !== 'POST'){
     res.setHeader('Allow','POST')
     return res.status(405).end('Method Not Allowed')
