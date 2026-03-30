@@ -33,12 +33,19 @@ export default async function handler(req, res){
     const userResult = await pool.query('SELECT liaison_ebrigade_id FROM users WHERE email = $1', [email])
     const user = userResult.rows?.[0]
 
+    console.log('[activities] User query result:', userResult.rows)
+    
     if (!user) return res.status(404).json({ error: 'User not found', email })
-    if (!user.liaison_ebrigade_id) return res.status(200).json({ activities: [], debug: 'No liaison_ebrigade_id for user', email, user })
+    if (!user.liaison_ebrigade_id) {
+      console.log('[activities] User has no liaison_ebrigade_id:', email)
+      return res.status(200).json({ activities: [], debug: 'No liaison_ebrigade_id for user', email, user })
+    }
 
     console.log('[activities] User found:', email, 'liaison_ebrigade_id:', user.liaison_ebrigade_id)
 
     const baseUrl = process.env.EBRIGADE_URL.replace(/\/$/, '')
+    console.log('[activities] Calling eBrigade API at:', baseUrl)
+    
     const response = await fetch(`${baseUrl}/api/export/participation.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -49,10 +56,27 @@ export default async function handler(req, res){
       })
     })
 
-    if (!response.ok) return res.status(200).json({ activities: [] })
+    console.log('[activities] eBrigade response status:', response.status, response.ok)
 
-    const data = await response.json()
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.log('[activities] eBrigade error response:', errorText)
+      return res.status(200).json({ activities: [], debug: 'eBrigade API error', status: response.status })
+    }
+
+    const text = await response.text()
+    console.log('[activities] eBrigade response length:', text.length)
+    
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch (e) {
+      console.error('[activities] Failed to parse eBrigade response:', e.message)
+      return res.status(200).json({ activities: [], debug: 'Failed to parse eBrigade response' })
+    }
+    
     const allParticipations = Array.isArray(data) ? data : data.data || data.participations || []
+    console.log('[activities] Parsed participations - type:', typeof data, 'is array:', Array.isArray(data), 'length:', allParticipations.length)
     
     console.log('[activities] Total participations from eBrigade:', allParticipations.length)
     console.log('[activities] Looking for P_ID:', user.liaison_ebrigade_id)
