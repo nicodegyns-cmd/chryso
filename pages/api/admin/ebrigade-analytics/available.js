@@ -43,14 +43,14 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'Failed to parse eBrigade response' })
     }
 
-    // Extract unique analytics from prestations
+    // Extract unique analytics from prestations (deduplicate by name, not code)
     const analyticsMap = new Map()
     
     for (const p of allPrestations) {
       if (p.E_LIBELLE && p.E_CODE) {
-        // Use E_CODE as unique key
-        if (!analyticsMap.has(p.E_CODE)) {
-          analyticsMap.set(p.E_CODE, {
+        // Use E_LIBELLE (name) as unique key to avoid duplicates with same name but different codes
+        if (!analyticsMap.has(p.E_LIBELLE)) {
+          analyticsMap.set(p.E_LIBELLE, {
             ebrigade_analytic_code: p.E_CODE,
             ebrigade_analytic_name: p.E_LIBELLE,
             activity_type: p.TE_LIBELLE || '',
