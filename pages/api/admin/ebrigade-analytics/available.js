@@ -18,7 +18,7 @@ export default async function handler(req, res) {
         ana.name
       FROM (
         SELECT DISTINCT
-          E_LIBELLE as ebrigade_analytic_name
+          e_libelle as ebrigade_analytic_name
         FROM prestations
         WHERE hours_infiemerie IS NULL AND hours_medecin IS NULL
       ) a
