@@ -4,7 +4,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
   const [analyticId, setAnalyticId] = useState('')
   const [analytics, setAnalytics] = useState([])
   const [ebrigadeAnalytics, setEbrigadeAnalytics] = useState([])
-  const [ebrigadeAnalyticName, setEbrigadeAnalyticName] = useState('')
+  const [selectedEbrigadeAnalytics, setSelectedEbrigadeAnalytics] = useState([]) // Array for multiple selections
   const [payType, setPayType] = useState('Permanence')
   const [ebrigadeType, setEbrigadeType] = useState('Permanence')  // NEW: explicit eBrigade type
   const [date, setDate] = useState('')
@@ -21,11 +21,11 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
     if (initial) {
       setAnalyticId(initial.analytic_id ? String(initial.analytic_id) : (initial.analytic_id === 0 ? '0' : ''))
       setPayType(initial.pay_type || 'Permanence')
-      setEbrigadeType(initial.ebrigade_activity_type || initial.pay_type || 'Permanence')  // NEW: sync with pay_type if available
+      setEbrigadeType(initial.ebrigade_activity_type || initial.pay_type || 'Permanence')
       setDate(initial.date || '')
       setRemuInfi(typeof initial.remuneration_infi !== 'undefined' && initial.remuneration_infi !== null ? String(initial.remuneration_infi) : '')
       setRemuMed(typeof initial.remuneration_med !== 'undefined' && initial.remuneration_med !== null ? String(initial.remuneration_med) : '')
-      setEbrigadeAnalyticName('')
+      setSelectedEbrigadeAnalytics(initial.ebrigade_analytics || []) // Load existing selections
       setError(null)
     } else if (!open) {
       // reset when modal closed
@@ -35,7 +35,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       setDate('')
       setRemuInfi('')
       setRemuMed('')
-      setEbrigadeAnalyticName('')
+      setSelectedEbrigadeAnalytics([])
       setError(null)
     }
   }, [initial, open])
@@ -56,24 +56,6 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
     }catch(e){ console.error(e) }
   }
 
-  async function saveEbrigadeMapping(ebrigadeName, analyticIdValue) {
-    if (!ebrigadeName || !analyticIdValue) return
-    try {
-      // Always use POST with ON CONFLICT for automatic upsert
-      await fetch('/api/admin/ebrigade-analytics-mapping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ebrigade_analytic_name: ebrigadeName,
-          local_analytic_id: analyticIdValue
-        })
-      })
-    } catch (e) {
-      console.warn('[CreateActivityModal] Failed to save eBrigade mapping:', e)
-      // Don't throw - allow activity creation even if mapping fails
-    }
-  }
-
   if (!open) return null
 
   async function submit(e){
@@ -87,26 +69,22 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
 
     setIsSaving(true)
     try {
-      // Save eBrigade mapping if selected
-      if (ebrigadeAnalyticName) {
-        await saveEbrigadeMapping(ebrigadeAnalyticName, Number(analyticId))
-      }
-
       const selected = analytics.find(a => Number(a.id) === Number(analyticId))
       const payload = {
         analytic_id: Number(analyticId),
         analytic_name: selected ? selected.name : '',
         analytic_code: selected ? selected.code : '',
         pay_type: payType,
-        ebrigade_activity_type: ebrigadeType,  // NEW: explicit eBrigade type link
+        ebrigade_activity_type: ebrigadeType,
         date: date || null,
         remuneration_infi: infi,
-        remuneration_med: med
+        remuneration_med: med,
+        ebrigade_analytics: selectedEbrigadeAnalytics // Send selected eBrigade analytics
       }
       console.log('[CreateActivityModal] SUBMITTING:', {
         payType: payType,
         ebrigadeType: ebrigadeType,
-        ebrigadeAnalyticName: ebrigadeAnalyticName,
+        selectedEbrigadeAnalytics: selectedEbrigadeAnalytics,
         payload: payload
       })
       const isEdit = initial && (initial.id || initial.id === 0)
@@ -155,24 +133,31 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
 
             {/* Section: Mapping eBrigade */}
             <div style={{borderLeft:'3px solid #0ea5e9',paddingLeft:16,background:'#f0f9ff',padding:'12px',borderRadius:6}}>
-              <label style={{display:'block',marginBottom:12}}>
-                <strong style={{display:'block',marginBottom:4,color:'#1f2937',fontSize:14}}>🔗 Associer à une analytique eBrigade</strong>
-                <select 
-                  value={ebrigadeAnalyticName} 
-                  onChange={e=>setEbrigadeAnalyticName(e.target.value)}
-                  style={{width:'100%',padding:'10px 12px',border:'1px solid #bfdbfe',borderRadius:6,fontSize:14}}
-                >
-                  <option value="">-- Optionnel: lier à une analytique eBrigade --</option>
+              <strong style={{display:'block',marginBottom:8,color:'#1f2937',fontSize:14}}>🔗 Associer à des analytiques eBrigade</strong>
+              <small style={{display:'block',marginBottom:10,color:'#0369a1',fontSize:12}}>Sélectionnez une ou plusieurs analytiques eBrigade (optionnel)</small>
+              {ebrigadeAnalytics.length === 0 ? (
+                <p style={{margin:0,color:'#6b7280',fontSize:13}}>Aucune analytique eBrigade disponible</p>
+              ) : (
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                   {ebrigadeAnalytics.map(a => (
-                    <option key={a.ebrigade_analytic_name} value={a.ebrigade_analytic_name}>
-                      {a.ebrigade_analytic_name}
-                    </option>
+                    <label key={a.ebrigade_analytic_name} style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',padding:'8px',borderRadius:4,backgroundColor:'#fff',border:'1px solid #dbeafe'}}>
+                      <input 
+                        type="checkbox"
+                        checked={selectedEbrigadeAnalytics.includes(a.ebrigade_analytic_name)}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelectedEbrigadeAnalytics(prev => [...prev, a.ebrigade_analytic_name])
+                          } else {
+                            setSelectedEbrigadeAnalytics(prev => prev.filter(x => x !== a.ebrigade_analytic_name))
+                          }
+                        }}
+                        style={{cursor:'pointer'}}
+                      />
+                      <span style={{fontSize:13,color:'#1f2937'}}>{a.ebrigade_analytic_name}</span>
+                    </label>
                   ))}
-                </select>
-                <small style={{display:'block',marginTop:6,color:'#0369a1',fontSize:12}}>
-                  Si sélectionnée, cette activité sera associée à l'analytique eBrigade correspondante.
-                </small>
-              </label>
+                </div>
+              )}
             </div>
 
             {/* Section: Lien eBrigade - NOW CONTROLS BOTH TYPES */}
