@@ -38,7 +38,7 @@ export default function EBrigadePrestationsDisplay({ email }) {
       const response = await fetch(`/api/user/ebrigade-prestations?email=${encodeURIComponent(email)}&dDebut=${dateDebut}&dFin=${dateFin}`)
       
       if (!response.ok) {
-        throw new Error(`Erreur API: ${response.statusCode}`)
+        throw new Error(`Erreur API: ${response.status}`)
       }
 
       const data = await response.json()
