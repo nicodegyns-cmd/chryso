@@ -36,6 +36,8 @@ export default async function handler(req, res){
     if (!user) return res.status(404).json({ error: 'User not found' })
     if (!user.liaison_ebrigade_id) return res.status(200).json({ activities: [] })
 
+    console.log('[activities] User liaison_ebrigade_id:', user.liaison_ebrigade_id)
+
     const baseUrl = process.env.EBRIGADE_URL.replace(/\/$/, '')
     const response = await fetch(`${baseUrl}/api/export/participation.php`, {
       method: 'POST',
@@ -51,8 +53,17 @@ export default async function handler(req, res){
 
     const data = await response.json()
     const allParticipations = Array.isArray(data) ? data : data.data || data.participations || []
+    
+    console.log('[activities] Total participations from eBrigade:', allParticipations.length)
+    console.log('[activities] Looking for P_ID:', user.liaison_ebrigade_id)
+    
+    // Show first few P_IDs for debugging
+    if (allParticipations.length > 0) {
+      console.log('[activities] Sample P_IDs:', allParticipations.slice(0, 5).map(p => p.P_ID))
+    }
 
     const userParticipations = allParticipations.filter(p => p.P_ID?.toString() === user.liaison_ebrigade_id.toString())
+    console.log('[activities] User participations found:', userParticipations.length)
     const unfilled = userParticipations.filter(p => !p.hours_actual && !p.remuneration_infi && !p.remuneration_med)
 
     const activities = unfilled.map(p => {
