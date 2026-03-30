@@ -114,15 +114,53 @@ export default async function handler(req, res) {
       sample: prestations.length > 0 ? prestations[0] : null
     })
 
+    // Load all mapped eBrigade analytics from activity_ebrigade_mappings
+    // Only show prestations whose analytics match mapped activities in the database
+    let mappedAnalytics = []
+    try {
+      const mappingsResult = await pool.query(
+        'SELECT DISTINCT ebrigade_analytic_name FROM activity_ebrigade_mappings'
+      )
+      mappedAnalytics = mappingsResult.rows.map(r => r.ebrigade_analytic_name)
+      console.log('[api/user/ebrigade-prestations] Loaded mapped analytics:', mappedAnalytics.length)
+    } catch (mappingError) {
+      console.warn('[api/user/ebrigade-prestations] Could not load mappings, will show all prestations:', mappingError.message)
+    }
+
+    // Helper to extract prefix before ' - ' or ' | '
+    const extractPrefix = (name) => {
+      if (!name) return name
+      const match = name.match(/^([^-|]+?)(?:\s*[-|])/)
+      return match ? match[1].trim() : name
+    }
+
+    // Filter prestations to only those whose analytic is mapped in database
+    const authorizedPrestations = prestations.filter(p => {
+      if (!p.E_LIBELLE) return false
+      const prestationPrefix = extractPrefix(p.E_LIBELLE)
+      
+      // Check if this analytic exists in our mappings
+      return mappedAnalytics.some(mapped => {
+        const mappedPrefix = extractPrefix(mapped)
+        return prestationPrefix === mappedPrefix
+      })
+    })
+
+    console.log('[api/user/ebrigade-prestations] After analytics filtering:', {
+      before: prestations.length,
+      after: authorizedPrestations.length,
+      reason: 'Filtered to only mapped activities'
+    })
+
     console.log('[api/user/ebrigade-prestations] Fetched prestations:', {
       userId: userRow.id,
-      count: prestations.length,
+      count: authorizedPrestations.length,
       dDebut,
       dFin
     })
 
     // Map eBrigade prestations to our format
-    const mappedPrestations = prestations.map(p => ({
+    const mappedPrestations = authorizedPrestations.map(p => ({
       id: `${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`, // Unique ID for this prestation
       date: p.EH_DATE_DEBUT,
       dateEnd: p.EH_DATE_FIN,
