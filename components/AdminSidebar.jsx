@@ -36,6 +36,11 @@ export default function AdminSidebar({ onNavigate }) {
             </Link>
           </li>
           <li>
+            <Link href="/admin/ebrigade-analytics-mapping" className={`sidebar-btn ${isActive('/admin/ebrigade-analytics-mapping') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('ebrigade-analytics-mapping')}>
+              Mappings eBrigade
+            </Link>
+          </li>
+          <li>
             <Link href="/admin/activities" className={`sidebar-btn ${isActive('/admin/activities') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('activities')}>
               Activité
             </Link>

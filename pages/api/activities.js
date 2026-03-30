@@ -14,6 +14,22 @@ export default async function handler(req, res){
     if (!process.env.EBRIGADE_URL) return res.status(500).json({ error: 'EBRIGADE_URL not set' })
 
     const pool = getPool()
+    
+    // Load mappings from database
+    let mappings = []
+    try {
+      const mappingsResult = await pool.query(`
+        SELECT ebrigade_analytic_name, local_analytic_id, a.analytic_code, a.analytic_name
+        FROM ebrigade_analytics_mapping eam
+        LEFT JOIN analytics a ON eam.local_analytic_id = a.id
+      `)
+      mappings = mappingsResult.rows || []
+      console.log('[activities] Loaded mappings:', mappings.length)
+    } catch (mappingError) {
+      console.warn('[activities] Could not load mappings:', mappingError.message)
+      // Continue without mappings
+    }
+
     const userResult = await pool.query('SELECT liaison_ebrigade_id FROM users WHERE email = $1', [email])
     const user = userResult.rows?.[0]
 
@@ -39,19 +55,26 @@ export default async function handler(req, res){
     const userParticipations = allParticipations.filter(p => p.P_ID?.toString() === user.liaison_ebrigade_id.toString())
     const unfilled = userParticipations.filter(p => !p.hours_actual && !p.remuneration_infi && !p.remuneration_med)
 
-    const activities = unfilled.map(p => ({
-      id: `${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`,
-      date: p.EH_DATE_DEBUT,
-      startTime: p.EH_DEBUT,
-      endTime: p.EH_FIN,
-      duration: p.EP_DUREE,
-      analytic_code: p.E_CODE,
-      analytic_name: p.E_LIBELLE,
-      activity: p.E_LIBELLE,
-      pay_type: p.TE_LIBELLE || 'Garde',
-      status: 'À saisir',
-      isActivity: true
-    }))
+    const activities = unfilled.map(p => {
+      // Look up mapping for this eBrigade analytic
+      const mapping = mappings.find(m => m.ebrigade_analytic_name === p.E_LIBELLE)
+      
+      return {
+        id: `${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`,
+        date: p.EH_DATE_DEBUT,
+        startTime: p.EH_DEBUT,
+        endTime: p.EH_FIN,
+        duration: p.EP_DUREE,
+        analytic_code: mapping?.analytic_code || p.E_CODE,
+        analytic_name: mapping?.analytic_name || p.E_LIBELLE,
+        analytic_id: mapping?.local_analytic_id || null,
+        activity: p.E_LIBELLE,
+        pay_type: p.TE_LIBELLE || 'Garde',
+        status: 'À saisir',
+        isActivity: true,
+        ebrigade_analytic_name: p.E_LIBELLE  // Keep original eBrigade name for reference
+      }
+    })
 
     return res.status(200).json({ activities })
   } catch (err) {
