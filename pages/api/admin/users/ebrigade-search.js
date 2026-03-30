@@ -9,6 +9,8 @@ export default async function handler(req, res){
   }
 
   let body = req.body || {}
+  console.log('[ebrigade-search] Received body:', JSON.stringify(body), 'Content-Type:', req.headers['content-type'])
+  
   // Inject server-side token (always required, never exposed to clients)
   if (!process.env.EBRIGADE_TOKEN) {
     return res.status(500).json({ error: 'EBRIGADE_TOKEN not configured' })
@@ -16,6 +18,7 @@ export default async function handler(req, res){
   const token = process.env.EBRIGADE_TOKEN
   // Merge body with token (body tokens are ignored for security)
   body = Object.assign({}, body, { token })
+  console.log('[ebrigade-search] Merged body:', JSON.stringify(body))
   // prefer server env EBRIGADE_URL if set, otherwise local default
   const base = process.env.EBRIGADE_URL || 'http://127.0.0.1/ebrigade'
   const url = `${base.replace(/\/$/, '')}/api/export/search.php`
