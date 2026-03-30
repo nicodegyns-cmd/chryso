@@ -45,7 +45,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
         const resp = await fetch('/api/admin/users/ebrigade-search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lastname: liaisonQuery })
+          body: JSON.stringify({ lastname: liaisonQuery, qstrict: '0' })
         })
         const data = await resp.json()
         // expect proxy to return { remote: [...] } or similar
@@ -74,7 +74,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       const resp = await fetch('/api/admin/users/ebrigade-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lastname: forceQuery || '' })
+        body: JSON.stringify({ lastname: forceQuery || '', qstrict: '0' })
       })
       const data = await resp.json()
       const items = (data && data.remote && Array.isArray(data.remote)) ? data.remote : (Array.isArray(data) ? data : [])
