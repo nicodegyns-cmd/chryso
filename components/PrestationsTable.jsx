@@ -217,7 +217,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         expense_comment: null,
         comments: null,
         proof_image: null,
-        isActivity: true  // Flag to force editable form for activities
+        isActivity: true, // Flag to force editable form for activities
+        // mark as eBrigade if the incoming activity originates from eBrigade
+        isEBrigade: !!(p.source === 'ebrigade' || p.activityCode || p.E_CODE || p.ebrigade_activity_code || p.ebrigade_id)
       })
       return
     }
@@ -238,7 +240,11 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         }
       }
     }catch(e){ /* ignore and fall back to local object */ }
-    setEditing({...p})
+    setEditing({
+      ...p,
+      // ensure isEBrigade is preserved/detected when editing an object that carries eBrigade metadata
+      isEBrigade: !!(p.isEBrigade || p.source === 'ebrigade' || p.activityCode || p.E_CODE || p.ebrigade_activity_code || p.ebrigade_id)
+    })
   }
   
   // Update ref for imperative access to openEdit
