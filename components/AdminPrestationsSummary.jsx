@@ -222,7 +222,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
         <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.4)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:20}}>
           <div style={{width:'100%',maxWidth:800,background:'#fff',borderRadius:12,boxShadow:'0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',overflow:'auto',maxHeight:'90vh'}}>
             <div style={{padding:24,borderBottom:'1px solid #e5e7eb'}}>
-              <h3 style={{margin:0,fontSize:20,fontWeight:700,color:'#1f2937'}}>📋 Détails demande #{viewing.request_ref || viewing.invoice_number || viewing.id}</h3>
+              <h3 style={{margin:0,fontSize:20,fontWeight:700,color:'#1f2937'}}>📋 Détails demande #{viewing.ebrigade_id || viewing.request_ref || viewing.invoice_number || viewing.id}</h3>
             </div>
 
             <div style={{padding:24}}>
@@ -244,7 +244,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                   </div>
                   <div>
                     <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>ANALYTIQUE</div>
-                    <div style={{fontSize:15,color:'#1f2937'}}>{viewing.analytic_name || viewing.analytic_code || '-'}</div>
+                    <div style={{fontSize:15,color:'#1f2937'}}>{viewing.ebrigade_activity_type || viewing.analytic_name || viewing.analytic_code || '-'}</div>
                   </div>
                   <div>
                     <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>STATUT</div>
