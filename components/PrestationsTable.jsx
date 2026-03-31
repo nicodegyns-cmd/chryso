@@ -412,15 +412,17 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       // Ensure eBrigade data is included in the save
       // This preserves ANALYTIQUE and other eBrigade info
       if (editing.isEBrigade) {
-        effective.ebrigade_id = editing.ebrigade_id
-        effective.ebrigade_personnel_id = editing.ebrigade_personnel_id
-        effective.ebrigade_personnel_name = editing.ebrigade_personnel_name
-        effective.ebrigade_activity_code = editing.ebrigade_activity_code
-        effective.ebrigade_activity_name = editing.ebrigade_activity_name
-        effective.ebrigade_activity_type = editing.ebrigade_activity_type
-        effective.ebrigade_duration_hours = editing.ebrigade_duration_hours
-        effective.ebrigade_start_time = editing.ebrigade_start_time
-        effective.ebrigade_end_time = editing.ebrigade_end_time
+        // Prefer explicit ebrigade_id, otherwise fall back to activity code or other known keys
+        effective.ebrigade_id = editing.ebrigade_id || editing.ebrigade_activity_code || editing.activityCode || null
+        effective.ebrigade_personnel_id = editing.ebrigade_personnel_id || null
+        effective.ebrigade_personnel_name = editing.ebrigade_personnel_name || null
+        // Keep both fields in sync when possible
+        effective.ebrigade_activity_code = editing.ebrigade_activity_code || editing.activityCode || null
+        effective.ebrigade_activity_name = editing.ebrigade_activity_name || editing.activity || null
+        effective.ebrigade_activity_type = editing.ebrigade_activity_type || editing.activityType || null
+        effective.ebrigade_duration_hours = editing.ebrigade_duration_hours || null
+        effective.ebrigade_start_time = editing.ebrigade_start_time || null
+        effective.ebrigade_end_time = editing.ebrigade_end_time || null
       }
 
       // Handle new prestation (POST) vs updating existing one (PATCH)
