@@ -65,7 +65,8 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
   // Derived flags for the edit modal rendering
   // Use pay_type to determine which fields to show
-  const _editPayTypeLower = (editing && editing.pay_type) ? String(editing.pay_type).toLowerCase() : ''
+  // For eBrigade prestations, also check ebrigade_activity_type
+  const _editPayTypeLower = (editing && (editing.pay_type || editing.ebrigade_activity_type)) ? String(editing.pay_type || editing.ebrigade_activity_type).toLowerCase() : ''
   const editingIsGarde = _editPayTypeLower.includes('garde') || _editPayTypeLower.includes('permanence')
   const editingIsPermanence = _editPayTypeLower.includes('permanence')
   const editingIsAPS = _editPayTypeLower.includes('aps')

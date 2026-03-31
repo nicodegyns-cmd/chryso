@@ -28,6 +28,50 @@ export default function DashboardPage() {
     }
   }, [])
 
+  // Handle when user selects an eBrigade prestation to declare hours
+  const handleSelectEBrigadePrestation = React.useCallback((ebrigadePrestation) => {
+    console.log('[dashboard] handleSelectEBrigadePrestation called with:', ebrigadePrestation)
+    
+    // Convert eBrigade prestation to our internal prestation format
+    const prestation = {
+      isEBrigade: true,
+      isActivity: false,
+      source: 'ebrigade',
+      // eBrigade data
+      ebrigade_personnel_id: ebrigadePrestation.personnel?.id,
+      ebrigade_personnel_name: `${ebrigadePrestation.personnel?.prenom || ''} ${ebrigadePrestation.personnel?.nom || ''}`.trim(),
+      ebrigade_activity_code: ebrigadePrestation.activityCode,
+      ebrigade_activity_name: ebrigadePrestation.activity,
+      ebrigade_activity_type: ebrigadePrestation.activityType,
+      ebrigade_duration_hours: ebrigadePrestation.duration,
+      ebrigade_start_time: ebrigadePrestation.startTime,
+      ebrigade_end_time: ebrigadePrestation.endTime,
+      // Date and basic info
+      date: ebrigadePrestation.date,
+      dateEnd: ebrigadePrestation.dateEnd,
+      // User info
+      email: userEmail,
+      user_email: userEmail,
+      status: 'À saisir',
+      // Hours (to be filled by user)
+      hours_actual: null,
+      garde_hours: null,
+      sortie_hours: null,
+      overtime_hours: null,
+      // Other fields
+      comments: null,
+      expense_amount: null,
+      expense_comment: null
+    }
+    
+    if (prestationsTableRef.current?.openEdit) {
+      console.log('[dashboard] calling openEdit() with eBrigade prestation')
+      prestationsTableRef.current.openEdit(prestation)
+    } else {
+      console.warn('[dashboard] openEdit not found on ref:', prestationsTableRef.current)
+    }
+  }, [userEmail])
+
   // Redirect comptabilité users to comptabilite page
   React.useEffect(() => {
     // Only redirect if userRole has been initialized
@@ -62,8 +106,7 @@ export default function DashboardPage() {
               
               <ActivitiesCards email={userEmail} onEditActivity={handleEditActivity} />
               
-              <EBrigadePrestationsDisplay email={userEmail} />
-              <PrestationsStats email={userEmail} />
+              <EBrigadePrestationsDisplay email={userEmail} onSelectPrestation={handleSelectEBrigadePrestation} />\n              <PrestationsStats email={userEmail} />
               <PrestationsTable ref={prestationsTableRef} email={userEmail} />
             </div>
           </>

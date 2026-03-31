@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 
-export default function EBrigadePrestationsDisplay({ email }) {
+export default function EBrigadePrestationsDisplay({ email, onSelectPrestation }) {
   const [ready, setReady] = useState(false)
   const [loading, setLoading] = useState(false)
   const [dateDebut, setDateDebut] = useState('')
@@ -127,6 +127,7 @@ export default function EBrigadePrestationsDisplay({ email }) {
                 <th style={{ padding: 8, textAlign: 'left' }}>Fin</th>
                 <th style={{ padding: 8, textAlign: 'left' }}>Durée (h)</th>
                 <th style={{ padding: 8, textAlign: 'left' }}>Activité</th>
+                <th style={{ padding: 8, textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -137,6 +138,29 @@ export default function EBrigadePrestationsDisplay({ email }) {
                   <td style={{ padding: 8 }}>{p.endTime}</td>
                   <td style={{ padding: 8 }}>{p.duration}</td>
                   <td style={{ padding: 8 }}>{p.activity}</td>
+                  <td style={{ padding: 8, textAlign: 'center' }}>
+                    <button
+                      onClick={() => {
+                        if (onSelectPrestation) {
+                          onSelectPrestation(p)
+                        }
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        background: '#0366d6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        fontSize: '0.85em'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = '#0260c8'}
+                      onMouseLeave={(e) => e.target.style.background = '#0366d6'}
+                    >
+                      📝 Déclarer
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
