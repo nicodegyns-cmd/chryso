@@ -14,7 +14,12 @@ export default async function handler(req, res) {
            ORDER BY p.id DESC`
         )
         const rows = (q && q.rows) ? q.rows : []
-        return res.status(200).json({ items: rows })
+        // Expose eBrigade data in response for proper display
+        const enriched = rows.map(row => ({
+          ...row,
+          analytic_name_display: row.ebrigade_activity_type || row.analytic_name || '-'
+        }))
+        return res.status(200).json({ items: enriched })
       } catch (e) {
         console.warn('prestations query error', e && e.message)
         return res.status(200).json({ items: [] })
@@ -38,7 +43,16 @@ export default async function handler(req, res) {
         expense_amount,
         expense_comment,
         proof_image,
-        status
+        status,
+        // eBrigade data
+        ebrigade_personnel_id,
+        ebrigade_personnel_name,
+        ebrigade_activity_code,
+        ebrigade_activity_name,
+        ebrigade_activity_type,
+        ebrigade_duration_hours,
+        ebrigade_start_time,
+        ebrigade_end_time
       } = req.body || {}
 
       const userEmail = user_email || email
@@ -58,15 +72,18 @@ export default async function handler(req, res) {
 
       const userId = users[0].id
 
-      // Insert new prestation
+      // Insert new prestation with eBrigade data
       const q2 = await pool.query(
         `INSERT INTO prestations (
           user_id, analytic_id, date, pay_type,
           hours_actual, garde_hours, sortie_hours, overtime_hours,
           remuneration_infi, remuneration_med,
           comments, expense_amount, expense_comment, proof_image,
-          status, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW()) 
+          status, created_at, updated_at,
+          ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code,
+          ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours,
+          ebrigade_start_time, ebrigade_end_time
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW(), $16, $17, $18, $19, $20, $21, $22, $23) 
         RETURNING *`,
         [
           userId,
@@ -83,7 +100,15 @@ export default async function handler(req, res) {
           expense_amount || null,
           expense_comment || null,
           proof_image || null,
-          status || 'A saisir'
+          status || 'A saisir',
+          ebrigade_personnel_id || null,
+          ebrigade_personnel_name || null,
+          ebrigade_activity_code || null,
+          ebrigade_activity_name || null,
+          ebrigade_activity_type || null,
+          ebrigade_duration_hours || null,
+          ebrigade_start_time || null,
+          ebrigade_end_time || null
         ]
       )
 
@@ -99,7 +124,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'PATCH') {
       const { id } = req.query
-      const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status } = req.body || {}
+      const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time } = req.body || {}
 
       const q = await pool.query(
         `UPDATE prestations SET
@@ -116,10 +141,18 @@ export default async function handler(req, res) {
            proof_image = COALESCE($11, proof_image),
            analytic_id = COALESCE($12, analytic_id),
            status = COALESCE($13, status),
+           ebrigade_personnel_id = COALESCE($15, ebrigade_personnel_id),
+           ebrigade_personnel_name = COALESCE($16, ebrigade_personnel_name),
+           ebrigade_activity_code = COALESCE($17, ebrigade_activity_code),
+           ebrigade_activity_name = COALESCE($18, ebrigade_activity_name),
+           ebrigade_activity_type = COALESCE($19, ebrigade_activity_type),
+           ebrigade_duration_hours = COALESCE($20::numeric, ebrigade_duration_hours),
+           ebrigade_start_time = COALESCE($21, ebrigade_start_time),
+           ebrigade_end_time = COALESCE($22, ebrigade_end_time),
            updated_at = NOW()
          WHERE id = $14
          RETURNING *`,
-        [pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status, id]
+        [pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status, id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time]
       )
 
       const rows = (q && q.rows) ? q.rows : []

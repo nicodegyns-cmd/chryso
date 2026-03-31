@@ -409,6 +409,19 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         effective.garde_hours = effective.ebrigade_duration_hours - effective.sortie_hours
       }
 
+      // Ensure eBrigade data is included in the save
+      // This preserves ANALYTIQUE and other eBrigade info
+      if (editing.isEBrigade) {
+        effective.ebrigade_personnel_id = editing.ebrigade_personnel_id
+        effective.ebrigade_personnel_name = editing.ebrigade_personnel_name
+        effective.ebrigade_activity_code = editing.ebrigade_activity_code
+        effective.ebrigade_activity_name = editing.ebrigade_activity_name
+        effective.ebrigade_activity_type = editing.ebrigade_activity_type
+        effective.ebrigade_duration_hours = editing.ebrigade_duration_hours
+        effective.ebrigade_start_time = editing.ebrigade_start_time
+        effective.ebrigade_end_time = editing.ebrigade_end_time
+      }
+
       // Handle new prestation (POST) vs updating existing one (PATCH)
       let r
       if (isNewPrestation) {
