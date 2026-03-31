@@ -27,6 +27,16 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      // Log incoming payload for debugging eBrigade saves (temporary)
+      try{
+        console.log('[admin/prestations] POST payload keys:', Object.keys(req.body || {}))
+        // avoid logging full PII; show specific eBrigade keys presence
+        console.log('[admin/prestations] ebrigade keys:', {
+          ebrigade_id: !!req.body?.ebrigade_id,
+          ebrigade_activity_code: !!req.body?.ebrigade_activity_code,
+          ebrigade_activity_type: !!req.body?.ebrigade_activity_type
+        })
+      }catch(e){/* ignore */}
       const {
         user_email,
         email,
@@ -125,6 +135,8 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PATCH') {
+      // Log incoming payload keys for debugging
+      try{ console.log('[admin/prestations] PATCH payload keys:', Object.keys(req.body || {})) }catch(e){}
       const { id } = req.query
       const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time } = req.body || {}
 
