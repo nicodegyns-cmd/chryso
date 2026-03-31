@@ -412,6 +412,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       // Ensure eBrigade data is included in the save
       // This preserves ANALYTIQUE and other eBrigade info
       if (editing.isEBrigade) {
+        effective.ebrigade_id = editing.ebrigade_id
         effective.ebrigade_personnel_id = editing.ebrigade_personnel_id
         effective.ebrigade_personnel_name = editing.ebrigade_personnel_name
         effective.ebrigade_activity_code = editing.ebrigade_activity_code

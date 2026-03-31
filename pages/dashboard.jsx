@@ -37,6 +37,8 @@ export default function DashboardPage() {
       isEBrigade: true,
       isActivity: false,
       source: 'ebrigade',
+      // eBrigade unique ID (for request reference)
+      ebrigade_id: ebrigadePrestation.id,
       // eBrigade data
       ebrigade_personnel_id: ebrigadePrestation.personnel?.id,
       ebrigade_personnel_name: `${ebrigadePrestation.personnel?.prenom || ''} ${ebrigadePrestation.personnel?.nom || ''}`.trim(),
