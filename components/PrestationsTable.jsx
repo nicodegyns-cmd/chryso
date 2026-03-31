@@ -64,16 +64,23 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   const role = clientRole || null
 
   // Derived flags for the edit modal rendering
-  // For eBrigade: use ebrigade_activity_type (ANALYTIQUE), for local: use pay_type (TYPE)
-  const _editPayTypeLower = (editing && editing.isEBrigade && editing.ebrigade_activity_type)
-    ? String(editing.ebrigade_activity_type).toLowerCase()
-    : (editing && editing.pay_type ? String(editing.pay_type).toLowerCase() : '')
+  // Always use ANALYTIQUE if available (from eBrigade or local activity)
+  // For eBrigade: use ebrigade_activity_type
+  // For local: use analytic_name (ANALYTIQUE), fallback to pay_type (TYPE)
+  const _editPayTypeLower = editing 
+    ? String(
+        editing.ebrigade_activity_type ||    // eBrigade prestation
+        editing.analytic_name ||              // Local activity with analytic
+        editing.pay_type ||                   // Fallback to type
+        ''
+      ).toLowerCase()
+    : ''
   
-  // For eBrigade: check if analytic contains "Garde NUIT", "Garde WEEK-END", or "Garde MEDECIN"
-  // For local: check if pay_type is "Garde" (but exclude Permanence)
-  const editingIsGarde = (editing && editing.isEBrigade) 
+  // Check if it's a Garde type that requires sortie_hours
+  // Only "Garde NUIT", "Garde WEEK-END", or "Garde MEDECIN" trigger sortie_hours
+  const editingIsGarde = editing
     ? (_editPayTypeLower.includes('garde') && (_editPayTypeLower.includes('nuit') || _editPayTypeLower.includes('week') || _editPayTypeLower.includes('medecin')))
-    : (_editPayTypeLower.includes('garde') && !_editPayTypeLower.includes('permanence'))
+    : false
   const editingIsPermanence = _editPayTypeLower.includes('permanence')
   const editingIsAPS = _editPayTypeLower.includes('aps')
   const editingIsRMP = _editPayTypeLower.includes('rmp')
