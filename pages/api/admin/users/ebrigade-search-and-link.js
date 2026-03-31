@@ -52,13 +52,13 @@ export default async function handler(req, res){
     // Update local DB
     const pool = getPool()
     let q, params
-    if (user_id){ q = 'UPDATE users SET ebrigade_id = $1 WHERE id = $2'; params = [ebrigadeId, user_id] }
-    else { q = 'UPDATE users SET ebrigade_id = $1 WHERE LOWER(email) = $2'; params = [ebrigadeId, String(email).toLowerCase()] }
+    if (user_id){ q = 'UPDATE users SET ebrigade_id = ? WHERE id = ?'; params = [ebrigadeId, user_id] }
+    else { q = 'UPDATE users SET ebrigade_id = ? WHERE LOWER(email) = ?'; params = [ebrigadeId, String(email).toLowerCase()] }
 
     const [result] = await pool.query(q, params)
     if (result.affectedRows === 0) return res.status(404).json({ error: 'user_not_found' })
 
-    const [rows] = await pool.query('SELECT id, email, ebrigade_id FROM users WHERE ebrigade_id = $1 LIMIT 1', [ebrigadeId])
+    const [rows] = await pool.query('SELECT id, email, ebrigade_id FROM users WHERE ebrigade_id = ? LIMIT 1', [ebrigadeId])
     return res.status(200).json({ matched: true, linked: true, ebrigadeId, user: (rows && rows[0]) || null })
   }catch(err){
     console.error('[api/admin/users/ebrigade-search-and-link] error', err && err.message)
