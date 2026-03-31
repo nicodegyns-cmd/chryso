@@ -25,7 +25,7 @@ export default async function handler(req, res){
         // Very small generator: insert a prestation row with provided info.
     // If analyticId is found, set it on the prestation so it links to analytic/activity context.
         const sql = `INSERT INTO prestations (user_id, analytic_id, activity_id, date, pay_type, remuneration_infi, status, created_at)
-             VALUES ($1, $2, $3, $4, $5, NULL, 'A saisir', NOW())`
+             VALUES (?, ?, ?, ?, ?, NULL, 'A saisir', NOW())`
         const [result] = await pool.execute(sql, [user_id, analyticId, activity_id || null, date, type])
     const id = result.insertId
 

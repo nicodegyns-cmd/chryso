@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
     // Find user by email
     const [userRows] = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
+      'SELECT id FROM users WHERE email = ?',
       [email]
     )
 
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
         validation_status,
         rejection_reason
       FROM documents 
-      WHERE user_id = $1
+      WHERE user_id = ?
       ORDER BY created_at DESC`,
       [userId]
     )

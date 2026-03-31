@@ -27,7 +27,7 @@ export default async function handler(req, res){
 
     if (analytic_id) {
       try{
-        const [allActs] = await pool.query('SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
+        const [allActs] = await pool.query('SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = ? ORDER BY date DESC', [analytic_id])
         if (allActs && allActs.length > 0){
           for (const a of allActs){
             const pt = (a.pay_type||'').toString().toLowerCase()
@@ -81,7 +81,7 @@ export default async function handler(req, res){
     let resolvedRole = user_role || ''
     if ((!resolvedRole || String(resolvedRole).trim() === '') && user_email){
       try{
-        const [urows] = await pool.query('SELECT role FROM users WHERE LOWER(email) = $1 LIMIT 1', [(user_email||'').toLowerCase()])
+        const [urows] = await pool.query('SELECT role FROM users WHERE LOWER(email) = ? LIMIT 1', [(user_email||'').toLowerCase()])
         if (urows && urows.length > 0 && urows[0].role) resolvedRole = urows[0].role
       }catch(e){ /* ignore lookup errors */ }
     }

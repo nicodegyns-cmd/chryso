@@ -99,7 +99,7 @@ export default async function handler(req, res){
         
         // Ensure activity_ebrigade_mappings table exists
         try {
-          await pool.query(
+          await pool.query(`
             CREATE TABLE IF NOT EXISTS activity_ebrigade_mappings (
               id SERIAL PRIMARY KEY,
               activity_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
@@ -107,8 +107,8 @@ export default async function handler(req, res){
               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               UNIQUE(activity_id, ebrigade_analytic_name)
             )
-          )
-          await pool.query(CREATE INDEX IF NOT EXISTS idx_activity_ebrigade_mappings_activity_id ON activity_ebrigade_mappings(activity_id))
+          `)
+          await pool.query(`CREATE INDEX IF NOT EXISTS idx_activity_ebrigade_mappings_activity_id ON activity_ebrigade_mappings(activity_id)`)
         } catch (tableErr) {
           console.log('[api/admin/activities] Table creation/check done')
         }

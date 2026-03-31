@@ -16,14 +16,14 @@ export default async function handler(req, res){
 
     // Get analytic details
     const [[analytic]] = await pool.query(
-      'SELECT id, name as analytic_name, code as analytic_code FROM analytics WHERE id = $1',
+      'SELECT id, name as analytic_name, code as analytic_code FROM analytics WHERE id = ?',
       [id]
     )
     if (!analytic) return res.status(404).json({ error: 'Analytic not found' })
 
     // Get all prestations with a PDF file for this analytic
     const [prestations] = await pool.query(
-      'SELECT id, date, invoice_number, request_ref, pdf_url FROM prestations WHERE analytic_id = $1 AND pdf_url IS NOT NULL AND pdf_url != "" ORDER BY date ASC',
+      'SELECT id, date, invoice_number, request_ref, pdf_url FROM prestations WHERE analytic_id = ? AND pdf_url IS NOT NULL AND pdf_url != "" ORDER BY date ASC',
       [id]
     )
 
@@ -144,7 +144,7 @@ export default async function handler(req, res){
     try{
       const [insertResult] = await pool.execute(
         `INSERT INTO pdf_sends (analytic_id, analytic_code, analytic_name, recipient_emails, prestation_count, first_prestation_date, last_prestation_date, filename, status, error_message, sent_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           analytic.analytic_code || '',
@@ -166,7 +166,7 @@ export default async function handler(req, res){
       if (prestationIds.length > 0 && batchId){
         const placeholders = prestationIds.map(() => '?').join(',')
         await pool.query(
-          `UPDATE prestations SET sent_in_batch_id = $1, status = 'Envoyé à la facturation' WHERE id IN (${placeholders})`,
+          `UPDATE prestations SET sent_in_batch_id = ?, status = 'Envoyé à la facturation' WHERE id IN (${placeholders})`,
           [batchId, ...prestationIds]
         )
       }

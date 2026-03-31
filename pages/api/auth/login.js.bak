@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     // Try to load roles from normalized tables (roles + user_roles)
     let dbRoles = []
     try {
-      const rolesSql = 'SELECT r.name FROM roles r JOIN user_roles ur ON ur.role_id = r.id WHERE ur.user_id = $1'
+      const rolesSql = 'SELECT r.name FROM roles r JOIN user_roles ur ON ur.role_id = r.id WHERE ur.user_id = ?'
       console.log('[SQL DEBUG] roles lookup', rolesSql, [user.id])
       const qRoles = await dbQuery(rolesSql, [user.id])
       const rows = Array.isArray(qRoles) ? qRoles : (qRoles && qRoles.rows) ? qRoles.rows : []

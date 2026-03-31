@@ -15,7 +15,7 @@ export const config = {
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = process.env.VERCEL 
-  $1 path.join('/tmp', 'uploads')
+  ? path.join('/tmp', 'uploads')
   : path.join(process.cwd(), 'public', 'uploads')
 
 if (!fs.existsSync(uploadsDir)) {

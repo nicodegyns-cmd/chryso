@@ -9,10 +9,10 @@ export default async function handler(req, res){
     try{
       let q, params
       if (user_id){
-        q = 'UPDATE users SET ebrigade_id = $1 WHERE id = $2'
+        q = 'UPDATE users SET ebrigade_id = ? WHERE id = ?'
         params = [ebrigade_id, user_id]
       } else if (email){
-        q = 'UPDATE users SET ebrigade_id = $1 WHERE LOWER(email) = $2'
+        q = 'UPDATE users SET ebrigade_id = ? WHERE LOWER(email) = ?'
         params = [ebrigade_id, String(email).toLowerCase()]
       } else {
         return res.status(400).json({ error: 'missing_identifier' })
@@ -22,7 +22,7 @@ export default async function handler(req, res){
       if (result.affectedRows === 0) return res.status(404).json({ error: 'user_not_found' })
 
       // return the updated user row
-      const [rows] = await pool.query('SELECT id, email, ebrigade_id FROM users WHERE ebrigade_id = $1 LIMIT 1', [ebrigade_id])
+      const [rows] = await pool.query('SELECT id, email, ebrigade_id FROM users WHERE ebrigade_id = ? LIMIT 1', [ebrigade_id])
       return res.status(200).json({ user: (rows && rows[0]) || null })
     }catch(err){
       console.error('[api/admin/users/link-ebrigade] error', err && err.message)
@@ -34,11 +34,11 @@ export default async function handler(req, res){
     const { ebrigade_id, email } = req.query || {}
     try{
       if (ebrigade_id){
-        const [rows] = await pool.query('SELECT id, email, ebrigade_id FROM users WHERE ebrigade_id = $1 LIMIT 1', [ebrigade_id])
+        const [rows] = await pool.query('SELECT id, email, ebrigade_id FROM users WHERE ebrigade_id = ? LIMIT 1', [ebrigade_id])
         return res.status(200).json({ user: (rows && rows[0]) || null })
       }
       if (email){
-        const [rows] = await pool.query('SELECT id, email, ebrigade_id FROM users WHERE LOWER(email) = $1 LIMIT 1', [String(email).toLowerCase()])
+        const [rows] = await pool.query('SELECT id, email, ebrigade_id FROM users WHERE LOWER(email) = ? LIMIT 1', [String(email).toLowerCase()])
         return res.status(200).json({ user: (rows && rows[0]) || null })
       }
       return res.status(400).json({ error: 'missing_query' })

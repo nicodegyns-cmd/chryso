@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     const pool = getPool()
 
     // Check if column exists
-    const [columns] = await pool.query(
+    const [columns] = await pool.query(`
       SELECT column_name FROM information_schema.columns 
       WHERE table_name = 'documents' AND column_name = 'file_data'
     `)

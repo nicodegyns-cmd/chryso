@@ -19,11 +19,11 @@ export default async function handler(req, res) {
     const pool = getPool();
 
     // MySQL doesn't support RETURNING; perform UPDATE then SELECT the row
-    const updateQuery = 
+    const updateQuery = `
       UPDATE documents
-      SET validation_status = $1, validated_at = NOW(), rejection_reason = $2
-      WHERE id = $3
-    ;
+      SET validation_status = ?, validated_at = NOW(), rejection_reason = ?
+      WHERE id = ?
+    `;
 
     const [updateResult] = await pool.query(updateQuery, [
       status,

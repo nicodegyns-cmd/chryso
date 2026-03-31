@@ -42,11 +42,21 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       setSearchLoading(true)
       setSearchError(null)
       try {
+        if (!liaisonQuery || liaisonQuery.trim() === '') {
+          setLiaisonOptions([])
+          return
+        }
         const resp = await fetch('/api/admin/users/ebrigade-search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lastname: liaisonQuery, qstrict: '0' })
         })
+        if (!resp.ok) {
+          const errText = await resp.text()
+          setSearchError(`Erreur ${resp.status}: ${errText.substring(0, 100)}`)
+          setLiaisonOptions([])
+          return
+        }
         const data = await resp.json()
         // expect proxy to return { remote: [...] } or similar
         const items = (data && data.remote && Array.isArray(data.remote)) ? data.remote : (Array.isArray(data) ? data : [])
@@ -71,11 +81,21 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
     try {
       setSearchLoading(true)
       setSearchError(null)
+      if (!forceQuery || forceQuery.trim() === '') {
+        setLiaisonOptions([])
+        return
+      }
       const resp = await fetch('/api/admin/users/ebrigade-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lastname: forceQuery || '', qstrict: '0' })
       })
+      if (!resp.ok) {
+        const errText = await resp.text()
+        setSearchError(`Erreur ${resp.status}: ${errText.substring(0, 100)}`)
+        setLiaisonOptions([])
+        return
+      }
       const data = await resp.json()
       const items = (data && data.remote && Array.isArray(data.remote)) ? data.remote : (Array.isArray(data) ? data : [])
       const opts = items.map((it) => ({ 
