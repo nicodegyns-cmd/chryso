@@ -34,6 +34,22 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     setConfirmPreview(null)
   }
 
+  // Initialize date filters to show previous month, current month, and next month
+  useEffect(() => {
+    const today = new Date()
+    
+    // Get first day of previous month
+    const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+    const dateFromValue = prevMonth.toISOString().split('T')[0]
+    
+    // Get last day of next month
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0)
+    const dateToValue = nextMonth.toISOString().split('T')[0]
+    
+    setDateFrom(dateFromValue)
+    setDateTo(dateToValue)
+  }, [])
+
   useEffect(()=>{
     if (typeof window === 'undefined') return
     const val = localStorage.getItem('role')
