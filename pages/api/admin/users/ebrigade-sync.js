@@ -110,7 +110,7 @@ export default async function handler(req, res) {
 
     if (unlinkedEmails.length > 0) {
       const unlinkedQuery = await query(
-        SELECT id, email FROM users WHERE email = ANY($1) AND liaison_ebrigade_id IS NULL,
+        `SELECT id, email FROM users WHERE email = ANY($1) AND liaison_ebrigade_id IS NULL`,
         [unlinkedEmails]
       )
       unlinkedQuery.rows.forEach(row => emailsNotLinked.add(row.email))
@@ -147,10 +147,10 @@ export default async function handler(req, res) {
       const invitationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
       const result = await query(
-        INSERT INTO users (email, first_name, last_name, liaison_ebrigade_id, onboarding_status, 
+        `INSERT INTO users (email, first_name, last_name, liaison_ebrigade_id, onboarding_status, 
          invitation_token, invitation_sent_at, invitation_expires_at, import_batch_id, is_active)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-         RETURNING id, email, first_name, last_name,
+         RETURNING id, email, first_name, last_name`,
         [
           email,
           firstName,
