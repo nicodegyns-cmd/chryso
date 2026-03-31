@@ -64,11 +64,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   const role = clientRole || null
 
   // Derived flags for the edit modal rendering
-  // Use pay_type to determine which fields to show
-  // For eBrigade prestations, also check ebrigade_activity_type
-  const _editPayTypeLower = (editing && (editing.pay_type || editing.ebrigade_activity_type)) ? String(editing.pay_type || editing.ebrigade_activity_type).toLowerCase() : ''
-  // For eBrigade: strict check for "Garde NUIT", "Garde WEEK-END", or "Garde MEDECIN" types
-  // For local: check if it's a "Garde" (but exclude Permanence)
+  // For eBrigade: use ebrigade_activity_type (ANALYTIQUE), for local: use pay_type (TYPE)
+  const _editPayTypeLower = (editing && editing.isEBrigade && editing.ebrigade_activity_type)
+    ? String(editing.ebrigade_activity_type).toLowerCase()
+    : (editing && editing.pay_type ? String(editing.pay_type).toLowerCase() : '')
+  
+  // For eBrigade: check if analytic contains "Garde NUIT", "Garde WEEK-END", or "Garde MEDECIN"
+  // For local: check if pay_type is "Garde" (but exclude Permanence)
   const editingIsGarde = (editing && editing.isEBrigade) 
     ? (_editPayTypeLower.includes('garde') && (_editPayTypeLower.includes('nuit') || _editPayTypeLower.includes('week') || _editPayTypeLower.includes('medecin')))
     : (_editPayTypeLower.includes('garde') && !_editPayTypeLower.includes('permanence'))
