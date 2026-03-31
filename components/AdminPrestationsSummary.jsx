@@ -176,7 +176,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
               onMouseEnter={(e)=>e.currentTarget.style.background='#eff6ff'}
               onMouseLeave={(e)=>e.currentTarget.style.background=(idx % 2 === 0 ? '#fff' : '#f9fafb')}
               >
-                <td style={{padding:12,fontSize:14,color:'#1f2937'}}><strong>#{it.request_ref || it.invoice_number || it.id}</strong></td>
+                <td style={{padding:12,fontSize:14,color:'#1f2937'}}><strong>#{it.ebrigade_id || it.request_ref || it.invoice_number || it.id}</strong></td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>
                   <div style={{fontWeight:500}}>{it.user_firstName || it.user_lastName ? `${it.user_firstName || ''} ${it.user_lastName || ''}`.trim() : (it.user_email || it.user_id || '-')}</div>
                   {it.user_email && <div style={{fontSize:12,color:'#6b7280'}}>{it.user_email}</div>}
