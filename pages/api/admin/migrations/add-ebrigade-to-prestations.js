@@ -1,4 +1,4 @@
-const { getPool } = require('../../../services/db')
+const { getPool } = require('../../../../services/db')
 
 export default async function handler(req, res) {
   const pool = getPool()
