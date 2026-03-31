@@ -67,7 +67,11 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   // Use pay_type to determine which fields to show
   // For eBrigade prestations, also check ebrigade_activity_type
   const _editPayTypeLower = (editing && (editing.pay_type || editing.ebrigade_activity_type)) ? String(editing.pay_type || editing.ebrigade_activity_type).toLowerCase() : ''
-  const editingIsGarde = _editPayTypeLower.includes('garde') || _editPayTypeLower.includes('permanence')
+  // For eBrigade: strict check for "Garde NUIT" or "Garde WEEK-END" types
+  // For local: check if it's a "Garde" (but exclude Permanence)
+  const editingIsGarde = editing.isEBrigade 
+    ? (_editPayTypeLower.includes('garde nuit') || _editPayTypeLower.includes('garde week'))
+    : (_editPayTypeLower.includes('garde') && !_editPayTypeLower.includes('permanence'))
   const editingIsPermanence = _editPayTypeLower.includes('permanence')
   const editingIsAPS = _editPayTypeLower.includes('aps')
   const editingIsRMP = _editPayTypeLower.includes('rmp')
