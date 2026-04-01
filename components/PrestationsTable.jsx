@@ -966,19 +966,12 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                 </div>
                 {/* New detailed breakdown */}
                 <div style={{marginTop:10,padding:10,border:'1px dashed #e2e8f0',borderRadius:6,background:'#fff'}}>
-                  <div style={{fontWeight:700,marginBottom:8}}>Détail estimation</div>
-                  <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
-                    <div style={{minWidth:200}}><strong>Taux utilisés (estimation):</strong>
-                      <div>Infirmier : {confirmPreview.rates ? confirmPreview.rates.infi : '—'} €/h</div>
-                      <div>Médecin : {confirmPreview.rates ? confirmPreview.rates.med : '—'} €/h</div>
-                      <div>Heures sup. x{confirmPreview.rates ? confirmPreview.rates.overtime_multiplier : '—'}</div>
-                    </div>
-                    
+                  <div style={{display:'flex',gap:12,flexWrap:'wrap',alignItems:'flex-start'}}>
                     {/* Show detailed breakdown if we have it */}
                     {confirmPreview.garde_amount_infi !== undefined && (
-                      <div style={{minWidth:250,padding:10,background:'#f0f9ff',borderRadius:6,borderLeft:'3px solid #3b82f6'}}>
-                        <strong>Décomposition Infirmier:</strong>
-                        <div style={{fontSize:13,marginTop:6}}>
+                      <div style={{flex:1,minWidth:250,padding:10,background:'#f0f9ff',borderRadius:6,borderLeft:'3px solid #3b82f6'}}>
+                        <strong style={{display:'block',marginBottom:8}}>Décomposition:</strong>
+                        <div style={{fontSize:13}}>
                           {confirmPreview.garde_hours > 0 && <div>Garde: {confirmPreview.garde_hours}h × {confirmPreview.rates?.detailed?.garde_infi || 0}€ = <strong>{confirmPreview.garde_amount_infi || 0}€</strong></div>}
                           {confirmPreview.sortie_hours > 0 && <div>Sortie: {confirmPreview.sortie_hours}h × {confirmPreview.rates?.detailed?.sortie_infi || 0}€ = <strong>{confirmPreview.sortie_amount_infi || 0}€</strong></div>}
                           {confirmPreview.overtime_hours > 0 && <div>Supp: {confirmPreview.overtime_hours}h × {confirmPreview.rates?.detailed?.garde_infi || 0}€ × 1.5 = <strong>{confirmPreview.overtime_amount_infi || 0}€</strong></div>}
@@ -987,10 +980,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                       </div>
                     )}
                     
-                    {confirmPreview.garde_amount_med !== undefined && confirmPreview.estimated_med > 0 && (
-                      <div style={{minWidth:250,padding:10,background:'#fef3c7',borderRadius:6,borderLeft:'3px solid #f59e0b'}}>
-                        <strong>Décomposition Médecin:</strong>
-                        <div style={{fontSize:13,marginTop:6}}>
+                    {!confirmPreview.garde_amount_infi && confirmPreview.estimated_med > 0 && (
+                      <div style={{flex:1,minWidth:250,padding:10,background:'#fef3c7',borderRadius:6,borderLeft:'3px solid #f59e0b'}}>
+                        <strong style={{display:'block',marginBottom:8}}>Décomposition Médecin:</strong>
+                        <div style={{fontSize:13}}>
                           {confirmPreview.garde_hours > 0 && <div>Garde: {confirmPreview.garde_hours}h × {confirmPreview.rates?.detailed?.garde_med || 0}€ = <strong>{confirmPreview.garde_amount_med || 0}€</strong></div>}
                           {confirmPreview.sortie_hours > 0 && <div>Sortie: {confirmPreview.sortie_hours}h × {confirmPreview.rates?.detailed?.sortie_med || 0}€ = <strong>{confirmPreview.sortie_amount_med || 0}€</strong></div>}
                           {confirmPreview.overtime_hours > 0 && <div>Supp: {confirmPreview.overtime_hours}h × {confirmPreview.rates?.detailed?.garde_med || 0}€ × 1.5 = <strong>{confirmPreview.overtime_amount_med || 0}€</strong></div>}
@@ -1002,17 +995,17 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                     {/* Fallback to simple display if no detailed breakdown */}
                     {confirmPreview.garde_amount_infi === undefined && (
                       <>
-                        <div style={{minWidth:200}}><strong>Montant estimé (infi):</strong>
-                          <div style={{fontWeight:700}}>{confirmPreview.estimated_infi ?? 0} €</div>
+                        <div style={{flex:1,minWidth:200}}><strong>Montant estimé (infi):</strong>
+                          <div style={{fontWeight:700,marginTop:4}}>{confirmPreview.estimated_infi ?? 0} €</div>
                         </div>
-                        <div style={{minWidth:200}}><strong>Montant estimé (med):</strong>
-                          <div style={{fontWeight:700}}>{confirmPreview.estimated_med ?? 0} €</div>
-                        </div>
+                        {confirmPreview.estimated_med > 0 && <div style={{flex:1,minWidth:200}}><strong>Montant estimé (med):</strong>
+                          <div style={{fontWeight:700,marginTop:4}}>{confirmPreview.estimated_med ?? 0} €</div>
+                        </div>}
                       </>
                     )}
                     
-                    <div style={{minWidth:200}}><strong>Dépenses:</strong>
-                      <div style={{fontWeight:700}}>{confirmPreview.expense_amount ?? 0} €</div>
+                    <div style={{flex:1,minWidth:200}}><strong>Dépenses:</strong>
+                      <div style={{fontWeight:700,marginTop:4}}>{confirmPreview.expense_amount ?? 0} €</div>
                     </div>
                   </div>
                 </div>
