@@ -8,13 +8,13 @@ export default async function handler(req, res){
       const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, created_at FROM activities WHERE id = $1', [id])
       if (!row) return res.status(404).json({ error: 'not found' })
       
-      // Get eBrigade mappings
+      // Get eBrigade name mappings
       let ebrigade_analytics = []
       try {
-        const ebQ = await pool.query('SELECT ebrigade_analytic_name FROM activity_ebrigade_mappings WHERE activity_id = $1 ORDER BY ebrigade_analytic_name', [id])
-        ebrigade_analytics = (ebQ && ebQ.rows) ? ebQ.rows.map(r => r.ebrigade_analytic_name) : []
+        const ebQ = await pool.query('SELECT ebrigade_analytic_name_pattern FROM activity_ebrigade_name_mappings WHERE activity_id = $1 ORDER BY ebrigade_analytic_name_pattern', [id])
+        ebrigade_analytics = (ebQ && ebQ.rows) ? ebQ.rows.map(r => r.ebrigade_analytic_name_pattern) : []
       } catch (ebErr) {
-        console.log('[api/admin/activities/[id]] activity_ebrigade_mappings table not available')
+        console.log('[api/admin/activities/[id]] activity_ebrigade_name_mappings table not available')
       }
       
       return res.status(200).json({ item: { ...row, ebrigade_analytics } })
@@ -42,38 +42,38 @@ export default async function handler(req, res){
         await pool.query(sql, params)
       }
       
-      // Update eBrigade mappings if provided
+      // Update eBrigade mappings if provided (now by NAME patterns)
       if (Array.isArray(ebrigade_analytics)) {
         try {
           // First ensure table exists
           await pool.query(`
-            CREATE TABLE IF NOT EXISTS activity_ebrigade_mappings (
+            CREATE TABLE IF NOT EXISTS activity_ebrigade_name_mappings (
               id SERIAL PRIMARY KEY,
               activity_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
-              ebrigade_analytic_name VARCHAR(255) NOT NULL,
+              ebrigade_analytic_name_pattern VARCHAR(255) NOT NULL,
               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-              UNIQUE(activity_id, ebrigade_analytic_name)
+              UNIQUE(activity_id, ebrigade_analytic_name_pattern)
             )
           `)
           
-          // Delete old mappings
-          await pool.query('DELETE FROM activity_ebrigade_mappings WHERE activity_id = $1', [id])
+          // Delete old mappings for this activity
+          await pool.query('DELETE FROM activity_ebrigade_name_mappings WHERE activity_id = $1', [id])
           
-          // Insert new mappings
-          console.log('[api/admin/activities/[id]] Saving eBrigade mappings for activity', id, ebrigade_analytics)
-          for (const analyticName of ebrigade_analytics) {
+          // Insert new NAME-based mappings
+          console.log('[api/admin/activities/[id]] Saving eBrigade name mappings for activity', id, ebrigade_analytics)
+          for (const namePattern of ebrigade_analytics) {
             try {
               await pool.query(
-                'INSERT INTO activity_ebrigade_mappings (activity_id, ebrigade_analytic_name) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-                [id, analyticName]
+                'INSERT INTO activity_ebrigade_name_mappings (activity_id, ebrigade_analytic_name_pattern) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                [id, namePattern]
               )
-              console.log('[api/admin/activities/[id]] Saved mapping', analyticName)
+              console.log('[api/admin/activities/[id]] Saved name mapping:', namePattern)
             } catch (mappingErr) {
-              console.warn('[api/admin/activities/[id]] Failed to save mapping for', analyticName, mappingErr.message)
+              console.warn('[api/admin/activities/[id]] Failed to save name mapping for', namePattern, mappingErr.message)
             }
           }
         } catch (ebErr) {
-          console.warn('[api/admin/activities/[id]] Failed to update eBrigade mappings:', ebErr.message)
+          console.warn('[api/admin/activities/[id]] Failed to update eBrigade name mappings:', ebErr.message)
         }
       }
       
@@ -82,10 +82,10 @@ export default async function handler(req, res){
       // Get eBrigade mappings for response
       let ebrigade_analytics_resp = []
       try {
-        const ebQ = await pool.query('SELECT ebrigade_analytic_name FROM activity_ebrigade_mappings WHERE activity_id = $1 ORDER BY ebrigade_analytic_name', [id])
-        ebrigade_analytics_resp = (ebQ && ebQ.rows) ? ebQ.rows.map(r => r.ebrigade_analytic_name) : []
+        const ebQ = await pool.query('SELECT ebrigade_analytic_name_pattern FROM activity_ebrigade_name_mappings WHERE activity_id = $1 ORDER BY ebrigade_analytic_name_pattern', [id])
+        ebrigade_analytics_resp = (ebQ && ebQ.rows) ? ebQ.rows.map(r => r.ebrigade_analytic_name_pattern) : []
       } catch (ebErr) {
-        console.log('[api/admin/activities/[id]] activity_ebrigade_mappings table not available')
+        console.log('[api/admin/activities/[id]] activity_ebrigade_name_mappings table not available')
       }
       
       return res.status(200).json({ item: { ...row, ebrigade_analytics: ebrigade_analytics_resp } })

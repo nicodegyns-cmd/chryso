@@ -19,9 +19,16 @@ export default async function handler(req, res){
       expense_amount = 0
     } = body
 
-    console.log('[estimate] RECEIVED INPUT:', { garde_hours, sortie_hours, overtime_hours, hours_actual, pay_type, ebrigade_activity_code: body.ebrigade_activity_code })
+    console.log('[estimate] RECEIVED INPUT:', { garde_hours, sortie_hours, overtime_hours, hours_actual, pay_type, analytic_name: body.analytic_name })
 
     const round2 = v => Math.round((Number(v||0) + Number.EPSILON) * 100) / 100
+
+    // Helper to extract name prefix before ' - ' or ' | ' or separator
+    const extractNamePrefix = (name) => {
+      if (!name) return null
+      const match = name.match(/^([^-|]+?)(?:\s*[-|]|\s*$)/)
+      return match ? match[1].trim() : name.trim()
+    }
 
     // try to resolve rates from activities via eBrigade mapping or classic analytic_id
     let rateGardeInfi = null, rateGardeMed = null
@@ -29,55 +36,51 @@ export default async function handler(req, res){
     const FALLBACK_INF = 20
     const FALLBACK_MED = 30
 
-    // Get ebrigade_activity_code if provided in request body
-    const ebrigade_activity_code = body.ebrigade_activity_code || null
     let allActs = []
 
-    // **PRIMARY: Direct lookup by eBrigade code in activity_ebrigade_mappings**
-    if (ebrigade_activity_code) {
+    // **PRIMARY: Lookup by eBrigade NAME PREFIX** (most reliable)
+    // If analytic_name is provided, extract prefix and match against eBrigade name mappings
+    if (analytic_name) {
       try {
-        const [mappings] = await pool.query(
-          'SELECT DISTINCT activity_id FROM activity_ebrigade_mappings WHERE ebrigade_analytic_name = $1',
-          [ebrigade_activity_code]
-        )
-        console.log('[estimate] Direct code lookup for code', ebrigade_activity_code, '- found', mappings.length, 'mappings')
-        if (mappings && mappings.length > 0) {
-          const activityIds = mappings.map(m => m.activity_id)
-          const [acts] = await pool.query(
-            'SELECT id, pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE id = ANY($1) ORDER BY date DESC',
-            [activityIds]
+        const namePrefix = extractNamePrefix(analytic_name)
+        if (namePrefix) {
+          console.log('[estimate] Looking up eBrigade name pattern:', namePrefix)
+          // Query new name-based mapping table
+          const [mappings] = await pool.query(
+            `SELECT DISTINCT a.id, a.pay_type, a.remuneration_infi, a.remuneration_med, a.date 
+             FROM activities a
+             INNER JOIN activity_ebrigade_name_mappings am ON a.id = am.activity_id
+             WHERE am.ebrigade_analytic_name_pattern = $1
+             ORDER BY a.date DESC`,
+            [namePrefix]
           )
-          allActs = acts || []
-          console.log('[estimate] Found activities via direct code lookup:', allActs.length)
+          if (mappings && mappings.length > 0) {
+            allActs = mappings
+            console.log('[estimate] ✓ Found via eBrigade name mapping:', { pattern: namePrefix, activities: mappings.length })
+          }
         }
-      } catch(e) { console.log('[estimate] Direct code lookup failed:', e.message) }
+      } catch(e) { 
+        console.log('[estimate] eBrigade name lookup failed:', e.message) 
+      }
     }
 
     // Fallback: try classic analytic_id if no eBrigade mapping found
     if (allActs.length === 0 && analytic_id) {
       try{
-        const [acts] = await pool.query('SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
+        const [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
         allActs = acts || []
-        console.log('[estimate] Found via analytic_id:', allActs)
+        console.log('[estimate] Found via analytic_id:', allActs.length)
       }catch(e){ console.log('[estimate] analytic_id lookup failed:', e.message) }
     }
 
     // Fallback 2: try analytic_code if still no activities found
     if (allActs.length === 0 && analytic_code) {
       try{
-        const [acts] = await pool.query('SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_code = $1 ORDER BY date DESC', [analytic_code])
+        const [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_code = $1 ORDER BY date DESC', [analytic_code])
         allActs = acts || []
-        console.log('[estimate] Found via analytic_code:', allActs)
+        console.log('[estimate] Found via analytic_code:', allActs.length)
       }catch(e){ console.log('[estimate] analytic_code lookup failed:', e.message) }
     }
-
-    // Fallback 3: try analytic_name (search for activities whose name contains the analytic_name keyword)
-    if (allActs.length === 0 && analytic_name) {
-      try {
-        // Extract the main keyword from analytic_name (e.g., "Permanence INFI" from "Permanence INFI | 14h -21h")
-        const keyword = extractPrefix(analytic_name)
-        console.log('[estimate] Searching for activity by name keyword:', keyword)
-        const [acts] = await pool.query(
           'SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_name ILIKE $1 OR name ILIKE $1 ORDER BY date DESC',
           [`%${keyword}%`]
         )

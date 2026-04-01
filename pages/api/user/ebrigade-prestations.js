@@ -114,25 +114,31 @@ export default async function handler(req, res) {
       sample: prestations.length > 0 ? prestations[0] : null
     })
 
-    // Load all mapped eBrigade analytics from activity_ebrigade_mappings
-    // Only show prestations whose analytics match mapped activities in the database
-    let mappedAnalytics = []
+    // Load all mapped eBrigade NAME PATTERNS from activity_ebrigade_name_mappings
+    // Only show prestations whose name pattern matches a mapped activity
+    let mappedNamePatterns = []
     try {
       const mappingsResult = await pool.query(
-        'SELECT DISTINCT ebrigade_analytic_name FROM activity_ebrigade_mappings'
+        'SELECT DISTINCT ebrigade_analytic_name_pattern FROM activity_ebrigade_name_mappings'
       )
-      mappedAnalytics = mappingsResult.rows.map(r => r.ebrigade_analytic_name)
-      console.log('[api/user/ebrigade-prestations] Loaded mapped analytics:', mappedAnalytics.length)
+      mappedNamePatterns = mappingsResult.rows.map(r => r.ebrigade_analytic_name_pattern)
+      console.log('[api/user/ebrigade-prestations] Loaded mapped name patterns:', mappedNamePatterns.length)
     } catch (mappingError) {
-      console.warn('[api/user/ebrigade-prestations] Could not load mappings, will show all prestations:', mappingError.message)
+      console.warn('[api/user/ebrigade-prestations] Could not load name mappings, will show all prestations:', mappingError.message)
     }
 
-    // Filter prestations to only those whose code is mapped in database
-    // ebrigade_analytic_name now stores CODES directly (e.g., "9610"), not names
+    // Helper to extract name prefix
+    const extractNamePrefix = (name) => {
+      if (!name) return null
+      const match = name.match(/^([^-|]+?)(?:\s*[-|]|\s*$)/)
+      return match ? match[1].trim() : name.trim()
+    }
+
+    // Filter prestations to only those whose name pattern is mapped
     const authorizedPrestations = prestations.filter(p => {
-      if (!p.E_CODE) return false
-      // Check if this code (E_CODE) exists in our mappings
-      return mappedAnalytics.includes(p.E_CODE.toString())
+      if (!p.E_LIBELLE) return false
+      const namePrefix = extractNamePrefix(p.E_LIBELLE)
+      return mappedNamePatterns.includes(namePrefix)
     })
 
     console.log('[api/user/ebrigade-prestations] After analytics filtering:', {

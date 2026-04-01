@@ -4,9 +4,10 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
   const [analyticId, setAnalyticId] = useState('')
   const [analytics, setAnalytics] = useState([])
   const [ebrigadeAnalytics, setEbrigadeAnalytics] = useState([])
-  const [selectedEbrigadeAnalytics, setSelectedEbrigadeAnalytics] = useState([]) // Array for multiple selections
+  const [selectedEbrigadeAnalytics, setSelectedEbrigadeAnalytics] = useState([]) // Array for name patterns
+  const [ebrigadePatternInput, setEbrigadePatternInput] = useState('') // Input for adding new patterns
   const [payType, setPayType] = useState('Permanence')
-  const [ebrigadeType, setEbrigadeType] = useState('Permanence')  // NEW: explicit eBrigade type
+  const [ebrigadeType, setEbrigadeType] = useState('Permanence')  // Activity type selector
   const [date, setDate] = useState('')
   const [remuInfi, setRemuInfi] = useState('')
   const [remuMed, setRemuMed] = useState('')
@@ -36,6 +37,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       setRemuInfi('')
       setRemuMed('')
       setSelectedEbrigadeAnalytics([])
+      setEbrigadePatternInput('')
       setError(null)
     }
   }, [initial, open])
@@ -131,33 +133,54 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
               </label>
             </div>
 
-            {/* Section: Mapping eBrigade */}
+            {/* Section: Mapping eBrigade by NAME PATTERNS */}
             <div style={{borderLeft:'3px solid #0ea5e9',paddingLeft:16,background:'#f0f9ff',padding:'12px',borderRadius:6}}>
-              <strong style={{display:'block',marginBottom:8,color:'#1f2937',fontSize:14}}>🔗 Associer à des analytiques eBrigade</strong>
-              <small style={{display:'block',marginBottom:10,color:'#0369a1',fontSize:12}}>Sélectionnez une ou plusieurs analytiques eBrigade (optionnel)</small>
-              {ebrigadeAnalytics.length === 0 ? (
-                <p style={{margin:0,color:'#6b7280',fontSize:13}}>Aucune analytique eBrigade disponible</p>
-              ) : (
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                  {ebrigadeAnalytics.map(a => (
-                    <label key={a.ebrigade_analytic_code} style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',padding:'8px',borderRadius:4,backgroundColor:'#fff',border:'1px solid #dbeafe'}}>
-                      <input 
-                        type="checkbox"
-                        checked={selectedEbrigadeAnalytics.includes(a.ebrigade_analytic_code)}
-                        onChange={e => {
-                          if (e.target.checked) {
-                            setSelectedEbrigadeAnalytics(prev => [...prev, a.ebrigade_analytic_code])
-                          } else {
-                            setSelectedEbrigadeAnalytics(prev => prev.filter(x => x !== a.ebrigade_analytic_code))
-                          }
-                        }}
-                        style={{cursor:'pointer'}}
-                      />
-                      <span style={{fontSize:13,color:'#1f2937'}}>{a.ebrigade_analytic_code} — {a.ebrigade_analytic_name}</span>
-                    </label>
+              <strong style={{display:'block',marginBottom:8,color:'#1f2937',fontSize:14}}>🔗 Associer à des analytiques eBrigade (par nom)</strong>
+              <small style={{display:'block',marginBottom:10,color:'#0369a1',fontSize:12}}>Tapez le nom eBrigade (ex: "Permanence INFI") → All matching codes will be associated</small>
+              
+              <div style={{display:'flex',gap:8,alignItems:'flex-end',marginBottom:12}}>
+                <div style={{flex:1}}>
+                  <input
+                    type="text"
+                    placeholder="e.g., Permanence INFI, Ambulance, Garde..."
+                    value={ebrigadePatternInput}
+                    onChange={e => setEbrigadePatternInput(e.target.value)}
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (ebrigadePatternInput.trim() && !selectedEbrigadeAnalytics.includes(ebrigadePatternInput.trim())) {
+                      setSelectedEbrigadeAnalytics(prev => [...prev, ebrigadePatternInput.trim()])
+                      setEbrigadePatternInput('')
+                    }
+                  }}
+                  style={{padding:'10px 16px',background:'#0ea5e9',color:'white',border:'none',borderRadius:6,cursor:'pointer',fontWeight:'500',whiteSpace:'nowrap'}}
+                >
+                  + Add
+                </button>
+              </div>
+              
+              {selectedEbrigadeAnalytics.length > 0 ? (
+                <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                  {selectedEbrigadeAnalytics.map(pattern => (
+                    <div key={pattern} style={{display:'flex',alignItems:'center',gap:6,background:'#dbeafe',color:'#1f2937',padding:'6px 12px',borderRadius:4,fontSize:13,fontWeight:'500'}}>
+                      {pattern}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEbrigadeAnalytics(prev => prev.filter(p => p !== pattern))}
+                        style={{background:'transparent',border:'none',color:'#e11d48',cursor:'pointer',fontSize:'16px',padding:'0 4px'}}
+                      >
+                        ×
+                      </button>
+                    </div>
                   ))}
                 </div>
+              ) : (
+                <p style={{margin:0,color:'#6b7280',fontSize:13}}>Aucun pattern associé (facultatif)</p>
               )}
+            </div>
             </div>
 
             {/* Section: Lien eBrigade - NOW CONTROLS BOTH TYPES */}

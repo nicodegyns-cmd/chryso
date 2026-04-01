@@ -50,16 +50,23 @@ export default async function handler(req, res) {
       return match ? match[1].trim() : name
     }
 
+    // Helper to extract name prefix before ' - ' or ' | '
+    const extractNamePrefix = (name) => {
+      if (!name) return null
+      const match = name.match(/^([^-|]+?)(?:\s*[-|]|\s*$)/)
+      return match ? match[1].trim() : name.trim()
+    }
+
     const analyticsMap = new Map()
     
     for (const p of allPrestations) {
-      if (p.E_CODE) {
-        // Use E_CODE as unique key directly (numeric codes like 9336, 9610, etc.)
-        const code = String(p.E_CODE)
-        if (!analyticsMap.has(code)) {
-          analyticsMap.set(code, {
-            ebrigade_analytic_code: code,
-            ebrigade_analytic_name: p.E_LIBELLE || `Code ${code}`, // fallback to code if no name
+      if (p.E_LIBELLE) {
+        // Extract name prefix (e.g., "Permanence INFI" from "Permanence INFI | 14h-21h")
+        const namePrefix = extractNamePrefix(p.E_LIBELLE)
+        if (namePrefix && !analyticsMap.has(namePrefix)) {
+          analyticsMap.set(namePrefix, {
+            ebrigade_analytic_code: namePrefix,  // Now actually the NAME, not code
+            ebrigade_analytic_name: p.E_LIBELLE || namePrefix, // Full description
             activity_type: p.TE_LIBELLE || '',
             local_activity_id: null,
             local_activity: null
@@ -68,23 +75,22 @@ export default async function handler(req, res) {
       }
     }
 
-    // Also add any codes that exist in activity_ebrigade_mappings but not in recent eBrigade API response
-    // This ensures codes already linked are still shown in checkboxes
+    // Also add any name patterns that exist in activity_ebrigade_name_mappings but not in recent eBrigade API response
     const { getPool: getPoolForMappings } = await import('../../../../services/db')
     const poolForMappings = getPoolForMappings()
     try {
       const existingMappingsResult = await poolForMappings.query(`
-        SELECT DISTINCT ebrigade_analytic_name
-        FROM activity_ebrigade_mappings
-        ORDER BY ebrigade_analytic_name
+        SELECT DISTINCT ebrigade_analytic_name_pattern
+        FROM activity_ebrigade_name_mappings
+        ORDER BY ebrigade_analytic_name_pattern
       `)
       for (const row of existingMappingsResult.rows) {
-        const code = row.ebrigade_analytic_name
+        const namePattern = row.ebrigade_analytic_name_pattern
         // Skip if already in map
-        if (!analyticsMap.has(code)) {
-          analyticsMap.set(code, {
-            ebrigade_analytic_code: code,
-            ebrigade_analytic_name: `Code ${code}`,
+        if (!analyticsMap.has(namePattern)) {
+          analyticsMap.set(namePattern, {
+            ebrigade_analytic_code: namePattern,
+            ebrigade_analytic_name: namePattern,
             activity_type: '',
             local_activity_id: null,
             local_activity: null
@@ -102,17 +108,17 @@ export default async function handler(req, res) {
     try {
       const enrichResult = await pool.query(`
         SELECT 
-          aam.ebrigade_analytic_name as code,
-          aam.activity_id,
-          a.name as activity_name
-        FROM activity_ebrigade_mappings aam
-        LEFT JOIN activities a ON aam.activity_id = a.id
+          nam.ebrigade_analytic_name_pattern as pattern,
+          nam.activity_id,
+          a.analytic_name as activity_name
+        FROM activity_ebrigade_name_mappings nam
+        LEFT JOIN activities a ON nam.activity_id = a.id
       `)
 
       // Enrich analytics with mapping info (which local activity they're linked to)
       for (const mapping of enrichResult.rows) {
-        const code = mapping.code
-        const entry = analyticsMap.get(code)
+        const pattern = mapping.pattern
+        const entry = analyticsMap.get(pattern)
         if (entry) {
           entry.local_activity_id = mapping.activity_id
           entry.local_activity = mapping.activity_name
