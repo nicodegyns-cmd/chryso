@@ -133,10 +133,40 @@ export default async function handler(req, res){
           if (updatedRow.remuneration_med || updatedRow.remuneration_infi){
             unitPrice = isMed ? Number(updatedRow.remuneration_med || updatedRow.remuneration_infi) : Number(updatedRow.remuneration_infi || updatedRow.remuneration_med)
           } else {
-            // 2) try to fetch recent activities for this analytic to infer rates
+            // 2) try to fetch recent activities linked via activity_ebrigade_mappings to infer rates
             try{
-              const [acts] = await pool.query('SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [updatedRow.analytic_id])
-                if (acts && acts.length > 0){
+              // First check if this prestation has an ebrigade_activity_code
+              let ebrigadeAnalytic = updatedRow.ebrigade_activity_code || null
+              let activityIds = []
+              
+              if (ebrigadeAnalytic) {
+                // Fetch activity IDs linked to this eBrigade analytic
+                const [mappings] = await pool.query(
+                  'SELECT activity_id FROM activity_ebrigade_mappings WHERE ebrigade_analytic_name = $1',
+                  [ebrigadeAnalytic]
+                )
+                if (mappings && mappings.length > 0) {
+                  activityIds = mappings.map(m => m.activity_id)
+                }
+              }
+              
+              // Fallback: if no eBrigade mapping, try classic analytic_id
+              let acts = []
+              if (activityIds.length > 0) {
+                const [result] = await pool.query(
+                  'SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE id = ANY($1) ORDER BY date DESC',
+                  [activityIds]
+                )
+                acts = result || []
+              } else if (updatedRow.analytic_id) {
+                const [result] = await pool.query(
+                  'SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC',
+                  [updatedRow.analytic_id]
+                )
+                acts = result || []
+              }
+              
+              if (acts && acts.length > 0){
                 // look for matching pay_type entries first, otherwise take first row
                 let chosen = null
                 for (const a of acts){
@@ -174,14 +204,35 @@ export default async function handler(req, res){
           if (gardeH > 0){
             const gUnit = await (async ()=>{
               try{
-                const [actsG] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%garde%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                let ebrigadeAnalytic = updatedRow.ebrigade_activity_code || null
+                let activityIds = []
+                if (ebrigadeAnalytic) {
+                  const [mappings] = await pool.query(
+                    'SELECT activity_id FROM activity_ebrigade_mappings WHERE ebrigade_analytic_name = $1',
+                    [ebrigadeAnalytic]
+                  )
+                  if (mappings && mappings.length > 0) activityIds = mappings.map(m => m.activity_id)
+                }
+                let actsG = []
+                if (activityIds.length > 0) {
+                  const [result] = await pool.query(
+                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE id = ANY($1) AND LOWER(pay_type) LIKE \'%garde%\' ORDER BY date DESC LIMIT 1',
+                    [activityIds]
+                  )
+                  actsG = result || []
+                } else if (updatedRow.analytic_id) {
+                  const [result] = await pool.query(
+                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE \'%garde%\' ORDER BY date DESC LIMIT 1',
+                    [updatedRow.analytic_id]
+                  )
+                  actsG = result || []
+                }
                 if (actsG && actsG.length>0){
                   const pref = isMed ? (actsG[0].remuneration_med ?? actsG[0].remuneration_infi) : (actsG[0].remuneration_infi ?? actsG[0].remuneration_med)
                   const val = Number(pref)
                   if (val && !isNaN(val) && val > 0) return val
                 }
               }catch(e){}
-              // fallback to previously resolved unitPrice or global fallback
               return (unitPrice && Number(unitPrice) > 0) ? Number(unitPrice) : (isMed ? FALLBACK_MED : FALLBACK_INF)
             })()
             gAmount = Number((gUnit * gardeH).toFixed(2))
@@ -190,22 +241,69 @@ export default async function handler(req, res){
           if (sortieH > 0){
             const sUnit = await (async ()=>{
               try{
-                // prefer explicit 'sortie' entries
-                const [actsSortie] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%sortie%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                let ebrigadeAnalytic = updatedRow.ebrigade_activity_code || null
+                let activityIds = []
+                if (ebrigadeAnalytic) {
+                  const [mappings] = await pool.query(
+                    'SELECT activity_id FROM activity_ebrigade_mappings WHERE ebrigade_analytic_name = $1',
+                    [ebrigadeAnalytic]
+                  )
+                  if (mappings && mappings.length > 0) activityIds = mappings.map(m => m.activity_id)
+                }
+                let actsSortie = []
+                if (activityIds.length > 0) {
+                  const [result] = await pool.query(
+                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE id = ANY($1) AND LOWER(pay_type) LIKE \'%sortie%\' ORDER BY date DESC LIMIT 1',
+                    [activityIds]
+                  )
+                  actsSortie = result || []
+                } else if (updatedRow.analytic_id) {
+                  const [result] = await pool.query(
+                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE \'%sortie%\' ORDER BY date DESC LIMIT 1',
+                    [updatedRow.analytic_id]
+                  )
+                  actsSortie = result || []
+                }
                 if (actsSortie && actsSortie.length>0){
                   const pref = isMed ? (actsSortie[0].remuneration_med ?? actsSortie[0].remuneration_infi) : (actsSortie[0].remuneration_infi ?? actsSortie[0].remuneration_med)
                   const val = Number(pref)
                   if (val && !isNaN(val) && val > 0) return val
                 }
                 // else prefer permanence
-                const [actsPerm] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%permanence%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                let actsPerm = []
+                if (activityIds.length > 0) {
+                  const [result] = await pool.query(
+                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE id = ANY($1) AND LOWER(pay_type) LIKE \'%permanence%\' ORDER BY date DESC LIMIT 1',
+                    [activityIds]
+                  )
+                  actsPerm = result || []
+                } else if (updatedRow.analytic_id) {
+                  const [result] = await pool.query(
+                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE \'%permanence%\' ORDER BY date DESC LIMIT 1',
+                    [updatedRow.analytic_id]
+                  )
+                  actsPerm = result || []
+                }
                 if (actsPerm && actsPerm.length>0){
                   const pref2 = isMed ? (actsPerm[0].remuneration_med ?? actsPerm[0].remuneration_infi) : (actsPerm[0].remuneration_infi ?? actsPerm[0].remuneration_med)
                   const val2 = Number(pref2)
                   if (val2 && !isNaN(val2) && val2 > 0) return val2
                 }
                 // else try astreinte
-                const [actsA] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%astreinte%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                let actsA = []
+                if (activityIds.length > 0) {
+                  const [result] = await pool.query(
+                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE id = ANY($1) AND LOWER(pay_type) LIKE \'%astreinte%\' ORDER BY date DESC LIMIT 1',
+                    [activityIds]
+                  )
+                  actsA = result || []
+                } else if (updatedRow.analytic_id) {
+                  const [result] = await pool.query(
+                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE \'%astreinte%\' ORDER BY date DESC LIMIT 1',
+                    [updatedRow.analytic_id]
+                  )
+                  actsA = result || []
+                }
                 if (actsA && actsA.length>0){
                   const pref3 = isMed ? (actsA[0].remuneration_med ?? actsA[0].remuneration_infi) : (actsA[0].remuneration_infi ?? actsA[0].remuneration_med)
                   const val3 = Number(pref3)
@@ -227,13 +325,48 @@ export default async function handler(req, res){
             // prefer permanence rate for overtime
             const overtimeUnit = await (async ()=>{
               try{
-                const [actsPerm] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%permanence%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                let ebrigadeAnalytic = updatedRow.ebrigade_activity_code || null
+                let activityIds = []
+                if (ebrigadeAnalytic) {
+                  const [mappings] = await pool.query(
+                    'SELECT activity_id FROM activity_ebrigade_mappings WHERE ebrigade_analytic_name = $1',
+                    [ebrigadeAnalytic]
+                  )
+                  if (mappings && mappings.length > 0) activityIds = mappings.map(m => m.activity_id)
+                }
+                let actsPerm = []
+                if (activityIds.length > 0) {
+                  const [result] = await pool.query(
+                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE id = ANY($1) AND LOWER(pay_type) LIKE \'%permanence%\' ORDER BY date DESC LIMIT 1',
+                    [activityIds]
+                  )
+                  actsPerm = result || []
+                } else if (updatedRow.analytic_id) {
+                  const [result] = await pool.query(
+                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE \'%permanence%\' ORDER BY date DESC LIMIT 1',
+                    [updatedRow.analytic_id]
+                  )
+                  actsPerm = result || []
+                }
                 if (actsPerm && actsPerm.length>0){
                   const pref = isMed ? (actsPerm[0].remuneration_med ?? actsPerm[0].remuneration_infi) : (actsPerm[0].remuneration_infi ?? actsPerm[0].remuneration_med)
                   const val = Number(pref)
                   if (val && !isNaN(val) && val > 0) return val
                 }
-                const [actsA] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%astreinte%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                let actsA = []
+                if (activityIds.length > 0) {
+                  const [result] = await pool.query(
+                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE id = ANY($1) AND LOWER(pay_type) LIKE \'%astreinte%\' ORDER BY date DESC LIMIT 1',
+                    [activityIds]
+                  )
+                  actsA = result || []
+                } else if (updatedRow.analytic_id) {
+                  const [result] = await pool.query(
+                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE \'%astreinte%\' ORDER BY date DESC LIMIT 1',
+                    [updatedRow.analytic_id]
+                  )
+                  actsA = result || []
+                }
                 if (actsA && actsA.length>0){
                   const pref2 = isMed ? (actsA[0].remuneration_med ?? actsA[0].remuneration_infi) : (actsA[0].remuneration_infi ?? actsA[0].remuneration_med)
                   const val2 = Number(pref2)
