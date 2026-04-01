@@ -104,9 +104,15 @@ export default async function handler(req, res){
       }catch(e){ console.log('[estimate] analytic_code lookup failed:', e.message) }
     }
 
+    let resolvedActivityName = null
+    
     if (allActs && allActs.length > 0){
       for (const a of allActs){
         const pt = (a.pay_type||'').toString().toLowerCase()
+        // Store the first matched activity name
+        if (!resolvedActivityName && a.pay_type) {
+          resolvedActivityName = a.pay_type
+        }
         // For Garde type activities, use remuneration_infi/med for Garde and remuneration_sortie_infi/med for Sortie
         if ((rateGardeInfi == null || rateGardeMed == null) && pt.includes('garde')){
           rateGardeInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : rateGardeInfi
@@ -192,6 +198,7 @@ export default async function handler(req, res){
       resolved_roles: resolvedRoles,
       isMed: !!isMed,
       isInfi: !!isInfi,
+      activity_name: resolvedActivityName || null,
       rates: {
         infi: displayInfi,
         med: displayMed,

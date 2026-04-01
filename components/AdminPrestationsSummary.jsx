@@ -21,6 +21,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
   const [estimatedAmounts, setEstimatedAmounts] = useState({})
   const [loadedIds, setLoadedIds] = useState(new Set())
   const [activityRates, setActivityRates] = useState({})
+  const [activityNames, setActivityNames] = useState({})
   const statuses = ["", "A saisir", "En attente d'approbation", "En attente d'envoie", "Envoyé à la facturation", "Annulé"]
   const [viewing, setViewing] = useState(null)
 
@@ -54,6 +55,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
       if (r.ok) {
         const d = await r.json()
         setActivityRates(s => ({...s, [p.id]: d.rates}))
+        setActivityNames(s => ({...s, [p.id]: d.activity_name}))
       }
     } catch (e) {
       console.error('load activity rates failed for', p.id, e)
@@ -262,7 +264,9 @@ export default function AdminPrestationsSummary({ limit = 8 }){
         <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.4)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:20}}>
           <div style={{width:'100%',maxWidth:800,background:'#fff',borderRadius:12,boxShadow:'0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',overflow:'auto',maxHeight:'90vh'}}>
             <div style={{padding:24,borderBottom:'1px solid #e5e7eb'}}>
-              <h3 style={{margin:0,fontSize:20,fontWeight:700,color:'#1f2937'}}>📋 Détails demande #{viewing.ebrigade_id || viewing.request_ref || viewing.invoice_number || viewing.id}</h3>
+              <h3 style={{margin:0,fontSize:20,fontWeight:700,color:'#1f2937'}}>
+                📋 {activityNames[viewing.id] ? `${activityNames[viewing.id]} - ` : ''}Détails demande #{viewing.ebrigade_id || viewing.request_ref || viewing.invoice_number || viewing.id}
+              </h3>
             </div>
 
             <div style={{padding:24}}>
