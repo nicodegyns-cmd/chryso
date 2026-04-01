@@ -299,6 +299,17 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       // prepare preview: list hours and an estimated total
       const payLowerForPreview = (editing.pay_type || '').toLowerCase()
       let gardeHoursForPreview = editing.garde_hours || 0
+      let sortieHoursForPreview = editing.sortie_hours || 0
+      
+      // Distribute hours_actual to garde_hours or sortie_hours based on pay_type
+      const hoursToDistribute = editing.hours_actual || 0
+      if (hoursToDistribute > 0) {
+        if (payLowerForPreview.includes('garde')) {
+          gardeHoursForPreview = hoursToDistribute
+        } else if (payLowerForPreview.includes('sortie') || payLowerForPreview.includes('perm') || payLowerForPreview.includes('astreinte')) {
+          sortieHoursForPreview = hoursToDistribute
+        }
+      }
       
       // For Garde activities: auto-calculate garde_hours from total duration - sortie_hours
       if (payLowerForPreview.includes('garde') && editing.ebrigade_duration_hours && editing.sortie_hours !== null && editing.sortie_hours !== undefined) {
@@ -308,7 +319,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       const preview = {
         hours_actual: editing.hours_actual || 0,
         garde_hours: gardeHoursForPreview,
-        sortie_hours: editing.sortie_hours || 0,
+        sortie_hours: sortieHoursForPreview,
         overtime_hours: editing.overtime_hours || 0,
         expense_amount: editing.expense_amount || 0
       }
