@@ -17,6 +17,8 @@ export default async function handler(req, res){
       expense_amount = 0
     } = body
 
+    console.log('[estimate] RECEIVED INPUT:', { garde_hours, sortie_hours, overtime_hours, hours_actual, pay_type, ebrigade_activity_code: body.ebrigade_activity_code })
+
     const round2 = v => Math.round((Number(v||0) + Number.EPSILON) * 100) / 100
 
     // try to resolve rates from activities via eBrigade mapping or classic analytic_id
@@ -29,23 +31,39 @@ export default async function handler(req, res){
     const ebrigade_activity_code = body.ebrigade_activity_code || null
     let allActs = []
 
+    // Helper to extract prefix (code) before ' - ' or ' | '
+    const extractPrefix = (name) => {
+      if (!name) return name
+      const match = name.match(/^([^-|]+?)(?:\s*[-|])/)
+      return match ? match[1].trim() : name
+    }
+
     if (ebrigade_activity_code) {
       // Priority: fetch activities via eBrigade mapping
+      // The ebrigade_activity_code is the E_CODE (e.g., "1001")
+      // But activity_ebrigade_mappings stores ebrigade_analytic_name like "1001 - Name"
+      // So we need to match by extracting the prefix
       try{
         const [mappings] = await pool.query(
-          'SELECT activity_id FROM activity_ebrigade_mappings WHERE ebrigade_analytic_name = $1',
-          [ebrigade_activity_code]
+          'SELECT activity_id, ebrigade_analytic_name FROM activity_ebrigade_mappings'
         )
         if (mappings && mappings.length > 0) {
-          const activityIds = mappings.map(m => m.activity_id)
-          const [acts] = await pool.query(
-            'SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE id = ANY($1) ORDER BY date DESC',
-            [activityIds]
-          )
-          allActs = acts || []
+          // Find mapping whose prefix matches our activity code
+          const matchingMappings = mappings.filter(m => {
+            const mappedPrefix = extractPrefix(m.ebrigade_analytic_name)
+            return mappedPrefix === ebrigade_activity_code || m.ebrigade_analytic_name === ebrigade_activity_code
+          })
+          console.log('[estimate] eBrigade mapping search:', { requested: ebrigade_activity_code, found: matchingMappings.length, mappings: mappings.map(m => m.ebrigade_analytic_name) })
+          if (matchingMappings.length > 0) {
+            const activityIds = matchingMappings.map(m => m.activity_id)
+            const [acts] = await pool.query(
+              'SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE id = ANY($1) ORDER BY date DESC',
+              [activityIds]
+            )
+            allActs = acts || []
+          }
         }
-      }catch(e){ /* ignore mapping lookup */ }
-    }
+      }catch(e){ console.log('[estimate] eBrigade mapping lookup failed:', e.message) }
 
     // Fallback: try classic analytic_id if no eBrigade mapping found
     if (allActs.length === 0 && analytic_id) {
@@ -86,6 +104,7 @@ export default async function handler(req, res){
     const payLower = (pay_type || '').toLowerCase()
     const OT_MULT = 1.5
     let estInfi = 0, estMed = 0
+    console.log('[estimate] RATE RESOLUTION:', { rateGardeInfi, rateGardeMed, rateSortieInfi, rateSortieMed, payLower, allActsLength: allActs.length })
     if (payLower.includes('garde')){
       estInfi = (Number(garde_hours) * rateGardeInfi) + (Number(sortie_hours) * rateSortieInfi) + (Number(overtime_hours) * rateGardeInfi * OT_MULT)
       estMed = (Number(garde_hours) * rateGardeMed) + (Number(sortie_hours) * rateSortieMed) + (Number(overtime_hours) * rateGardeMed * OT_MULT)
@@ -98,6 +117,7 @@ export default async function handler(req, res){
       estInfi = (Number(hours_actual) * rateGardeInfi) + (Number(overtime_hours) * rateGardeInfi * OT_MULT)
       estMed = (Number(hours_actual) * rateGardeMed) + (Number(overtime_hours) * rateGardeMed * OT_MULT)
     }
+    console.log('[estimate] CALC BEFORE ROLE:', { estInfi, estMed, payLower })
 
     // Debug: log incoming user role/email
     try{ console.log('[estimate] incoming', { user_role: user_role || null, user_email: user_email || null }) }catch(e){}
@@ -111,7 +131,6 @@ export default async function handler(req, res){
       }catch(e){ /* ignore lookup errors */ }
     }
     try{ console.log('[estimate] resolvedRole', resolvedRole) }catch(e){}
-    try{ console.debug('[estimate] resolvedRoles array', resolvedRoles) }catch(e){}
     // Support multi-role CSV stored in `users.role` (e.g. "INFI,admin") and legacy free-text values.
     const resolvedRoles = (resolvedRole && String(resolvedRole).length > 0)
       ? String(resolvedRole).split(',').map(r => r.trim().toUpperCase()).filter(Boolean)
@@ -120,8 +139,10 @@ export default async function handler(req, res){
     // Prefer canonical token detection (CSV) but fall back to legacy substring heuristics
     const isMed = resolvedRoles.includes('MED') || roleLow.includes('med') || roleLow.includes('médec') || roleLow.includes('doctor') || roleLow.includes('doc')
     const isInfi = resolvedRoles.includes('INFI') || roleLow.includes('infi') || roleLow.includes('infir') || roleLow.includes('infirm') || roleLow.includes('nurs')
+    console.log('[estimate] ROLE DETECTION:', { resolvedRole, resolvedRoles, isMed, isInfi, estInfiBeforeRole: estInfi, estMedBeforeRole: estMed })
     if (isMed) estInfi = 0
     if (isInfi) estMed = 0
+    console.log('[estimate] FINAL CALC:', { estimated_infi: estInfi, estimated_med: estMed })
 
     const estimated_total = round2(estInfi + estMed + Number(expense_amount || 0))
 
