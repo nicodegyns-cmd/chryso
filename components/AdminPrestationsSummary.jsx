@@ -244,7 +244,9 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                   </div>
                   <div>
                     <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>ANALYTIQUE</div>
-                    <div style={{fontSize:15,color:'#1f2937'}}>{viewing.ebrigade_activity_type || viewing.analytic_name || viewing.analytic_code || '-'}</div>
+                    <div style={{fontSize:15,color:'#1f2937'}}>
+                      {viewing.ebrigade_activity_name || viewing.ebrigade_activity_type || viewing.analytic_name || viewing.analytic_code || '-'}
+                    </div>
                   </div>
                   <div>
                     <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>STATUT</div>
@@ -288,7 +290,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
               {viewing.pay_type !== 'APS' && (viewing.remuneration_infi || viewing.remuneration_med) && (
                 <div style={{padding:12,border:'1px solid #e5e7eb',borderRadius:8,background:'#f9fafb',marginBottom:16}}>
                   <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#1f2937'}}>💶 Montants</div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
                     {viewing.remuneration_infi !== null && viewing.remuneration_infi !== undefined && (
                       <div>
                         <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT INFIRMIER</div>
@@ -302,6 +304,16 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                       </div>
                     )}
                   </div>
+                  
+                  {/* Detailed breakdown by garde/sortie if available */}
+                  {(viewing.garde_hours || viewing.sortie_hours) && (
+                    <div style={{fontSize:12,color:'#6b7280',padding:8,background:'#fff',borderRadius:6,border:'1px dashed #d1d5db'}}>
+                      <div style={{fontWeight:600,marginBottom:6,color:'#374151'}}>Décomposition:</div>
+                      {viewing.garde_hours > 0 && <div>• Garde: {viewing.garde_hours}h</div>}
+                      {viewing.sortie_hours > 0 && <div>• Sortie: {viewing.sortie_hours}h</div>}
+                      {viewing.overtime_hours > 0 && <div>• Supplémentaires: {viewing.overtime_hours}h (x1.5)</div>}
+                    </div>
+                  )}
                 </div>
               )}
 
