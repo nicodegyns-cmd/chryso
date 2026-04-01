@@ -69,34 +69,66 @@ export default async function handler(req, res) {
       }
     }
 
-    // Get the pool to check for existing mappings
+    // Also add any codes that exist in activity_ebrigade_mappings but not in eBrigade API response
+    // This ensures previously mapped codes are shown in checkboxes
+    const { getPool: getPoolForMappings } = await import('../../../../services/db')
+    const poolForMappings = getPoolForMappings()
+    try {
+      const existingMappingsResult = await poolForMappings.query(`
+        SELECT DISTINCT ebrigade_analytic_name 
+        FROM activity_ebrigade_mappings 
+        ORDER BY ebrigade_analytic_name
+      `)
+      for (const row of existingMappingsResult.rows) {
+        const analytName = row.ebrigade_analytic_name
+        if (!analyticsMap.has(analytName)) {
+          // Add code that exists in DB but not in recent eBrigade API response
+          // Extract the 4-digit code if it exists in the name
+          const codeMatch = analytName.match(/(\d{4})/)
+          const code = codeMatch ? codeMatch[1] : analytName
+          analyticsMap.set(analytName, {
+            ebrigade_analytic_code: code,
+            ebrigade_analytic_name: analytName,
+            activity_type: '',
+            local_analytic_id: null,
+            code: null,
+            name: null
+          })
+        }
+      }
+    } catch (e) {
+      console.warn('[ebrigade-analytics/available] Failed to load existing mappings:', e.message)
+      // Continue without this data
+    }
+
+    // Get the pool to check for existing mappings and enrich with local activity info
     const { getPool } = await import('../../../../services/db')
     const pool = getPool()
     
     try {
-      const mappingsResult = await pool.query(`
+      const enrichResult = await pool.query(`
         SELECT 
-          ebrigade_analytic_name,
-          local_analytic_id,
+          aam.ebrigade_analytic_name,
+          aam.activity_id,
           a.code,
           a.name
-        FROM ebrigade_analytics_mapping eam
-        LEFT JOIN analytics a ON eam.local_analytic_id = a.id
+        FROM activity_ebrigade_mappings aam
+        LEFT JOIN activities a ON aam.activity_id = a.id
       `)
 
-      // Enrich analytics with mapping info
-      for (const mapping of mappingsResult.rows) {
+      // Enrich analytics with mapping info (which local activity they're linked to)
+      for (const mapping of enrichResult.rows) {
         const entries = Array.from(analyticsMap.values())
         const entry = entries.find(e => e.ebrigade_analytic_name === mapping.ebrigade_analytic_name)
         if (entry) {
-          entry.local_analytic_id = mapping.local_analytic_id
+          entry.local_analytic_id = mapping.activity_id
           entry.code = mapping.code
           entry.name = mapping.name
         }
       }
     } catch (e) {
-      console.warn('[ebrigade-analytics/available] Failed to fetch mappings:', e.message)
-      // Continue without mappings if database fails
+      console.warn('[ebrigade-analytics/available] Failed to enrich with local activity data:', e.message)
+      // Continue without this enrichment
     }
 
     const availableAnalytics = Array.from(analyticsMap.values())
