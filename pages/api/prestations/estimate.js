@@ -47,7 +47,7 @@ export default async function handler(req, res){
           console.log('[estimate] Looking up eBrigade name pattern:', namePrefix)
           // Query new name-based mapping table - TRY EXACT MATCH FIRST
           let [mappings] = await pool.query(
-            `SELECT DISTINCT a.id, a.pay_type, a.remuneration_infi, a.remuneration_med, a.remuneration_sortie_infi, a.remuneration_sortie_med, a.date 
+            `SELECT DISTINCT a.id, a.analytic_name, a.pay_type, a.remuneration_infi, a.remuneration_med, a.remuneration_sortie_infi, a.remuneration_sortie_med, a.date 
              FROM activities a
              INNER JOIN activity_ebrigade_name_mappings am ON a.id = am.activity_id
              WHERE am.ebrigade_analytic_name_pattern = $1
@@ -59,7 +59,7 @@ export default async function handler(req, res){
           if (!mappings || mappings.length === 0) {
             console.log('[estimate] Exact pattern match failed, trying prefix match for:', namePrefix)
             [mappings] = await pool.query(
-              `SELECT DISTINCT a.id, a.pay_type, a.remuneration_infi, a.remuneration_med, a.remuneration_sortie_infi, a.remuneration_sortie_med, a.date 
+              `SELECT DISTINCT a.id, a.analytic_name, a.pay_type, a.remuneration_infi, a.remuneration_med, a.remuneration_sortie_infi, a.remuneration_sortie_med, a.date 
                FROM activities a
                INNER JOIN activity_ebrigade_name_mappings am ON a.id = am.activity_id
                WHERE $1 ILIKE am.ebrigade_analytic_name_pattern || '%'
@@ -81,10 +81,10 @@ export default async function handler(req, res){
     // Fallback: try classic analytic_id if no eBrigade mapping found
     if (allActs.length === 0 && analytic_id) {
       try{
-        let [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
+        let [acts] = await pool.query('SELECT id, analytic_name, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
         // If no exact match, try ILIKE pattern
         if (!acts || acts.length === 0) {
-          [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE $1::text ILIKE analytic_id || \'%\' ORDER BY date DESC', [analytic_id])
+          [acts] = await pool.query('SELECT id, analytic_name, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE $1::text ILIKE analytic_id || \'%\' ORDER BY date DESC', [analytic_id])
         }
         allActs = acts || []
         console.log('[estimate] Found via analytic_id:', allActs.length)
@@ -94,10 +94,10 @@ export default async function handler(req, res){
     // Fallback 2: try analytic_code if still no activities found
     if (allActs.length === 0 && analytic_code) {
       try{
-        let [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE analytic_code = $1 ORDER BY date DESC', [analytic_code])
+        let [acts] = await pool.query('SELECT id, analytic_name, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE analytic_code = $1 ORDER BY date DESC', [analytic_code])
         // If no exact match, try ILIKE pattern
         if (!acts || acts.length === 0) {
-          [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE $1::text ILIKE analytic_code || \'%\' ORDER BY date DESC', [analytic_code])
+          [acts] = await pool.query('SELECT id, analytic_name, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE $1::text ILIKE analytic_code || \'%\' ORDER BY date DESC', [analytic_code])
         }
         allActs = acts || []
         console.log('[estimate] Found via analytic_code:', allActs.length)
@@ -109,9 +109,9 @@ export default async function handler(req, res){
     if (allActs && allActs.length > 0){
       for (const a of allActs){
         const pt = (a.pay_type||'').toString().toLowerCase()
-        // Store the first matched activity name
-        if (!resolvedActivityName && a.pay_type) {
-          resolvedActivityName = a.pay_type
+        // Store the first matched activity's analytic_name
+        if (!resolvedActivityName && a.analytic_name) {
+          resolvedActivityName = a.analytic_name
         }
         // For Garde type activities, use remuneration_infi/med for Garde and remuneration_sortie_infi/med for Sortie
         if ((rateGardeInfi == null || rateGardeMed == null) && pt.includes('garde')){
