@@ -514,6 +514,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           hours_actual: editing.hours_actual || 0,
           pay_type: editing.pay_type || '',
           analytic_id: editing.analytic_id || null,
+          analytic_name: editing.analytic_name || null,
           user_role: (clientRole && clientRole !== 'user') ? clientRole : (editing.user_role || null),
           user_email: (typeof window !== 'undefined' ? localStorage.getItem('email') : null) || editing.user_email || editing.email || null,
           expense_amount: editing.expense_amount || 0
@@ -526,7 +527,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     }
     doEstimate()
     return ()=>{ cancelled = true }
-  }, [editing && editing.garde_hours, editing && editing.sortie_hours, editing && editing.overtime_hours, editing && editing.hours_actual, editing && editing.pay_type, editing && editing.analytic_id, clientRole])
+  }, [editing && editing.garde_hours, editing && editing.sortie_hours, editing && editing.overtime_hours, editing && editing.hours_actual, editing && editing.pay_type, editing && editing.analytic_id, editing && editing.analytic_name, clientRole])
 
   function confirmAndSave(){
     saveEdit(true)
