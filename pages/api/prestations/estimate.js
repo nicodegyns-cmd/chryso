@@ -19,37 +19,62 @@ export default async function handler(req, res){
 
     const round2 = v => Math.round((Number(v||0) + Number.EPSILON) * 100) / 100
 
-    // try to resolve rates from activities by analytic_id
+    // try to resolve rates from activities via eBrigade mapping or classic analytic_id
     let rateGardeInfi = null, rateGardeMed = null
     let rateSortieInfi = null, rateSortieMed = null
     const FALLBACK_INF = 20
     const FALLBACK_MED = 30
 
-    if (analytic_id) {
+    // Get ebrigade_activity_code if provided in request body
+    const ebrigade_activity_code = body.ebrigade_activity_code || null
+    let allActs = []
+
+    if (ebrigade_activity_code) {
+      // Priority: fetch activities via eBrigade mapping
       try{
-        const [allActs] = await pool.query('SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = ? ORDER BY date DESC', [analytic_id])
-        if (allActs && allActs.length > 0){
-          for (const a of allActs){
-            const pt = (a.pay_type||'').toString().toLowerCase()
-            if ((rateGardeInfi == null || rateGardeMed == null) && pt.includes('garde')){
-              rateGardeInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : rateGardeInfi
-              rateGardeMed = a.remuneration_med != null ? Number(a.remuneration_med) : rateGardeMed
-            }
-            if ((rateSortieInfi == null || rateSortieMed == null) && (pt.includes('sortie') || pt.includes('permanence') || pt.includes('astreinte'))){
-              rateSortieInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : rateSortieInfi
-              rateSortieMed = a.remuneration_med != null ? Number(a.remuneration_med) : rateSortieMed
-            }
-            if (rateGardeInfi != null && rateGardeMed != null && rateSortieInfi != null && rateSortieMed != null) break
-          }
-          if ((rateGardeInfi == null || rateGardeMed == null || rateSortieInfi == null || rateSortieMed == null) && allActs.length > 0){
-            const a = allActs[0]
-            if (rateGardeInfi == null) rateGardeInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : null
-            if (rateGardeMed == null) rateGardeMed = a.remuneration_med != null ? Number(a.remuneration_med) : null
-            if (rateSortieInfi == null) rateSortieInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : null
-            if (rateSortieMed == null) rateSortieMed = a.remuneration_med != null ? Number(a.remuneration_med) : null
-          }
+        const [mappings] = await pool.query(
+          'SELECT activity_id FROM activity_ebrigade_mappings WHERE ebrigade_analytic_name = $1',
+          [ebrigade_activity_code]
+        )
+        if (mappings && mappings.length > 0) {
+          const activityIds = mappings.map(m => m.activity_id)
+          const [acts] = await pool.query(
+            'SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE id = ANY($1) ORDER BY date DESC',
+            [activityIds]
+          )
+          allActs = acts || []
         }
+      }catch(e){ /* ignore mapping lookup */ }
+    }
+
+    // Fallback: try classic analytic_id if no eBrigade mapping found
+    if (allActs.length === 0 && analytic_id) {
+      try{
+        const [acts] = await pool.query('SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
+        allActs = acts || []
       }catch(e){ /* ignore */ }
+    }
+
+    if (allActs && allActs.length > 0){
+      for (const a of allActs){
+        const pt = (a.pay_type||'').toString().toLowerCase()
+        if ((rateGardeInfi == null || rateGardeMed == null) && pt.includes('garde')){
+          rateGardeInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : rateGardeInfi
+          rateGardeMed = a.remuneration_med != null ? Number(a.remuneration_med) : rateGardeMed
+        }
+        if ((rateSortieInfi == null || rateSortieMed == null) && (pt.includes('sortie') || pt.includes('permanence') || pt.includes('astreinte'))){
+          rateSortieInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : rateSortieInfi
+          rateSortieMed = a.remuneration_med != null ? Number(a.remuneration_med) : rateSortieMed
+        }
+        if (rateGardeInfi != null && rateGardeMed != null && rateSortieInfi != null && rateSortieMed != null) break
+      }
+      if ((rateGardeInfi == null || rateGardeMed == null || rateSortieInfi == null || rateSortieMed == null) && allActs.length > 0){
+        const a = allActs[0]
+        if (rateGardeInfi == null) rateGardeInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : null
+        if (rateGardeMed == null) rateGardeMed = a.remuneration_med != null ? Number(a.remuneration_med) : null
+        if (rateSortieInfi == null) rateSortieInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : null
+        if (rateSortieMed == null) rateSortieMed = a.remuneration_med != null ? Number(a.remuneration_med) : null
+      }
     }
 
     if (rateGardeInfi == null) rateGardeInfi = FALLBACK_INF
@@ -81,7 +106,7 @@ export default async function handler(req, res){
     let resolvedRole = user_role || ''
     if ((!resolvedRole || String(resolvedRole).trim() === '') && user_email){
       try{
-        const [urows] = await pool.query('SELECT role FROM users WHERE LOWER(email) = ? LIMIT 1', [(user_email||'').toLowerCase()])
+        const [urows] = await pool.query('SELECT role FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1', [user_email||''])
         if (urows && urows.length > 0 && urows[0].role) resolvedRole = urows[0].role
       }catch(e){ /* ignore lookup errors */ }
     }
