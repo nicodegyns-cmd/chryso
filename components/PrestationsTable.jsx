@@ -212,7 +212,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         ebrigade_start_time: p.startTime || null,
         ebrigade_end_time: p.endTime || null,
         // eBrigade prestation metadata
-        ebrigade_activity_code: p.ebrigade_activity_code || null,
+        ebrigade_activity_code: p.ebrigade_activity_code || p.analytic_code || p.activityCode || null,
         ebrigade_id: p.ebrigade_id || null,
         ebrigade_activity_name: p.ebrigade_activity_name || null,
         ebrigade_activity_type: p.ebrigade_activity_type || null,
