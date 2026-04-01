@@ -12,6 +12,7 @@ export default async function handler(req, res){
       hours_actual = 0,
       pay_type = '',
       analytic_id = null,
+      analytic_code = null,
       user_role = '' ,
       user_email = null,
       expense_amount = 0
@@ -76,7 +77,17 @@ export default async function handler(req, res){
       try{
         const [acts] = await pool.query('SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
         allActs = acts || []
-      }catch(e){ /* ignore */ }
+        console.log('[estimate] Found via analytic_id:', allActs)
+      }catch(e){ console.log('[estimate] analytic_id lookup failed:', e.message) }
+    }
+
+    // Fallback 2: try analytic_code if still no activities found
+    if (allActs.length === 0 && analytic_code) {
+      try{
+        const [acts] = await pool.query('SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_code = $1 ORDER BY date DESC', [analytic_code])
+        allActs = acts || []
+        console.log('[estimate] Found via analytic_code:', allActs)
+      }catch(e){ console.log('[estimate] analytic_code lookup failed:', e.message) }
     }
 
     if (allActs && allActs.length > 0){

@@ -347,6 +347,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           hours_actual: preview.hours_actual,
           pay_type: editing.pay_type,
           analytic_id: editing.analytic_id || null,
+          analytic_code: editing.analytic_code || null,
           ebrigade_activity_code: editing.ebrigade_activity_code || editing.activityCode || null,
           // Do not send the literal 'user' role — let server resolve by email when role is non-canonical
           user_role: (clientRole && clientRole !== 'user') ? clientRole : (editing.user_role || null),
