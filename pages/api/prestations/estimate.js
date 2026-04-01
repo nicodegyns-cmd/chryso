@@ -47,6 +47,7 @@ export default async function handler(req, res){
         const [mappings] = await pool.query(
           'SELECT activity_id, ebrigade_analytic_name FROM activity_ebrigade_mappings'
         )
+        console.log('[estimate] ALL activity_ebrigade_mappings from DB:', mappings.map(m => ({ activity_id: m.activity_id, ebrigade_analytic_name: m.ebrigade_analytic_name })))
         if (mappings && mappings.length > 0) {
           // Find mapping whose prefix matches our activity code
           const matchingMappings = mappings.filter(m => {
@@ -56,12 +57,16 @@ export default async function handler(req, res){
           console.log('[estimate] eBrigade mapping search:', { requested: ebrigade_activity_code, found: matchingMappings.length, mappings: mappings.map(m => m.ebrigade_analytic_name) })
           if (matchingMappings.length > 0) {
             const activityIds = matchingMappings.map(m => m.activity_id)
+            console.log('[estimate] Found matching activity_ids:', activityIds)
             const [acts] = await pool.query(
-              'SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE id = ANY($1) ORDER BY date DESC',
+              'SELECT id, pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE id = ANY($1) ORDER BY date DESC',
               [activityIds]
             )
+            console.log('[estimate] Activities from DB:', acts)
             allActs = acts || []
           }
+        } else {
+          console.log('[estimate] NO mappings found in activity_ebrigade_mappings table!')
         }
       }catch(e){ console.log('[estimate] eBrigade mapping lookup failed:', e.message) }
     }
