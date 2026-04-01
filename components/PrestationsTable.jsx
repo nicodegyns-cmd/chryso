@@ -194,7 +194,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         endTime: p.endTime,
         original_p: p
       })
-      setEditing({
+      const editingState = {
         id: null,
         analytic_id: p.analytic_id,
         analytic_name: p.analytic_name,
@@ -227,7 +227,16 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         isActivity: true, // Flag to force editable form for activities
         // mark as eBrigade if the incoming activity originates from eBrigade
         isEBrigade: !!(p.source === 'ebrigade' || p.activityCode || p.E_CODE || p.ebrigade_activity_code || p.ebrigade_id)
+      }
+      console.log('[openEdit] Setting editing state with eBrigade data:', {
+        ebrigade_activity_code: editingState.ebrigade_activity_code,
+        ebrigade_id: editingState.ebrigade_id,
+        ebrigade_activity_name: editingState.ebrigade_activity_name,
+        isActivity: editingState.isActivity,
+        p_ebrigade_activity_code: p.ebrigade_activity_code,
+        p_activityCode: p.activityCode
       })
+      setEditing(editingState)
       return
     }
     
