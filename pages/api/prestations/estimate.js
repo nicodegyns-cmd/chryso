@@ -45,8 +45,8 @@ export default async function handler(req, res){
         const namePrefix = extractNamePrefix(analytic_name)
         if (namePrefix) {
           console.log('[estimate] Looking up eBrigade name pattern:', namePrefix)
-          // Query new name-based mapping table
-          const [mappings] = await pool.query(
+          // Query new name-based mapping table - TRY EXACT MATCH FIRST
+          let [mappings] = await pool.query(
             `SELECT DISTINCT a.id, a.pay_type, a.remuneration_infi, a.remuneration_med, a.remuneration_sortie_infi, a.remuneration_sortie_med, a.date 
              FROM activities a
              INNER JOIN activity_ebrigade_name_mappings am ON a.id = am.activity_id
@@ -54,6 +54,20 @@ export default async function handler(req, res){
              ORDER BY a.date DESC`,
             [namePrefix]
           )
+          
+          // If exact match fails, try partial match with ILIKE
+          if (!mappings || mappings.length === 0) {
+            console.log('[estimate] Exact pattern match failed, trying ILIKE for:', namePrefix)
+            [mappings] = await pool.query(
+              `SELECT DISTINCT a.id, a.pay_type, a.remuneration_infi, a.remuneration_med, a.remuneration_sortie_infi, a.remuneration_sortie_med, a.date 
+               FROM activities a
+               INNER JOIN activity_ebrigade_name_mappings am ON a.id = am.activity_id
+               WHERE am.ebrigade_analytic_name_pattern ILIKE $1 || '%'
+               ORDER BY a.date DESC`,
+              [namePrefix]
+            )
+          }
+          
           if (mappings && mappings.length > 0) {
             allActs = mappings
             console.log('[estimate] ✓ Found via eBrigade name mapping:', { pattern: namePrefix, activities: mappings.length })
