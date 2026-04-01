@@ -127,23 +127,12 @@ export default async function handler(req, res) {
       console.warn('[api/user/ebrigade-prestations] Could not load mappings, will show all prestations:', mappingError.message)
     }
 
-    // Helper to extract prefix before ' - ' or ' | '
-    const extractPrefix = (name) => {
-      if (!name) return name
-      const match = name.match(/^([^-|]+?)(?:\s*[-|])/)
-      return match ? match[1].trim() : name
-    }
-
-    // Filter prestations to only those whose analytic is mapped in database
+    // Filter prestations to only those whose code is mapped in database
+    // ebrigade_analytic_name now stores CODES directly (e.g., "9610"), not names
     const authorizedPrestations = prestations.filter(p => {
-      if (!p.E_LIBELLE) return false
-      const prestationPrefix = extractPrefix(p.E_LIBELLE)
-      
-      // Check if this analytic exists in our mappings
-      return mappedAnalytics.some(mapped => {
-        const mappedPrefix = extractPrefix(mapped)
-        return prestationPrefix === mappedPrefix
-      })
+      if (!p.E_CODE) return false
+      // Check if this code (E_CODE) exists in our mappings
+      return mappedAnalytics.includes(p.E_CODE.toString())
     })
 
     console.log('[api/user/ebrigade-prestations] After analytics filtering:', {
