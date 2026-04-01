@@ -55,14 +55,14 @@ export default async function handler(req, res){
             [namePrefix]
           )
           
-          // If exact match fails, try partial match with ILIKE
+          // If exact match fails, try partial match - check if extracted PREFIX starts with stored PATTERN
           if (!mappings || mappings.length === 0) {
-            console.log('[estimate] Exact pattern match failed, trying ILIKE for:', namePrefix)
+            console.log('[estimate] Exact pattern match failed, trying prefix match for:', namePrefix)
             [mappings] = await pool.query(
               `SELECT DISTINCT a.id, a.pay_type, a.remuneration_infi, a.remuneration_med, a.remuneration_sortie_infi, a.remuneration_sortie_med, a.date 
                FROM activities a
                INNER JOIN activity_ebrigade_name_mappings am ON a.id = am.activity_id
-               WHERE am.ebrigade_analytic_name_pattern ILIKE $1 || '%'
+               WHERE $1 ILIKE am.ebrigade_analytic_name_pattern || '%'
                ORDER BY a.date DESC`,
               [namePrefix]
             )
