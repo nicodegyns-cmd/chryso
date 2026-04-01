@@ -181,7 +181,6 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
                 <p style={{margin:0,color:'#6b7280',fontSize:13}}>Aucun pattern associé (facultatif)</p>
               )}
             </div>
-            </div>
 
             {/* Section: Lien eBrigade - NOW CONTROLS BOTH TYPES */}
             <div style={{borderLeft:'3px solid #8b5cf6',paddingLeft:16}}>

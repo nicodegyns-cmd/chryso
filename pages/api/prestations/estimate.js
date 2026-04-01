@@ -81,13 +81,6 @@ export default async function handler(req, res){
         console.log('[estimate] Found via analytic_code:', allActs.length)
       }catch(e){ console.log('[estimate] analytic_code lookup failed:', e.message) }
     }
-          'SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_name ILIKE $1 OR name ILIKE $1 ORDER BY date DESC',
-          [`%${keyword}%`]
-        )
-        allActs = acts || []
-        console.log('[estimate] Found via analytic_name:', allActs)
-      } catch(e) { console.log('[estimate] analytic_name lookup failed:', e.message) }
-    }
 
     if (allActs && allActs.length > 0){
       for (const a of allActs){
