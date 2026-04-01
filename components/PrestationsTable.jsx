@@ -211,6 +211,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         ebrigade_duration_hours: p.duration || null,
         ebrigade_start_time: p.startTime || null,
         ebrigade_end_time: p.endTime || null,
+        // eBrigade prestation metadata
+        ebrigade_activity_code: p.ebrigade_activity_code || null,
+        ebrigade_id: p.ebrigade_id || null,
+        ebrigade_activity_name: p.ebrigade_activity_name || null,
+        ebrigade_activity_type: p.ebrigade_activity_type || null,
+        ebrigade_personnel_id: p.ebrigade_personnel_id || null,
+        ebrigade_personnel_name: p.ebrigade_personnel_name || null,
         status: 'A saisir',
         user_email: email,
         expense_amount: null,
@@ -324,21 +331,23 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       try{
         // debug: log current client/local role/email before requesting server estimate
         try{ console.debug('calling estimate', { clientRole, localRole: (typeof window !== 'undefined' ? localStorage.getItem('role') : null), localEmail: (typeof window !== 'undefined' ? localStorage.getItem('email') : null), editingEmail: editing.user_email || editing.email }) }catch(e){}
-            const resp = await fetch('/api/prestations/estimate', {
+        const estimatePayload = {
+          garde_hours: preview.garde_hours,
+          sortie_hours: preview.sortie_hours,
+          overtime_hours: preview.overtime_hours,
+          hours_actual: preview.hours_actual,
+          pay_type: editing.pay_type,
+          analytic_id: editing.analytic_id || null,
+          ebrigade_activity_code: editing.ebrigade_activity_code || editing.activityCode || null,
+          // Do not send the literal 'user' role — let server resolve by email when role is non-canonical
+          user_role: (clientRole && clientRole !== 'user') ? clientRole : (editing.user_role || null),
+          user_email: (typeof window !== 'undefined' ? localStorage.getItem('email') : null) || editing.user_email || editing.email || null,
+          expense_amount: preview.expense_amount || 0
+        }
+        console.log('ESTIMATE PAYLOAD SENT:', estimatePayload)
+        const resp = await fetch('/api/prestations/estimate', {
           method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({
-            garde_hours: preview.garde_hours,
-            sortie_hours: preview.sortie_hours,
-            overtime_hours: preview.overtime_hours,
-            hours_actual: preview.hours_actual,
-            pay_type: editing.pay_type,
-            analytic_id: editing.analytic_id || null,
-            ebrigade_activity_code: editing.ebrigade_activity_code || editing.activityCode || null,
-            // Do not send the literal 'user' role — let server resolve by email when role is non-canonical
-            user_role: (clientRole && clientRole !== 'user') ? clientRole : (editing.user_role || null),
-            user_email: (typeof window !== 'undefined' ? localStorage.getItem('email') : null) || editing.user_email || editing.email || null,
-            expense_amount: preview.expense_amount || 0
-          })
+          body: JSON.stringify(estimatePayload)
         })
         if (resp.ok){
           const data = await resp.json()
