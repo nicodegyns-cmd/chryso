@@ -47,7 +47,7 @@ export default async function handler(req, res){
           console.log('[estimate] Looking up eBrigade name pattern:', namePrefix)
           // Query new name-based mapping table
           const [mappings] = await pool.query(
-            `SELECT DISTINCT a.id, a.pay_type, a.remuneration_infi, a.remuneration_med, a.date 
+            `SELECT DISTINCT a.id, a.pay_type, a.remuneration_infi, a.remuneration_med, a.remuneration_sortie_infi, a.remuneration_sortie_med, a.date 
              FROM activities a
              INNER JOIN activity_ebrigade_name_mappings am ON a.id = am.activity_id
              WHERE am.ebrigade_analytic_name_pattern = $1
@@ -67,7 +67,7 @@ export default async function handler(req, res){
     // Fallback: try classic analytic_id if no eBrigade mapping found
     if (allActs.length === 0 && analytic_id) {
       try{
-        const [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
+        const [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
         allActs = acts || []
         console.log('[estimate] Found via analytic_id:', allActs.length)
       }catch(e){ console.log('[estimate] analytic_id lookup failed:', e.message) }
@@ -76,7 +76,7 @@ export default async function handler(req, res){
     // Fallback 2: try analytic_code if still no activities found
     if (allActs.length === 0 && analytic_code) {
       try{
-        const [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_code = $1 ORDER BY date DESC', [analytic_code])
+        const [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE analytic_code = $1 ORDER BY date DESC', [analytic_code])
         allActs = acts || []
         console.log('[estimate] Found via analytic_code:', allActs.length)
       }catch(e){ console.log('[estimate] analytic_code lookup failed:', e.message) }
@@ -85,13 +85,15 @@ export default async function handler(req, res){
     if (allActs && allActs.length > 0){
       for (const a of allActs){
         const pt = (a.pay_type||'').toString().toLowerCase()
+        // For Garde type activities, use remuneration_infi/med for Garde and remuneration_sortie_infi/med for Sortie
         if ((rateGardeInfi == null || rateGardeMed == null) && pt.includes('garde')){
           rateGardeInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : rateGardeInfi
           rateGardeMed = a.remuneration_med != null ? Number(a.remuneration_med) : rateGardeMed
         }
-        if ((rateSortieInfi == null || rateSortieMed == null) && (pt.includes('sortie') || pt.includes('permanence') || pt.includes('astreinte'))){
-          rateSortieInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : rateSortieInfi
-          rateSortieMed = a.remuneration_med != null ? Number(a.remuneration_med) : rateSortieMed
+        // For Sortie/Permanence/Astreinte, use remuneration_sortie_infi/med if available, else remuneration_infi/med
+        if ((rateSortieInfi == null || rateSortieMed == null) && (pt.includes('sortie') || pt.includes('permanence') || pt.includes('astreinte') || pt.includes('garde'))){
+          rateSortieInfi = a.remuneration_sortie_infi != null ? Number(a.remuneration_sortie_infi) : (a.remuneration_infi != null ? Number(a.remuneration_infi) : rateSortieInfi)
+          rateSortieMed = a.remuneration_sortie_med != null ? Number(a.remuneration_sortie_med) : (a.remuneration_med != null ? Number(a.remuneration_med) : rateSortieMed)
         }
         if (rateGardeInfi != null && rateGardeMed != null && rateSortieInfi != null && rateSortieMed != null) break
       }
@@ -99,8 +101,9 @@ export default async function handler(req, res){
         const a = allActs[0]
         if (rateGardeInfi == null) rateGardeInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : null
         if (rateGardeMed == null) rateGardeMed = a.remuneration_med != null ? Number(a.remuneration_med) : null
-        if (rateSortieInfi == null) rateSortieInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : null
-        if (rateSortieMed == null) rateSortieMed = a.remuneration_med != null ? Number(a.remuneration_med) : null
+        // For sortie, prefer remuneration_sortie_* columns, fallback to remuneration_infi/med
+        if (rateSortieInfi == null) rateSortieInfi = a.remuneration_sortie_infi != null ? Number(a.remuneration_sortie_infi) : (a.remuneration_infi != null ? Number(a.remuneration_infi) : null)
+        if (rateSortieMed == null) rateSortieMed = a.remuneration_sortie_med != null ? Number(a.remuneration_sortie_med) : (a.remuneration_med != null ? Number(a.remuneration_med) : null)
       }
     }
 
