@@ -20,10 +20,45 @@ export default function AdminPrestationsSummary({ limit = 8 }){
   const [refusalReason, setRefusalReason] = useState('')
   const [estimatedAmounts, setEstimatedAmounts] = useState({})
   const [loadedIds, setLoadedIds] = useState(new Set())
+  const [activityRates, setActivityRates] = useState({})
   const statuses = ["", "A saisir", "En attente d'approbation", "En attente d'envoie", "Envoyé à la facturation", "Annulé"]
   const [viewing, setViewing] = useState(null)
 
+  // Load activity rates when viewing a prestation
+  useEffect(() => {
+    if (viewing && !activityRates[viewing.id]) {
+      loadActivityRates(viewing)
+    }
+  }, [viewing, activityRates])
+
   useEffect(()=>{ fetchItems() }, [])
+
+  async function loadActivityRates(p) {
+    try {
+      const r = await fetch('/api/prestations/estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hours_actual: p.hours_actual || 0,
+          garde_hours: p.garde_hours || 0,
+          sortie_hours: p.sortie_hours || 0,
+          overtime_hours: p.overtime_hours || 0,
+          pay_type: p.pay_type,
+          analytic_id: p.analytic_id,
+          analytic_code: p.analytic_code || null,
+          analytic_name: p.ebrigade_activity_name || p.analytic_name || null,
+          user_email: p.user_email,
+          expense_amount: p.expense_amount || 0
+        })
+      })
+      if (r.ok) {
+        const d = await r.json()
+        setActivityRates(s => ({...s, [p.id]: d.rates}))
+      }
+    } catch (e) {
+      console.error('load activity rates failed for', p.id, e)
+    }
+  }
 
   async function loadEstimatedAmounts(prestations) {
     setEstimatedAmounts(prev => {
@@ -317,6 +352,58 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                       {viewing.garde_hours > 0 && <div>• Garde: {viewing.garde_hours}h</div>}
                       {viewing.sortie_hours > 0 && <div>• Sortie: {viewing.sortie_hours}h</div>}
                       {viewing.overtime_hours > 0 && <div>• Supplémentaires: {viewing.overtime_hours}h (x1.5)</div>}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Section Tarifs de l'activité locale */}
+              {activityRates[viewing.id] && (
+                <div style={{padding:12,border:'1px solid #d97706',borderRadius:8,background:'#fffbeb',marginBottom:16}}>
+                  <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>📍 Tarifs de l'activité locale</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+                    {activityRates[viewing.id].detailed?.garde_infi != null && (
+                      <div>
+                        <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>GARDE - INFIRMIER</div>
+                        <div style={{fontSize:14,fontWeight:600,color:'#d97706'}}>{activityRates[viewing.id].detailed.garde_infi} €/h</div>
+                      </div>
+                    )}
+                    {activityRates[viewing.id].detailed?.garde_med != null && (
+                      <div>
+                        <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>GARDE - MÉDECIN</div>
+                        <div style={{fontSize:14,fontWeight:600,color:'#d97706'}}>{activityRates[viewing.id].detailed.garde_med} €/h</div>
+                      </div>
+                    )}
+                    {activityRates[viewing.id].detailed?.sortie_infi != null && (
+                      <div>
+                        <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>SORTIE - INFIRMIER</div>
+                        <div style={{fontSize:14,fontWeight:600,color:'#d97706'}}>{activityRates[viewing.id].detailed.sortie_infi} €/h</div>
+                      </div>
+                    )}
+                    {activityRates[viewing.id].detailed?.sortie_med != null && (
+                      <div>
+                        <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>SORTIE - MÉDECIN</div>
+                        <div style={{fontSize:14,fontWeight:600,color:'#d97706'}}>{activityRates[viewing.id].detailed.sortie_med} €/h</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Detailed calculation breakdown */}
+                  {(viewing.garde_hours || viewing.sortie_hours) && (
+                    <div style={{fontSize:11,color:'#92400e',padding:10,background:'#fff',borderRadius:6,border:'1px solid #fcd34d',fontFamily:'monospace',lineHeight:'1.6'}}>
+                      <div style={{fontWeight:700,marginBottom:8,color:'#b45309'}}>Calcul détaillé:</div>
+                      {viewing.garde_hours > 0 && activityRates[viewing.id].detailed?.garde_infi && (
+                        <div>
+                          <div>Infirmier: ({viewing.garde_hours}h × {activityRates[viewing.id].detailed.garde_infi}€) + ({viewing.sortie_hours || 0}h × {activityRates[viewing.id].detailed?.sortie_infi || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${activityRates[viewing.id].detailed.garde_infi}€ × 1.5)` : ''}</div>
+                          {viewing.remuneration_infi && <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {viewing.remuneration_infi} €</div>}
+                        </div>
+                      )}
+                      {viewing.remuneration_med && activityRates[viewing.id].detailed?.garde_med && (
+                        <div style={{marginTop:6}}>
+                          <div>Médecin: ({viewing.garde_hours > 0 ? viewing.garde_hours : viewing.hours_actual || 0}h × {activityRates[viewing.id].detailed.garde_med}€) + ({viewing.sortie_hours || 0}h × {activityRates[viewing.id].detailed?.sortie_med || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${activityRates[viewing.id].detailed.garde_med}€ × 1.5)` : ''}</div>
+                          <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {viewing.remuneration_med} €</div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
