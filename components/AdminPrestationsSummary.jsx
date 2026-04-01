@@ -41,6 +41,8 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                 overtime_hours: p.overtime_hours || 0,
                 pay_type: p.pay_type,
                 analytic_id: p.analytic_id,
+                analytic_code: p.analytic_code || null,
+                analytic_name: p.ebrigade_activity_name || p.analytic_name || null,
                 user_email: p.user_email,
                 expense_amount: p.expense_amount || 0
               })
@@ -186,7 +188,10 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                 <td style={{padding:12,fontSize:14,fontWeight:600,color:'#10b981'}}>
                   {it.status === "En attente d'approbation" && estimatedAmounts[it.id]
                     ? estimatedAmounts[it.id] + ' €'
-                    : it.remuneration_infi != null ? (it.remuneration_infi + ' €') : (it.remuneration_med != null ? (it.remuneration_med + ' €') : '-')}
+                    : (it.remuneration_infi != null || it.remuneration_med != null) 
+                      ? `${it.remuneration_infi ? it.remuneration_infi + '€ ' : ''}${it.remuneration_med ? it.remuneration_med + '€' : ''}`.trim()
+                      : '-'
+                  }
                 </td>
                 <td style={{padding:12,fontSize:14}}>
                   <span style={{
