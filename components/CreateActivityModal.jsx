@@ -140,20 +140,20 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
               ) : (
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                   {ebrigadeAnalytics.map(a => (
-                    <label key={a.ebrigade_analytic_name} style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',padding:'8px',borderRadius:4,backgroundColor:'#fff',border:'1px solid #dbeafe'}}>
+                    <label key={a.ebrigade_analytic_code} style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',padding:'8px',borderRadius:4,backgroundColor:'#fff',border:'1px solid #dbeafe'}}>
                       <input 
                         type="checkbox"
-                        checked={selectedEbrigadeAnalytics.includes(a.ebrigade_analytic_name)}
+                        checked={selectedEbrigadeAnalytics.includes(a.ebrigade_analytic_code)}
                         onChange={e => {
                           if (e.target.checked) {
-                            setSelectedEbrigadeAnalytics(prev => [...prev, a.ebrigade_analytic_name])
+                            setSelectedEbrigadeAnalytics(prev => [...prev, a.ebrigade_analytic_code])
                           } else {
-                            setSelectedEbrigadeAnalytics(prev => prev.filter(x => x !== a.ebrigade_analytic_name))
+                            setSelectedEbrigadeAnalytics(prev => prev.filter(x => x !== a.ebrigade_analytic_code))
                           }
                         }}
                         style={{cursor:'pointer'}}
                       />
-                      <span style={{fontSize:13,color:'#1f2937'}}>{a.ebrigade_analytic_name}</span>
+                      <span style={{fontSize:13,color:'#1f2937'}}>{a.ebrigade_analytic_code} — {a.ebrigade_analytic_name}</span>
                     </label>
                   ))}
                 </div>
