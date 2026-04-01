@@ -35,7 +35,7 @@ export default function DashboardPage() {
     // Convert eBrigade prestation to our internal prestation format
     const prestation = {
       isEBrigade: true,
-      isActivity: false,
+      isActivity: true,  // Must be true to trigger eBrigade-specific form in PrestationsTable
       source: 'ebrigade',
       // eBrigade unique ID (for request reference): use activity code (4 digits) when available
       ebrigade_id: ebrigadePrestation.activityCode || ebrigadePrestation.id,
