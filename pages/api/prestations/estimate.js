@@ -64,6 +64,7 @@ export default async function handler(req, res){
           }
         }
       }catch(e){ console.log('[estimate] eBrigade mapping lookup failed:', e.message) }
+    }
 
     // Fallback: try classic analytic_id if no eBrigade mapping found
     if (allActs.length === 0 && analytic_id) {
