@@ -81,20 +81,42 @@ export default async function handler(req, res) {
       `)
       for (const row of existingMappingsResult.rows) {
         const analytName = row.ebrigade_analytic_name
-        if (!analyticsMap.has(analytName)) {
-          // Add code that exists in DB but not in recent eBrigade API response
-          // Extract the 4-digit code if it exists in the name
-          const codeMatch = analytName.match(/(\d{4})/)
-          const code = codeMatch ? codeMatch[1] : analytName
-          analyticsMap.set(analytName, {
-            ebrigade_analytic_code: code,
-            ebrigade_analytic_name: analytName,
-            activity_type: '',
-            local_analytic_id: null,
-            code: null,
-            name: null
-          })
+        
+        // Skip if already in map (don't create duplicates)
+        if (analyticsMap.has(analytName)) {
+          continue
         }
+        
+        // Check if this is just a 4-digit code (no descriptive name)
+        const isNumericCode = /^\d{4}$/.test(analytName)
+        
+        if (isNumericCode) {
+          // Try to find a matching entry in the map by E_CODE
+          let foundMatch = null
+          for (const existing of analyticsMap.values()) {
+            if (existing.ebrigade_analytic_code === analytName) {
+              foundMatch = existing
+              break
+            }
+          }
+          
+          if (foundMatch) {
+            // We already have this code with a proper name, skip the numeric-only entry
+            continue
+          }
+        }
+        
+        // This is a new analytic, add it to the map
+        const codeMatch = analytName.match(/(\d{4})/)
+        const code = codeMatch ? codeMatch[1] : analytName
+        analyticsMap.set(analytName, {
+          ebrigade_analytic_code: code,
+          ebrigade_analytic_name: analytName,
+          activity_type: '',
+          local_analytic_id: null,
+          code: null,
+          name: null
+        })
       }
     } catch (e) {
       console.warn('[ebrigade-analytics/available] Failed to load existing mappings:', e.message)
