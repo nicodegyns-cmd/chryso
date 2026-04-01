@@ -33,44 +33,24 @@ export default async function handler(req, res){
     const ebrigade_activity_code = body.ebrigade_activity_code || null
     let allActs = []
 
-    // Helper to extract prefix (code) before ' - ' or ' | '
-    const extractPrefix = (name) => {
-      if (!name) return name
-      const match = name.match(/^([^-|]+?)(?:\s*[-|])/)
-      return match ? match[1].trim() : name
-    }
-
+    // **PRIMARY: Direct lookup by eBrigade code in activity_ebrigade_mappings**
     if (ebrigade_activity_code) {
-      // Priority: fetch activities via eBrigade mapping
-      // The ebrigade_activity_code is the E_CODE (e.g., "1001")
-      // But activity_ebrigade_mappings stores ebrigade_analytic_name like "1001 - Name"
-      // So we need to match by extracting the prefix
-      try{
+      try {
         const [mappings] = await pool.query(
-          'SELECT activity_id, ebrigade_analytic_name FROM activity_ebrigade_mappings'
+          'SELECT DISTINCT activity_id FROM activity_ebrigade_mappings WHERE ebrigade_analytic_name = $1',
+          [ebrigade_activity_code]
         )
-        console.log('[estimate] ALL activity_ebrigade_mappings from DB:', mappings.map(m => ({ activity_id: m.activity_id, ebrigade_analytic_name: m.ebrigade_analytic_name })))
+        console.log('[estimate] Direct code lookup for code', ebrigade_activity_code, '- found', mappings.length, 'mappings')
         if (mappings && mappings.length > 0) {
-          // Find mapping whose prefix matches our activity code
-          const matchingMappings = mappings.filter(m => {
-            const mappedPrefix = extractPrefix(m.ebrigade_analytic_name)
-            return mappedPrefix === ebrigade_activity_code || m.ebrigade_analytic_name === ebrigade_activity_code
-          })
-          console.log('[estimate] eBrigade mapping search:', { requested: ebrigade_activity_code, found: matchingMappings.length, mappings: mappings.map(m => m.ebrigade_analytic_name) })
-          if (matchingMappings.length > 0) {
-            const activityIds = matchingMappings.map(m => m.activity_id)
-            console.log('[estimate] Found matching activity_ids:', activityIds)
-            const [acts] = await pool.query(
-              'SELECT id, pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE id = ANY($1) ORDER BY date DESC',
-              [activityIds]
-            )
-            console.log('[estimate] Activities from DB:', acts)
-            allActs = acts || []
-          }
-        } else {
-          console.log('[estimate] NO mappings found in activity_ebrigade_mappings table!')
+          const activityIds = mappings.map(m => m.activity_id)
+          const [acts] = await pool.query(
+            'SELECT id, pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE id = ANY($1) ORDER BY date DESC',
+            [activityIds]
+          )
+          allActs = acts || []
+          console.log('[estimate] Found activities via direct code lookup:', allActs.length)
         }
-      }catch(e){ console.log('[estimate] eBrigade mapping lookup failed:', e.message) }
+      } catch(e) { console.log('[estimate] Direct code lookup failed:', e.message) }
     }
 
     // Fallback: try classic analytic_id if no eBrigade mapping found
