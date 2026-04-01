@@ -19,7 +19,7 @@ export default async function handler(req, res){
       expense_amount = 0
     } = body
 
-    console.log('[estimate] RECEIVED INPUT:', { garde_hours, sortie_hours, overtime_hours, hours_actual, pay_type, analytic_name: body.analytic_name })
+    console.log('[estimate] RECEIVED INPUT:', { garde_hours, sortie_hours, overtime_hours, hours_actual, pay_type, analytic_name: body.analytic_name, analytic_id, analytic_code })
 
     const round2 = v => Math.round((Number(v||0) + Number.EPSILON) * 100) / 100
 
