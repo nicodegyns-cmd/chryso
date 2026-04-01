@@ -35,7 +35,8 @@ export default async function handler(req, res) {
         const sql = `SELECT p.id, p.date, p.pay_type, p.remuneration_infi, p.remuneration_med, p.status, p.analytic_id,
             p.garde_hours, p.sortie_hours, p.overtime_hours, p.hours_actual,
             p.expense_amount, p.expense_comment, p.pdf_url, p.request_ref, p.invoice_number,
-            an.code AS analytic_code, an.name AS analytic_name
+            an.code AS analytic_code, an.name AS analytic_name,
+            p.ebrigade_activity_name, p.ebrigade_activity_type, p.ebrigade_activity_code, p.ebrigade_id
              FROM prestations p
                LEFT JOIN analytics an ON p.analytic_id = an.id
                WHERE p.user_id = $1
@@ -49,7 +50,8 @@ export default async function handler(req, res) {
       console.warn('[api/prestations] primary query failed, retrying without expense columns', qerr && qerr.code)
       // fallback: older schema without expense_* columns
       const fallback = `SELECT p.id, p.date, p.pay_type, p.remuneration_infi, p.remuneration_med, p.status,
-                        an.code AS analytic_code, an.name AS analytic_name
+                        an.code AS analytic_code, an.name AS analytic_name,
+                        p.ebrigade_activity_name, p.ebrigade_activity_type, p.ebrigade_activity_code, p.ebrigade_id
                  FROM prestations p
                  LEFT JOIN analytics an ON p.analytic_id = an.id
                  WHERE p.user_id = $1
@@ -87,7 +89,13 @@ export default async function handler(req, res) {
           pdf_url: r.pdf_url || null,
         status: r.status || null,
         analytic_code: r.analytic_code || null,
-        analytic_name: r.analytic_name || r.analytic_code || null
+        // PREFER eBrigade activity name (full name with time/location) over local analytics name
+        analytic_name: r.ebrigade_activity_name || r.analytic_name || r.analytic_code || null,
+        // Also expose eBrigade fields for proper display
+        ebrigade_activity_name: r.ebrigade_activity_name || null,
+        ebrigade_activity_type: r.ebrigade_activity_type || null,
+        ebrigade_activity_code: r.ebrigade_activity_code || null,
+        ebrigade_id: r.ebrigade_id || null
       }
     })
 

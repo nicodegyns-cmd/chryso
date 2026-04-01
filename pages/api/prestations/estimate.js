@@ -81,7 +81,11 @@ export default async function handler(req, res){
     // Fallback: try classic analytic_id if no eBrigade mapping found
     if (allActs.length === 0 && analytic_id) {
       try{
-        const [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
+        let [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
+        // If no exact match, try ILIKE pattern
+        if (!acts || acts.length === 0) {
+          [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE $1::text ILIKE analytic_id || \'%\' ORDER BY date DESC', [analytic_id])
+        }
         allActs = acts || []
         console.log('[estimate] Found via analytic_id:', allActs.length)
       }catch(e){ console.log('[estimate] analytic_id lookup failed:', e.message) }
@@ -90,7 +94,11 @@ export default async function handler(req, res){
     // Fallback 2: try analytic_code if still no activities found
     if (allActs.length === 0 && analytic_code) {
       try{
-        const [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE analytic_code = $1 ORDER BY date DESC', [analytic_code])
+        let [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE analytic_code = $1 ORDER BY date DESC', [analytic_code])
+        // If no exact match, try ILIKE pattern
+        if (!acts || acts.length === 0) {
+          [acts] = await pool.query('SELECT id, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE $1::text ILIKE analytic_code || \'%\' ORDER BY date DESC', [analytic_code])
+        }
         allActs = acts || []
         console.log('[estimate] Found via analytic_code:', allActs.length)
       }catch(e){ console.log('[estimate] analytic_code lookup failed:', e.message) }
