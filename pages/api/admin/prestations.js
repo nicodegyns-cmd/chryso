@@ -14,12 +14,7 @@ export default async function handler(req, res) {
            ORDER BY p.id DESC`
         )
         const rows = (q && q.rows) ? q.rows : []
-        // Expose eBrigade data in response for proper display
-        const enriched = rows.map(row => ({
-          ...row,
-          analytic_name_display: row.ebrigade_activity_type || row.analytic_name || '-'
-        }))
-        return res.status(200).json({ items: enriched })
+        return res.status(200).json({ items: rows })
       } catch (e) {
         console.warn('prestations query error', e && e.message)
         return res.status(200).json({ items: [] })
@@ -41,6 +36,7 @@ export default async function handler(req, res) {
         user_email,
         email,
         analytic_id,
+        analytic_name,
         date,
         pay_type,
         hours_actual,
@@ -116,7 +112,7 @@ export default async function handler(req, res) {
           ebrigade_personnel_id || null,
           ebrigade_personnel_name || null,
           ebrigade_activity_code || null,
-          ebrigade_activity_name || null,
+          ebrigade_activity_name || analytic_name || null,
           ebrigade_activity_type || null,
           ebrigade_duration_hours || null,
           ebrigade_start_time || null,
@@ -138,7 +134,7 @@ export default async function handler(req, res) {
       // Log incoming payload keys for debugging
       try{ console.log('[admin/prestations] PATCH payload keys:', Object.keys(req.body || {})) }catch(e){}
       const { id } = req.query
-      const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time } = req.body || {}
+      const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, analytic_name, status, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time } = req.body || {}
 
       const q = await pool.query(
         `UPDATE prestations SET
@@ -167,7 +163,7 @@ export default async function handler(req, res) {
            updated_at = NOW()
          WHERE id = $14
          RETURNING *`,
-        [pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status, id, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time]
+        [pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status, id, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, analytic_name || ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time]
       )
 
       const rows = (q && q.rows) ? q.rows : []
