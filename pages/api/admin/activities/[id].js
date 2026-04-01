@@ -5,7 +5,7 @@ export default async function handler(req, res){
   const { id } = req.query
   try{
     if (req.method === 'GET'){
-      const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, created_at FROM activities WHERE id = $1', [id])
+      const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, created_at FROM activities WHERE id = $1', [id])
       if (!row) return res.status(404).json({ error: 'not found' })
       
       // Get eBrigade name mappings
@@ -21,7 +21,7 @@ export default async function handler(req, res){
     }
 
     if (req.method === 'PUT' || req.method === 'PATCH'){
-      const { analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, ebrigade_analytics } = req.body || {}
+      const { analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, ebrigade_analytics } = req.body || {}
       const updates = []
       const params = []
       let paramIndex = 1
@@ -32,6 +32,8 @@ export default async function handler(req, res){
       if (typeof date !== 'undefined') { updates.push(`date = $${paramIndex++}`); params.push(date) }
       if (typeof remuneration_infi !== 'undefined') { updates.push(`remuneration_infi = $${paramIndex++}`); params.push(remuneration_infi) }
       if (typeof remuneration_med !== 'undefined') { updates.push(`remuneration_med = $${paramIndex++}`); params.push(remuneration_med) }
+      if (typeof remuneration_sortie_infi !== 'undefined') { updates.push(`remuneration_sortie_infi = $${paramIndex++}`); params.push(remuneration_sortie_infi) }
+      if (typeof remuneration_sortie_med !== 'undefined') { updates.push(`remuneration_sortie_med = $${paramIndex++}`); params.push(remuneration_sortie_med) }
 
       if (updates.length === 0 && (!Array.isArray(ebrigade_analytics))) return res.status(400).json({ error: 'no fields' })
       
@@ -77,7 +79,7 @@ export default async function handler(req, res){
         }
       }
       
-      const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, created_at FROM activities WHERE id = $1', [id])
+      const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, created_at FROM activities WHERE id = $1', [id])
       
       // Get eBrigade mappings for response
       let ebrigade_analytics_resp = []

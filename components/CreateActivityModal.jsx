@@ -11,6 +11,8 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
   const [date, setDate] = useState('')
   const [remuInfi, setRemuInfi] = useState('')
   const [remuMed, setRemuMed] = useState('')
+  const [remuSortieInfi, setRemuSortieInfi] = useState('')
+  const [remuSortieMed, setRemuSortieMed] = useState('')
   const [error, setError] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -26,6 +28,8 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       setDate(initial.date || '')
       setRemuInfi(typeof initial.remuneration_infi !== 'undefined' && initial.remuneration_infi !== null ? String(initial.remuneration_infi) : '')
       setRemuMed(typeof initial.remuneration_med !== 'undefined' && initial.remuneration_med !== null ? String(initial.remuneration_med) : '')
+      setRemuSortieInfi(typeof initial.remuneration_sortie_infi !== 'undefined' && initial.remuneration_sortie_infi !== null ? String(initial.remuneration_sortie_infi) : '')
+      setRemuSortieMed(typeof initial.remuneration_sortie_med !== 'undefined' && initial.remuneration_sortie_med !== null ? String(initial.remuneration_sortie_med) : '')
       setSelectedEbrigadeAnalytics(initial.ebrigade_analytics || []) // Load existing selections
       setError(null)
     } else if (!open) {
@@ -36,6 +40,8 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       setDate('')
       setRemuInfi('')
       setRemuMed('')
+      setRemuSortieInfi('')
+      setRemuSortieMed('')
       setSelectedEbrigadeAnalytics([])
       setEbrigadePatternInput('')
       setError(null)
@@ -66,8 +72,12 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
     // validate amounts as numbers (allow empty but convert to null)
     const infi = remuInfi === '' ? null : parseFloat(remuInfi.replace(',', '.'))
     const med = remuMed === '' ? null : parseFloat(remuMed.replace(',', '.'))
+    const sortieInfi = remuSortieInfi === '' ? null : parseFloat(remuSortieInfi.replace(',', '.'))
+    const sortieMed = remuSortieMed === '' ? null : parseFloat(remuSortieMed.replace(',', '.'))
     if (remuInfi !== '' && (isNaN(infi) || infi < 0)) { setError('Montant rémunération infi invalide'); return }
     if (remuMed !== '' && (isNaN(med) || med < 0)) { setError('Montant rémunération med invalide'); return }
+    if (remuSortieInfi !== '' && (isNaN(sortieInfi) || sortieInfi < 0)) { setError('Montant rémunération sortie infi invalide'); return }
+    if (remuSortieMed !== '' && (isNaN(sortieMed) || sortieMed < 0)) { setError('Montant rémunération sortie med invalide'); return }
 
     setIsSaving(true)
     try {
@@ -81,6 +91,8 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
         date: date || null,
         remuneration_infi: infi,
         remuneration_med: med,
+        remuneration_sortie_infi: sortieInfi,
+        remuneration_sortie_med: sortieMed,
         ebrigade_analytics: selectedEbrigadeAnalytics // Send selected eBrigade analytics
       }
       console.log('[CreateActivityModal] SUBMITTING:', {
@@ -224,9 +236,9 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
                   />
                 </label>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
                 <label style={{display:'block'}}>
-                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Rémunération Infirmier·ère</small>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>💼 Rémunération Garde - Infirmier·ère</small>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -238,7 +250,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
                   />
                 </label>
                 <label style={{display:'block'}}>
-                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Rémunération Médecin</small>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>💼 Rémunération Garde - Médecin</small>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -246,6 +258,32 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
                     value={remuMed} 
                     onChange={e=>setRemuMed(e.target.value)} 
                     placeholder="120.00"
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                  />
+                </label>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <label style={{display:'block'}}>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>🚑 Rémunération Sortie - Infirmier·ère</small>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    min="0" 
+                    value={remuSortieInfi} 
+                    onChange={e=>setRemuSortieInfi(e.target.value)} 
+                    placeholder="35.00"
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                  />
+                </label>
+                <label style={{display:'block'}}>
+                  <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>🚑 Rémunération Sortie - Médecin</small>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    min="0" 
+                    value={remuSortieMed} 
+                    onChange={e=>setRemuSortieMed(e.target.value)} 
+                    placeholder="100.00"
                     style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
                   />
                 </label>
