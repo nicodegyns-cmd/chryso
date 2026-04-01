@@ -58,8 +58,8 @@ export default async function handler(req, res) {
         const code = String(p.E_CODE)
         if (!analyticsMap.has(code)) {
           analyticsMap.set(code, {
-            ebrigade_code: code,
-            ebrigade_name: p.E_LIBELLE || `Code ${code}`, // fallback to code if no name
+            ebrigade_analytic_code: code,
+            ebrigade_analytic_name: p.E_LIBELLE || `Code ${code}`, // fallback to code if no name
             activity_type: p.TE_LIBELLE || '',
             local_activity_id: null,
             local_activity: null
@@ -83,8 +83,8 @@ export default async function handler(req, res) {
         // Skip if already in map
         if (!analyticsMap.has(code)) {
           analyticsMap.set(code, {
-            ebrigade_code: code,
-            ebrigade_name: `Code ${code}`,
+            ebrigade_analytic_code: code,
+            ebrigade_analytic_name: `Code ${code}`,
             activity_type: '',
             local_activity_id: null,
             local_activity: null
