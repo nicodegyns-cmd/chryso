@@ -107,7 +107,19 @@ export default async function handler(req, res){
       
       const analyticsPrefix = extractPrefix(p.E_LIBELLE)
       // Look up mapping for this eBrigade analytic prefix
-      const mapping = mappings.find(m => m.ebrigade_analytic_name === analyticsPrefix)
+      let mapping = mappings.find(m => m.ebrigade_analytic_name === analyticsPrefix)
+      
+      // Fallback: if exact match fails, try partial match
+      if (!mapping && analyticsPrefix) {
+        console.log('[activities] Exact mapping failed for:', analyticsPrefix, 'trying partial match')
+        mapping = mappings.find(m => m.ebrigade_analytic_name && m.ebrigade_analytic_name.includes(analyticsPrefix.substring(0, 10)))
+      }
+      
+      // Log for debugging
+      if (!mapping) {
+        console.warn('[activities] No mapping found for:', analyticsPrefix, 'E_CODE:', p.E_CODE, 'E_LIBELLE:', p.E_LIBELLE)
+        console.warn('[activities] Available mappings:', mappings.map(m => m.ebrigade_analytic_name).slice(0, 5))
+      }
       
       return {
         id: `ebrig_${user.liaison_ebrigade_id}_${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`,
@@ -132,14 +144,9 @@ export default async function handler(req, res){
     for (const activity of activities) {
       try {
         // Check if a prestation exists for this activity
-        // Use multiple strategies to find matching prestation:
-        // 1. By date + analytic_id (if analytic_id exists)
-        // 2. By date + analytic_code 
-        // 3. By date + ebrigade_activity_code (for eBrigade activities)
-        
+        // Strategy 1: Match by date + analytic_id (if analytic_id exists)
         let existingPrestationResult = null
         
-        // Strategy 1: Match by date + analytic_id (handle NULL properly)
         if (activity.analytic_id) {
           existingPrestationResult = await pool.query(
             `SELECT id FROM prestations 
@@ -151,7 +158,8 @@ export default async function handler(req, res){
             [user.id, activity.date, activity.analytic_id]
           )
         } else {
-          // Strategy 2&3: If no analytic_id, search by analytic_code or ebrigade info
+          // Strategy 2: If no analytic_id, search by analytic_code  
+          // Or by ebrigade_activity_code (for eBrigade activities)
           existingPrestationResult = await pool.query(
             `SELECT id FROM prestations p
              LEFT JOIN analytics a ON p.analytic_id = a.id
@@ -174,7 +182,7 @@ export default async function handler(req, res){
           console.log('[activities] Skipping activity (prestation exists):', activity.date, activity.analytic_code)
         }
       } catch (filterErr) {
-        console.warn('[activities] Error filtering activity:', filterErr.message)
+        console.warn('[activities] Error filtering activity:', filterErr.message, 'analytic_id:', activity.analytic_id, 'analytic_code:', activity.analytic_code)
         // Include activity on error (fail open)
         const { _mapping, ...cleanActivity } = activity
         activitiesWithoutPrestations.push(cleanActivity)

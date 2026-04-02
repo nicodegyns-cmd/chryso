@@ -524,7 +524,15 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       if (!effective.user_email) {
         effective.user_email = email || (typeof window !== 'undefined' ? localStorage.getItem('email') : null)
       }
-      console.log('[saveEdit] About to save with user_email:', effective.user_email, 'isNewPrestation:', isNewPrestation)
+      console.log('[saveEdit] About to save:', {
+        isNewPrestation,
+        analytic_id: effective.analytic_id,
+        analytic_code: effective.analytic_code,
+        analytic_name: effective.analytic_name,
+        date: effective.date,
+        pay_type: effective.pay_type,
+        user_email: effective.user_email
+      })
       
       // Always set status to "En attente d'approbation" for non-admin/moderator users
       if (!role || (role !== 'admin' && role !== 'moderator')){
