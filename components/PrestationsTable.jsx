@@ -614,6 +614,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         setItems((cur)=>cur.map(it=> it.id === updated.id ? {...it, ...updated} : it))
       }
       
+      // Force refresh of activities after successful save
+      // This ensures the activity card disappears and doesn't show duplicate
+      setTimeout(() => {
+        console.log('[saveEdit] Dispatching prestationSaved event to refresh activities')
+        window.dispatchEvent(new Event('prestationSaved'))
+      }, 100)
+      
       handleCloseModal()
     }catch(e){
       console.error('save failed', e)

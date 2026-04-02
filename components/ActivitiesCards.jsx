@@ -34,6 +34,30 @@ export default function ActivitiesCards({ email, ebrigade_id, onEditActivity }) 
       })
       .finally(() => setLoading(false))
   }, [email, ebrigade_id])
+  
+  // Listen for prestation saves and refetch activities to avoid duplication
+  useEffect(() => {
+    const handlePrestationSaved = () => {
+      console.log('[ActivitiesCards] prestationSaved event received, refetching activities')
+      if (!email) return
+      
+      const timestamp = Date.now()
+      fetch(`/api/activities?email=${encodeURIComponent(email)}&t=${timestamp}`, {
+        cache: 'no-store'
+      })
+        .then(r => { if (!r.ok) throw new Error(`Échec: ${r.status}`); return r.json() })
+        .then(d => {
+          console.log('[ActivitiesCards] Refetched:', d.activities?.length || 0, 'activities after save')
+          setActivities(d.activities || [])
+        })
+        .catch(e => {
+          console.warn('[ActivitiesCards] Error refetching activities:', e)
+        })
+    }
+    
+    window.addEventListener('prestationSaved', handlePrestationSaved)
+    return () => window.removeEventListener('prestationSaved', handlePrestationSaved)
+  }, [email])
 
   if (loading) return (
     <div className="card" style={{display:'flex',flexDirection:'column',gap:8}}>
