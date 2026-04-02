@@ -224,15 +224,14 @@ export default function AdminPrestationsSummary({ limit = 8 }){
               onMouseEnter={(e)=>e.currentTarget.style.background='#eff6ff'}
               onMouseLeave={(e)=>e.currentTarget.style.background=(idx % 2 === 0 ? '#fff' : '#f9fafb')}
               >
-                <td style={{padding:12,fontSize:14,color:'#1f2937'}}><strong>#{it.ebrigade_id || it.request_ref || it.invoice_number || it.id}</strong></td>
+                <td style={{padding:12,fontSize:14,color:'#1f2937'}}><strong>{it.analytic_code || it.request_ref || it.invoice_number || `#${it.id}`}</strong></td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>
-                  <div style={{fontWeight:500}}>{it.user_firstname && it.user_lastname ? `${it.user_firstname} ${it.user_lastname}` : (it.user_email || it.user_id || '-')}</div>
-                  {it.user_firstname && it.user_lastname && it.user_email && <div style={{fontSize:12,color:'#6b7280'}}>{it.user_email}</div>}
+                  <div style={{fontWeight:500}}>{it.user_firstname && it.user_lastname ? `${it.user_firstname} ${it.user_lastname}` : (it.user_email || '-')}</div>
                 </td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>{formatDate(it.date)}</td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>{it.pay_type || '-'}</td>
                 <td style={{padding:12,fontSize:14,fontWeight:600,color:'#10b981'}}>
-                  {estimatedAmounts[it.id] ? estimatedAmounts[it.id] + ' €' : (it.remuneration_infi != null || it.remuneration_med != null) ? `${it.remuneration_infi ? it.remuneration_infi + '€ ' : ''}${it.remuneration_med ? it.remuneration_med + '€' : ''}`.trim() : '-'}
+                  {(it.remuneration_infi != null || it.remuneration_med != null) ? `${it.remuneration_infi ? it.remuneration_infi + '€' : ''}${it.remuneration_infi && it.remuneration_med ? ' + ' : ''}${it.remuneration_med ? it.remuneration_med + '€' : ''}` : estimatedAmounts[it.id] ? estimatedAmounts[it.id] + ' €' : '-'}
                 </td>
                 <td style={{padding:12,fontSize:14}}>
                   <span style={{
@@ -292,7 +291,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
           <div style={{width:'100%',maxWidth:800,background:'#fff',borderRadius:12,boxShadow:'0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',overflow:'auto',maxHeight:'90vh'}}>
             <div style={{padding:24,borderBottom:'1px solid #e5e7eb'}}>
               <h3 style={{margin:0,fontSize:20,fontWeight:700,color:'#1f2937'}}>
-                📋 {viewing.ebrigade_activity_name || viewing.analytic_name ? `${viewing.ebrigade_activity_name || viewing.analytic_name} - ` : ''}Détails demande #{viewing.ebrigade_id || viewing.request_ref || viewing.invoice_number || viewing.id}
+                📋 {viewing.ebrigade_activity_name || viewing.analytic_name ? `${viewing.ebrigade_activity_name || viewing.analytic_name} - ` : ''}Détails demande {viewing.analytic_code || viewing.request_ref || viewing.invoice_number || `#${viewing.id}`}
               </h3>
             </div>
 
@@ -302,8 +301,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                   <div>
                     <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>UTILISATEUR</div>
-                    <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{viewing.user_firstname && viewing.user_lastname ? `${viewing.user_firstname} ${viewing.user_lastname}` : (viewing.user_email || viewing.user_id || '-')}</div>
-                    {viewing.user_firstname && viewing.user_lastname && viewing.user_email && <div style={{fontSize:12,color:'#6b7280',marginTop:4}}>{viewing.user_email}</div>}
+                    <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{viewing.user_firstname && viewing.user_lastname ? `${viewing.user_firstname} ${viewing.user_lastname}` : (viewing.user_email || '-')}</div>
                   </div>
                     <div>
                       <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>DATE</div>
