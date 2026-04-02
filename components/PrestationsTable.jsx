@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useImperativeHandle, forwardRef, useRef, useCallback } from 'react'
 
-const PrestationsTable = forwardRef(function PrestationsTable({ email, onPrestationSaved }, ref) {
+const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -614,14 +614,14 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email, onPrestat
         setItems((cur)=>cur.map(it=> it.id === updated.id ? {...it, ...updated} : it))
       }
       
-      // Force refresh of activities after successful save
-      // This ensures the activity card disappears and doesn't show duplicate
-      if (onPrestationSaved) {
-        console.log('[saveEdit] Calling onPrestationSaved callback to refresh activities')
-        await onPrestationSaved()
-      }
-      
+      // Close modal and reload page to ensure everything is synced
       handleCloseModal()
+      
+      // Reload after a short delay to allow modal to close visually
+      setTimeout(() => {
+        console.log('[saveEdit] Reloading page to sync activities')
+        window.location.reload()
+      }, 300)
     }catch(e){
       console.error('save failed', e)
       alert(e.message || 'Erreur')
