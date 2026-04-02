@@ -522,16 +522,20 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
       // Handle new prestation (POST) vs updating existing one (PATCH)
       let r
+      const isAdmin = role === 'admin' || role === 'moderator'
+      const adminPrefix = isAdmin ? '/api/admin' : ''
+      const endpoint = `${adminPrefix}/api/prestations`
+      
       if (isNewPrestation) {
         // Create new prestation
-        r = await fetch('/api/admin/prestations', {
+        r = await fetch(endpoint, {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify(effective)
         })
       } else {
         // Update existing prestation
-        r = await fetch(`/api/admin/prestations/${effective.id}`, {
+        r = await fetch(`${endpoint}/${effective.id}`, {
           method: 'PATCH',
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify(effective)
