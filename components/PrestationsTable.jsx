@@ -182,7 +182,8 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
   async function openEdit(p){
     console.log('[openEdit] called with:', p, 'items count:', items.length)
-    console.log('[openEdit] items:', items.filter(i => i.status === "A saisir"))
+    console.log('[openEdit] ALL items with status values:', items.map(i => ({id: i.id, status: i.status, date: i.date})))
+    console.log('[openEdit] items "A saisir":', items.filter(i => i.status === "A saisir"))
     // If this is an activity (not a prestation), look for existing "À saisir" prestation or create new one
     if (p.isActivity) {
       console.log('[openEdit] ACTIVITY DETECTED, looking for existing "À saisir" prestation...')
