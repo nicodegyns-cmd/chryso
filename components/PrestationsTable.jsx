@@ -533,7 +533,14 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         })
       }
       
-      if (!r.ok) throw new Error('Échec enregistrement')
+      if (!r.ok) {
+        try {
+          const errData = await r.json()
+          throw new Error(`Erreur ${r.status}: ${errData.error || 'Échec enregistrement'}`)
+        } catch(e) {
+          throw new Error(`Erreur ${r.status}: Échec enregistrement`)
+        }
+      }
       const updated = await r.json()
       
       if (isNewPrestation) {
