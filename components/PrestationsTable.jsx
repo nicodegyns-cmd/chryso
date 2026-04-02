@@ -181,36 +181,59 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   })
 
   async function openEdit(p){
-    console.log('[openEdit] called with:', p)
+    console.log('[openEdit] called with:', p, 'items count:', items.length)
+    console.log('[openEdit] items:', items.filter(i => i.status === "A saisir"))
     // If this is an activity (not a prestation), look for existing "À saisir" prestation or create new one
     if (p.isActivity) {
-      console.log('[openEdit] ACTIVITY DETECTED')
+      console.log('[openEdit] ACTIVITY DETECTED, looking for existing "À saisir" prestation...')
       
-      // First, try to find an existing "À saisir" prestation for this activity
-      // Match by: same date, same pay_type, and either same ebrigade_activity_code OR same analytic details
-      const existingPrestation = items.find(prest => 
+      // First, try to find an existing "À saisir" prestation for this exact date
+      // This is the simplest and most reliable match
+      let existingPrestation = items.find(prest => 
         prest.status === "A saisir" && 
-        (prest.pay_type === p.pay_type || prest.pay_type === null) &&
         prest.date === p.date &&
-        (
-          prest.ebrigade_activity_code === (p.ebrigade_activity_code || p.analytic_code || p.activityCode) ||
-          (prest.analytic_code === p.analytic_code && !prest.ebrigade_activity_code) ||
-          (prest.analytic_name === p.analytic_name && prest.date === p.date)
-        )
+        !prest.id  // Find one without an id if it exists (shouldn't happen but just in case)
       )
       
-      if (existingPrestation) {
-        console.log('[openEdit] Found existing "À saisir" prestation, editing it:', existingPrestation.id)
+      // If not found, try to find by date and pay_type
+      if (!existingPrestation) {
+        existingPrestation = items.find(prest => 
+          prest.status === "A saisir" && 
+          prest.date === p.date &&
+          prest.pay_type === p.pay_type
+        )
+      }
+      
+      // If still not found, try to find by date and analytic
+      if (!existingPrestation) {
+        existingPrestation = items.find(prest => 
+          prest.status === "A saisir" && 
+          prest.date === p.date &&
+          (prest.analytic_code === p.analytic_code || prest.ebrigade_activity_code === p.ebrigade_activity_code)
+        )
+      }
+      
+      // If still not found, just find ANY "À saisir" for this date
+      if (!existingPrestation) {
+        existingPrestation = items.find(prest => 
+          prest.status === "A saisir" && 
+          prest.date === p.date
+        )
+      }
+      
+      if (existingPrestation && existingPrestation.id) {
+        console.log('[openEdit] ✅ Found existing "À saisir" prestation (id=' + existingPrestation.id + '), editing it')
         setEditing({
           ...existingPrestation,
           isActivity: true,
           isEBrigade: true
         })
         return
+      } else {
+        console.log('[openEdit] ❌ No existing "À saisir" prestation found, creating new from activity')
       }
       
       // No existing prestation found, create new one from activity
-      console.log('[openEdit] No existing prestation found, creating new from activity')
       const editingState = {
         id: null,
         analytic_id: p.analytic_id,
