@@ -187,44 +187,53 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
   async function openEdit(p){
     console.log('[openEdit] called with:', p, 'items count:', items.length)
+    console.log('[openEdit] items list (no activities):', items.filter(i => !i.isActivity).map(i => ({id: i.id, date: i.date, analytic_code: i.analytic_code, analytic_id: i.analytic_id, status: i.status})))
     
     // If this is an activity (not a prestation), look for existing prestation or create new one
     if (p.isActivity) {
-      console.log('[openEdit] ACTIVITY DETECTED, looking for existing prestation for this activity...')
+      console.log('[openEdit] ACTIVITY DETECTED: date=' + p.date + ', analytic_code=' + p.analytic_code + ', analytic_id=' + p.analytic_id)
       
       // Look for any existing prestation (not activity) for the same date+analytique
       // that hasn't been finalized (not "Envoyé à la facturation")
-      let existingPrestation = items.find(prest => 
-        !prest.isActivity &&  // Only prestations, not activities
-        !prest.id?.toString().startsWith('act_') &&  // Safety check
-        prest.date === p.date &&
-        (prest.analytic_code === p.analytic_code || prest.analytic_id === p.analytic_id) &&
-        prest.status !== "Envoyé à la facturation"  // Not finalized
-      )
+      let existingPrestation = items.find(prest => {
+        const match = !prest.isActivity &&
+          !prest.id?.toString().startsWith('act_') &&
+          prest.date === p.date &&
+          (prest.analytic_code === p.analytic_code || prest.analytic_id === p.analytic_id) &&
+          prest.status !== "Envoyé à la facturation"
+        console.log('[openEdit] checking:', {id: prest.id, date: prest.date, analytic_code: prest.analytic_code, analytic_id: prest.analytic_id, status: prest.status, isActivity: prest.isActivity, match})
+        return match
+      })
       
       // Alternative: search by date + pay_type
       if (!existingPrestation) {
-        existingPrestation = items.find(prest => 
-          !prest.isActivity &&
-          !prest.id?.toString().startsWith('act_') &&
-          prest.date === p.date &&
-          prest.pay_type === p.pay_type &&
-          prest.status !== "Envoyé à la facturation"
-        )
+        console.log('[openEdit] First search failed, trying by date+pay_type...')
+        existingPrestation = items.find(prest => {
+          const match = !prest.isActivity &&
+            !prest.id?.toString().startsWith('act_') &&
+            prest.date === p.date &&
+            prest.pay_type === p.pay_type &&
+            prest.status !== "Envoyé à la facturation"
+          if (match) console.log('[openEdit] FOUND by date+pay_type:', prest.id)
+          return match
+        })
       }
       
       // Alternative: just find ANY non-finalized prestation for this date
       if (!existingPrestation) {
-        existingPrestation = items.find(prest => 
-          !prest.isActivity &&
-          !prest.id?.toString().startsWith('act_') &&
-          prest.date === p.date &&
-          prest.status !== "Envoyé à la facturation"
-        )
+        console.log('[openEdit] Second search failed, trying any non-finalized for date...')
+        existingPrestation = items.find(prest => {
+          const match = !prest.isActivity &&
+            !prest.id?.toString().startsWith('act_') &&
+            prest.date === p.date &&
+            prest.status !== "Envoyé à la facturation"
+          if (match) console.log('[openEdit] FOUND by date only:', prest.id)
+          return match
+        })
       }
       
       if (existingPrestation && existingPrestation.id) {
-        console.log('[openEdit] ✅ Found existing prestation (id=' + existingPrestation.id + ') for this activity, editing it')
+        console.log('[openEdit] ✅ FOUND existing prestation (id=' + existingPrestation.id + ') for this activity, editing it')
         setEditing({
           ...existingPrestation,
           isActivity: true,
@@ -232,7 +241,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         })
         return
       } else {
-        console.log('[openEdit] ❌ No existing prestation found for this activity, creating new')
+        console.log('[openEdit] ❌ NO existing prestation found for this activity, creating new')
       }
       
       // No existing prestation found, create new one from activity
