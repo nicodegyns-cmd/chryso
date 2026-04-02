@@ -523,8 +523,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       // Handle new prestation (POST) vs updating existing one (PATCH)
       let r
       const isAdmin = role === 'admin' || role === 'moderator'
-      const adminPrefix = isAdmin ? '/api/admin' : ''
-      const endpoint = `${adminPrefix}/api/prestations`
+      const endpoint = isAdmin ? '/api/admin/prestations' : '/api/prestations'
       
       if (isNewPrestation) {
         // Create new prestation
