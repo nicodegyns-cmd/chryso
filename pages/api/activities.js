@@ -144,10 +144,10 @@ export default async function handler(req, res){
     for (const activity of activities) {
       try {
         // Check if a prestation exists for this activity
-        // Strategy 1: Match by date + analytic_id (if analytic_id exists)
         let existingPrestationResult = null
         
         if (activity.analytic_id) {
+          // Strategy 1: Match by date + analytic_id
           existingPrestationResult = await pool.query(
             `SELECT id FROM prestations 
              WHERE user_id = $1 
@@ -158,17 +158,16 @@ export default async function handler(req, res){
             [user.id, activity.date, activity.analytic_id]
           )
         } else {
-          // Strategy 2: If no analytic_id, search by analytic_code  
-          // Or by ebrigade_activity_code (for eBrigade activities)
+          // Strategy 2: If no analytic_id, search by ebrigade_activity_code or E_LIBELLE
+          // For eBrigade activities without local mapping
           existingPrestationResult = await pool.query(
             `SELECT id FROM prestations p
-             LEFT JOIN analytics a ON p.analytic_id = a.id
              WHERE p.user_id = $1 
              AND p.date = $2 
-             AND (a.code = $3 OR p.ebrigade_activity_code = $3)
+             AND (p.ebrigade_activity_code = $3 OR p.ebrigade_activity_name = $4)
              AND p.status != 'Envoyé à la facturation'
              LIMIT 1`,
-            [user.id, activity.date, activity.analytic_code]
+            [user.id, activity.date, activity.analytic_code, activity.activity]
           )
         }
         
@@ -182,7 +181,7 @@ export default async function handler(req, res){
           console.log('[activities] Skipping activity (prestation exists):', activity.date, activity.analytic_code)
         }
       } catch (filterErr) {
-        console.warn('[activities] Error filtering activity:', filterErr.message, 'analytic_id:', activity.analytic_id, 'analytic_code:', activity.analytic_code)
+        console.warn('[activities] Error filtering activity:', filterErr.message, 'analytic_id:', activity.analytic_id, 'analytic_code:', activity.analytic_code, 'activity:', activity.activity)
         // Include activity on error (fail open)
         const { _mapping, ...cleanActivity } = activity
         activitiesWithoutPrestations.push(cleanActivity)
