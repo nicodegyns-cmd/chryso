@@ -605,23 +605,11 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         }
       }
       const updated = await r.json()
+      console.log('[saveEdit] Success! Updated:', updated.id)
       
-      if (isNewPrestation) {
-        // Add new prestation to list
-        setItems((cur)=>[...cur, updated])
-      } else {
-        // Update existing prestation
-        setItems((cur)=>cur.map(it=> it.id === updated.id ? {...it, ...updated} : it))
-      }
-      
-      // Close modal and reload page to ensure everything is synced
-      handleCloseModal()
-      
-      // Reload after a short delay to allow modal to close visually
-      setTimeout(() => {
-        console.log('[saveEdit] Reloading page to sync activities')
-        window.location.reload()
-      }, 300)
+      // Reload page immediately to sync everything
+      console.log('[saveEdit] Reloading page now...')
+      window.location.reload()
     }catch(e){
       console.error('save failed', e)
       alert(e.message || 'Erreur')
