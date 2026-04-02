@@ -91,6 +91,16 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       setLoading(true)
       setError(null)
       try {
+        // ADMIN: Fetch only admin prestations, NOT activities
+        if (clientRole === 'admin') {
+          const r = await fetch('/api/admin/prestations')
+          if (!r.ok) throw new Error('Échec de la récupération (admin)')
+          const data = await r.json()
+          setItems(data.items || [])
+          return
+        }
+        
+        // USER: Fetch user prestations + activities
         if (email) {
           // Fetch user prestations
           const prestRes = await fetch(`/api/prestations?email=${encodeURIComponent(email)}`)
@@ -122,11 +132,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           console.log('Combined items:', combined)
 
           setItems(combined)
-        } else if (clientRole === 'admin') {
-          const r = await fetch('/api/admin/prestations')
-          if (!r.ok) throw new Error('Échec de la récupération (admin)')
-          const data = await r.json()
-          setItems(data.items || [])
         } else {
           setError('Utilisateur non connecté')
         }
