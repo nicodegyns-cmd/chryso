@@ -192,8 +192,43 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     if (p.isActivity) {
       console.log('[openEdit] ACTIVITY DETECTED: date=' + p.date + ', analytic_code=' + p.analytic_code)
       
-      // Look for any existing prestation (not activity) for the same date+analytique
-      // that hasn't been finalized (not "Envoyé à la facturation")
+      // FIRST: Check in the API if a prestation already exists for this user/date/analytic
+      // This ensures we don't miss existing prestations that are scrolled out of view or filtered
+      try {
+        const checkResp = await fetch(
+          `/api/admin/prestations?user_email=${encodeURIComponent(email)}&date=${p.date}&analytic_code=${encodeURIComponent(p.analytic_code || '')}`,
+          { method: 'GET' }
+        )
+        if (checkResp.ok) {
+          const checkData = await checkResp.json()
+          console.log('[openEdit] API check result:', checkData)
+          
+          // Look for non-finalized prestation
+          const existingFromApi = checkData.prestations?.find(prest => 
+            prest.status !== "Envoyé à la facturation"
+          )
+          
+          if (existingFromApi && existingFromApi.id) {
+            console.log('[openEdit] ✅ FOUND existing prestation in API (id=' + existingFromApi.id + ')')
+            // Fetch full details of this prestation
+            const fullResp = await fetch(`/api/prestations/${existingFromApi.id}`)
+            if (fullResp.ok) {
+              const fullData = await fullResp.json()
+              setEditing({
+                ...fullData,
+                isActivity: true,
+                isEBrigade: true
+              })
+              return
+            }
+          }
+        }
+      } catch (apiErr) {
+        console.warn('[openEdit] Could not check API:', apiErr)
+        // Fall back to local search
+      }
+      
+      // FALLBACK: Look for existing prestation in items (visible ones)
       let existingPrestation = items.find(prest => 
         !prest.isActivity &&
         !prest.id?.toString().startsWith('act_') &&
@@ -224,7 +259,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       }
       
       if (existingPrestation && existingPrestation.id) {
-        console.log('[openEdit] ✅ FOUND existing prestation (id=' + existingPrestation.id + ')')
+        console.log('[openEdit] ✅ FOUND existing prestation in items (id=' + existingPrestation.id + ')')
         setEditing({
           ...existingPrestation,
           isActivity: true,
