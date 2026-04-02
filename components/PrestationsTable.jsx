@@ -187,11 +187,16 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       console.log('[openEdit] ACTIVITY DETECTED')
       
       // First, try to find an existing "À saisir" prestation for this activity
+      // Match by: same date, same pay_type, and either same ebrigade_activity_code OR same analytic details
       const existingPrestation = items.find(prest => 
         prest.status === "A saisir" && 
-        prest.ebrigade_activity_code === (p.ebrigade_activity_code || p.analytic_code) &&
+        (prest.pay_type === p.pay_type || prest.pay_type === null) &&
         prest.date === p.date &&
-        prest.pay_type === p.pay_type
+        (
+          prest.ebrigade_activity_code === (p.ebrigade_activity_code || p.analytic_code || p.activityCode) ||
+          (prest.analytic_code === p.analytic_code && !prest.ebrigade_activity_code) ||
+          (prest.analytic_name === p.analytic_name && prest.date === p.date)
+        )
       )
       
       if (existingPrestation) {
