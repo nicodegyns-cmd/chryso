@@ -128,8 +128,20 @@ export default async function handler(req, res) {
       if (!newRow) {
         return res.status(500).json({ error: 'Failed to insert prestation' })
       }
-
-      return res.status(201).json(newRow)
+      
+      // Fetch the complete prestation data WITH user and analytics JOIN
+      const q3 = await pool.query(
+        `SELECT p.*, u.email AS user_email, u.first_name AS user_firstname, u.last_name AS user_lastname, an.name AS analytic_name, an.code AS analytic_code
+         FROM prestations p
+         LEFT JOIN users u ON p.user_id = u.id
+         LEFT JOIN analytics an ON p.analytic_id = an.id
+         WHERE p.id = $1`,
+        [newRow.id]
+      )
+      const completeRows = (q3 && q3.rows) ? q3.rows : []
+      const completeRow = completeRows[0] || newRow
+      
+      return res.status(201).json(completeRow)
     }
 
     if (req.method === 'PATCH') {
@@ -174,8 +186,20 @@ export default async function handler(req, res) {
       if (!updated) {
         return res.status(404).json({ error: 'Prestation not found' })
       }
+      
+      // Fetch the complete prestation data WITH user and analytics JOIN
+      const q2 = await pool.query(
+        `SELECT p.*, u.email AS user_email, u.first_name AS user_firstname, u.last_name AS user_lastname, an.name AS analytic_name, an.code AS analytic_code
+         FROM prestations p
+         LEFT JOIN users u ON p.user_id = u.id
+         LEFT JOIN analytics an ON p.analytic_id = an.id
+         WHERE p.id = $1`,
+        [updated.id]
+      )
+      const completeRows = (q2 && q2.rows) ? q2.rows : []
+      const completeUpdate = completeRows[0] || updated
 
-      return res.status(200).json(updated)
+      return res.status(200).json(completeUpdate)
     }
 
     res.setHeader('Allow', 'GET,POST,PATCH')
