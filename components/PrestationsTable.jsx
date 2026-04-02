@@ -188,60 +188,43 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   async function openEdit(p){
     console.log('[openEdit] called with:', p, 'items count:', items.length)
     
-    // Search for "À saisir" prestations, but EXCLUDE activities (those have id starting with "act_")
-    const asaisirItems = items.filter(i => 
-      i.status === "À saisir" && 
-      !i.isActivity &&  // Exclude activities
-      (!i.id || !i.id.toString().startsWith('act_'))  // Extra safety check
-    )
-    console.log('[openEdit] Looking for "À saisir" prestations (NOT activities):', asaisirItems.length, 'found')
-    // If this is an activity (not a prestation), look for existing "À saisir" prestation or create new one
+    // If this is an activity (not a prestation), look for existing prestation or create new one
     if (p.isActivity) {
-      console.log('[openEdit] ACTIVITY DETECTED, looking for existing "À saisir" prestation...')
+      console.log('[openEdit] ACTIVITY DETECTED, looking for existing prestation for this activity...')
       
-      // First, try to find an existing "À saisir" prestation for this exact date
-      // This is the simplest and most reliable match
+      // Look for any existing prestation (not activity) for the same date+analytique
+      // that hasn't been finalized (not "Envoyé à la facturation")
       let existingPrestation = items.find(prest => 
-        prest.status === "À saisir" && 
-        !prest.isActivity &&  // Exclude activities!
+        !prest.isActivity &&  // Only prestations, not activities
+        !prest.id?.toString().startsWith('act_') &&  // Safety check
         prest.date === p.date &&
-        !prest.id?.toString().startsWith('act_')
+        (prest.analytic_code === p.analytic_code || prest.analytic_id === p.analytic_id) &&
+        prest.status !== "Envoyé à la facturation"  // Not finalized
       )
       
-      // If not found, try to find by date and pay_type
+      // Alternative: search by date + pay_type
       if (!existingPrestation) {
         existingPrestation = items.find(prest => 
-          prest.status === "À saisir" && 
-          !prest.isActivity &&  // Exclude activities!
+          !prest.isActivity &&
+          !prest.id?.toString().startsWith('act_') &&
           prest.date === p.date &&
           prest.pay_type === p.pay_type &&
-          !prest.id?.toString().startsWith('act_')
+          prest.status !== "Envoyé à la facturation"
         )
       }
       
-      // If still not found, try to find by date and analytic
+      // Alternative: just find ANY non-finalized prestation for this date
       if (!existingPrestation) {
         existingPrestation = items.find(prest => 
-          prest.status === "À saisir" && 
-          !prest.isActivity &&  // Exclude activities!
+          !prest.isActivity &&
+          !prest.id?.toString().startsWith('act_') &&
           prest.date === p.date &&
-          (prest.analytic_code === p.analytic_code || prest.ebrigade_activity_code === p.ebrigade_activity_code) &&
-          !prest.id?.toString().startsWith('act_')
-        )
-      }
-      
-      // If still not found, just find ANY "À saisir" for this date
-      if (!existingPrestation) {
-        existingPrestation = items.find(prest => 
-          prest.status === "À saisir" && 
-          !prest.isActivity &&  // Exclude activities!
-          prest.date === p.date &&
-          !prest.id?.toString().startsWith('act_')
+          prest.status !== "Envoyé à la facturation"
         )
       }
       
       if (existingPrestation && existingPrestation.id) {
-        console.log('[openEdit] ✅ Found existing "À saisir" prestation (id=' + existingPrestation.id + '), editing it')
+        console.log('[openEdit] ✅ Found existing prestation (id=' + existingPrestation.id + ') for this activity, editing it')
         setEditing({
           ...existingPrestation,
           isActivity: true,
@@ -249,7 +232,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         })
         return
       } else {
-        console.log('[openEdit] ❌ No existing "À saisir" prestation found, creating new from activity')
+        console.log('[openEdit] ❌ No existing prestation found for this activity, creating new')
       }
       
       // No existing prestation found, create new one from activity
