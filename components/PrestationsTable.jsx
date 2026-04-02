@@ -142,7 +142,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
   // consistent status set matching workflow
   const statuses = useMemo(() => [
-    'A saisir',
+    'À saisir',
     "En attente d'approbation",
     "En attente d'envoie",
     'Envoyé à la facturation',
@@ -160,7 +160,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       s === "Envoyé à la facturation" ? '#16a34a' :
       s === "En attente d'envoie" ? '#0366d6' :
       s === "En attente d'approbation" ? '#f59e0b' :
-      s === 'A saisir' ? '#9ca3af' :
+      s === 'À saisir' ? '#9ca3af' :
       s === 'Annulé' ? '#ef4444' : '#6b7280'
     )
     return (
@@ -183,22 +183,8 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   async function openEdit(p){
     console.log('[openEdit] called with:', p, 'items count:', items.length)
     
-    // Log all unique statuses
-    const statuses = items.map(i => i.status)
-    const uniqueStatuses = [...new Set(statuses)]
-    console.log('[openEdit] ALL unique statuses in items:', uniqueStatuses)
-    console.log('[openEdit] Status breakdown:', {
-      'A saisir': items.filter(i => i.status === "A saisir").length,
-      'En attente d\'approbation': items.filter(i => i.status === "En attente d'approbation").length,
-      'En attente d\'envoie': items.filter(i => i.status === "En attente d'envoie").length,
-      'Other': items.filter(i => !["A saisir", "En attente d'approbation", "En attente d'envoie"].includes(i.status)).length
-    })
-    
-    const asaisirItems = items.filter(i => i.status === "A saisir")
-    console.log('[openEdit] items "A saisir":', asaisirItems)
-    if (asaisirItems.length > 0) {
-      console.log('[openEdit] First "A saisir" item:', asaisirItems[0])
-    }
+    const asaisirItems = items.filter(i => i.status === "À saisir")
+    console.log('[openEdit] Looking for "À saisir" prestations:', asaisirItems.length, 'found')
     // If this is an activity (not a prestation), look for existing "À saisir" prestation or create new one
     if (p.isActivity) {
       console.log('[openEdit] ACTIVITY DETECTED, looking for existing "À saisir" prestation...')
@@ -206,7 +192,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       // First, try to find an existing "À saisir" prestation for this exact date
       // This is the simplest and most reliable match
       let existingPrestation = items.find(prest => 
-        prest.status === "A saisir" && 
+        prest.status === "À saisir" && 
         prest.date === p.date &&
         !prest.id  // Find one without an id if it exists (shouldn't happen but just in case)
       )
@@ -214,7 +200,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       // If not found, try to find by date and pay_type
       if (!existingPrestation) {
         existingPrestation = items.find(prest => 
-          prest.status === "A saisir" && 
+          prest.status === "À saisir" && 
           prest.date === p.date &&
           prest.pay_type === p.pay_type
         )
@@ -223,7 +209,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       // If still not found, try to find by date and analytic
       if (!existingPrestation) {
         existingPrestation = items.find(prest => 
-          prest.status === "A saisir" && 
+          prest.status === "À saisir" && 
           prest.date === p.date &&
           (prest.analytic_code === p.analytic_code || prest.ebrigade_activity_code === p.ebrigade_activity_code)
         )
@@ -232,7 +218,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       // If still not found, just find ANY "À saisir" for this date
       if (!existingPrestation) {
         existingPrestation = items.find(prest => 
-          prest.status === "A saisir" && 
+          prest.status === "À saisir" && 
           prest.date === p.date
         )
       }
@@ -274,7 +260,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         ebrigade_activity_type: p.ebrigade_activity_type || null,
         ebrigade_personnel_id: p.ebrigade_personnel_id || null,
         ebrigade_personnel_name: p.ebrigade_personnel_name || null,
-        status: 'A saisir',
+        status: 'À saisir',
         user_email: email,
         expense_amount: null,
         expense_comment: null,
