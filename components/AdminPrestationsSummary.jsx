@@ -22,6 +22,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
   const [loadedIds, setLoadedIds] = useState(new Set())
   const [activityRates, setActivityRates] = useState({})
   const [activityNames, setActivityNames] = useState({})
+  const [currentPage, setCurrentPage] = useState(1)
   const statuses = ["", "A saisir", "En attente d'approbation", "En attente d'envoie", "Envoyé à la facturation", "Annulé"]
   const [viewing, setViewing] = useState(null)
 
@@ -154,7 +155,15 @@ export default function AdminPrestationsSummary({ limit = 8 }){
     })
   }, [items, statusFilter, dateFrom, dateTo, userFilter])
 
-  const displayed = useMemo(() => (filtered || []).slice(0, limit), [filtered, limit])
+  const totalPages = Math.ceil((filtered?.length || 0) / limit)
+  const startIdx = (currentPage - 1) * limit
+  const endIdx = startIdx + limit
+
+  const displayed = useMemo(() => (filtered || []).slice(startIdx, endIdx), [filtered, limit, currentPage, startIdx, endIdx])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [statusFilter, dateFrom, dateTo, userFilter])
 
   useEffect(() => {
     if (filtered && filtered.length > 0) {
@@ -217,8 +226,8 @@ export default function AdminPrestationsSummary({ limit = 8 }){
               >
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}><strong>#{it.ebrigade_id || it.request_ref || it.invoice_number || it.id}</strong></td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>
-                  <div style={{fontWeight:500}}>{it.user_firstName && it.user_lastName ? `${it.user_firstName} ${it.user_lastName}` : (it.user_email || it.user_id || '-')}</div>
-                  {it.user_firstName && it.user_lastName && it.user_email && <div style={{fontSize:12,color:'#6b7280'}}>{it.user_email}</div>}
+                  <div style={{fontWeight:500}}>{it.user_firstname && it.user_lastname ? `${it.user_firstname} ${it.user_lastname}` : (it.user_email || it.user_id || '-')}</div>
+                  {it.user_firstname && it.user_lastname && it.user_email && <div style={{fontSize:12,color:'#6b7280'}}>{it.user_email}</div>}
                 </td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>{formatDate(it.date)}</td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>{it.pay_type || '-'}</td>
@@ -255,6 +264,29 @@ export default function AdminPrestationsSummary({ limit = 8 }){
           </tbody>
         </table>
       )}
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:6,marginTop:16,flexWrap:'wrap'}}>
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            style={{padding:'6px 12px',borderRadius:6,border:'1px solid #d1d5db',background:currentPage === 1 ? '#f3f4f6' : '#fff',color:currentPage === 1 ? '#9ca3af' : '#1f2937',cursor:currentPage === 1 ? 'not-allowed' : 'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}
+          >← Précédent</button>
+          {Array.from({length: totalPages}, (_, i) => i + 1).map(pageNum => (
+            <button
+              key={pageNum}
+              onClick={() => setCurrentPage(pageNum)}
+              style={{padding:'6px 10px',borderRadius:6,border: pageNum === currentPage ? '2px solid #3b82f6' : '1px solid #d1d5db',background: pageNum === currentPage ? '#dbeafe' : '#fff',color: pageNum === currentPage ? '#1e40af' : '#1f2937',cursor:'pointer',fontWeight: pageNum === currentPage ? 700 : 600,fontSize:13,transition:'all 0.2s',minWidth:36,textAlign:'center'}}
+            >{pageNum}</button>
+          ))}
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            style={{padding:'6px 12px',borderRadius:6,border:'1px solid #d1d5db',background:currentPage === totalPages ? '#f3f4f6' : '#fff',color:currentPage === totalPages ? '#9ca3af' : '#1f2937',cursor:currentPage === totalPages ? 'not-allowed' : 'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}
+          >Suivant →</button>
+          <span style={{fontSize:12,color:'#6b7280',marginLeft:8}}>Page {currentPage} sur {totalPages}</span>
+        </div>
+      )}
       {viewing && (
         <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.4)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:20}}>
           <div style={{width:'100%',maxWidth:800,background:'#fff',borderRadius:12,boxShadow:'0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',overflow:'auto',maxHeight:'90vh'}}>
@@ -270,8 +302,8 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                   <div>
                     <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>UTILISATEUR</div>
-                    <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{viewing.user_firstName && viewing.user_lastName ? `${viewing.user_firstName} ${viewing.user_lastName}` : (viewing.user_email || viewing.user_id || '-')}</div>
-                    {viewing.user_firstName && viewing.user_lastName && viewing.user_email && <div style={{fontSize:12,color:'#6b7280',marginTop:4}}>{viewing.user_email}</div>}
+                    <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{viewing.user_firstname && viewing.user_lastname ? `${viewing.user_firstname} ${viewing.user_lastname}` : (viewing.user_email || viewing.user_id || '-')}</div>
+                    {viewing.user_firstname && viewing.user_lastname && viewing.user_email && <div style={{fontSize:12,color:'#6b7280',marginTop:4}}>{viewing.user_email}</div>}
                   </div>
                     <div>
                       <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>DATE</div>
