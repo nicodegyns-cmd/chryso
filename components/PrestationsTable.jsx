@@ -182,18 +182,30 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
   async function openEdit(p){
     console.log('[openEdit] called with:', p)
-    // If this is an activity (not a prestation), create a new prestation from it
+    // If this is an activity (not a prestation), look for existing "À saisir" prestation or create new one
     if (p.isActivity) {
-      console.log('[openEdit] ACTIVITY DETECTED - showing hours form, setting isActivity: true')
-      console.log('[openEdit] Opening activity:', { 
-        id: p.id, 
-        analytic_name: p.analytic_name, 
-        pay_type: p.pay_type,
-        duration: p.duration,
-        startTime: p.startTime,
-        endTime: p.endTime,
-        original_p: p
-      })
+      console.log('[openEdit] ACTIVITY DETECTED')
+      
+      // First, try to find an existing "À saisir" prestation for this activity
+      const existingPrestation = items.find(prest => 
+        prest.status === "A saisir" && 
+        prest.ebrigade_activity_code === (p.ebrigade_activity_code || p.analytic_code) &&
+        prest.date === p.date &&
+        prest.pay_type === p.pay_type
+      )
+      
+      if (existingPrestation) {
+        console.log('[openEdit] Found existing "À saisir" prestation, editing it:', existingPrestation.id)
+        setEditing({
+          ...existingPrestation,
+          isActivity: true,
+          isEBrigade: true
+        })
+        return
+      }
+      
+      // No existing prestation found, create new one from activity
+      console.log('[openEdit] No existing prestation found, creating new from activity')
       const editingState = {
         id: null,
         analytic_id: p.analytic_id,
@@ -228,14 +240,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         // mark as eBrigade if the incoming activity originates from eBrigade
         isEBrigade: !!(p.source === 'ebrigade' || p.activityCode || p.E_CODE || p.ebrigade_activity_code || p.ebrigade_id)
       }
-      console.log('[openEdit] Setting editing state with eBrigade data:', {
-        ebrigade_activity_code: editingState.ebrigade_activity_code,
-        ebrigade_id: editingState.ebrigade_id,
-        ebrigade_activity_name: editingState.ebrigade_activity_name,
-        isActivity: editingState.isActivity,
-        p_ebrigade_activity_code: p.ebrigade_activity_code,
-        p_activityCode: p.activityCode
-      })
       setEditing(editingState)
       return
     }
