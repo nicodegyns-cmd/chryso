@@ -182,8 +182,23 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
   async function openEdit(p){
     console.log('[openEdit] called with:', p, 'items count:', items.length)
-    console.log('[openEdit] ALL items with status values:', items.map(i => ({id: i.id, status: i.status, date: i.date})))
-    console.log('[openEdit] items "A saisir":', items.filter(i => i.status === "A saisir"))
+    
+    // Log all unique statuses
+    const statuses = items.map(i => i.status)
+    const uniqueStatuses = [...new Set(statuses)]
+    console.log('[openEdit] ALL unique statuses in items:', uniqueStatuses)
+    console.log('[openEdit] Status breakdown:', {
+      'A saisir': items.filter(i => i.status === "A saisir").length,
+      'En attente d\'approbation': items.filter(i => i.status === "En attente d'approbation").length,
+      'En attente d\'envoie': items.filter(i => i.status === "En attente d'envoie").length,
+      'Other': items.filter(i => !["A saisir", "En attente d'approbation", "En attente d'envoie"].includes(i.status)).length
+    })
+    
+    const asaisirItems = items.filter(i => i.status === "A saisir")
+    console.log('[openEdit] items "A saisir":', asaisirItems)
+    if (asaisirItems.length > 0) {
+      console.log('[openEdit] First "A saisir" item:', asaisirItems[0])
+    }
     // If this is an activity (not a prestation), look for existing "À saisir" prestation or create new one
     if (p.isActivity) {
       console.log('[openEdit] ACTIVITY DETECTED, looking for existing "À saisir" prestation...')
