@@ -714,6 +714,12 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                 {/* Header: Date et Type */}
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'start'}}>
                   <div>
+                    <div style={{fontSize:11,color:'#9ca3af',fontWeight:600,letterSpacing:'0.5px'}}>ID</div>
+                    <div style={{fontSize:13,fontWeight:700,color:'#6b7280',fontFamily:'monospace'}}>
+                      {p.analytic_code || p.ebrigade_activity_code || `#${p.id}`}
+                    </div>
+                  </div>
+                  <div>
                     <div style={{fontSize:12,color:'#6b7280',fontWeight:600}}>DATE</div>
                     <div style={{fontSize:18,fontWeight:700,color:'#1f2937'}}>
                       {p.date ? new Date(p.date).toLocaleDateString('fr-FR', {month:'short', day:'numeric'}) : '—'}
