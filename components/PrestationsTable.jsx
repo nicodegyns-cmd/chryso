@@ -91,7 +91,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       setLoading(true)
       setError(null)
       try {
-        // ADMIN: Fetch only admin prestations, NOT activities
+        // ADMIN: Load admin prestations only (no activities)
         if (clientRole === 'admin') {
           const r = await fetch('/api/admin/prestations')
           if (!r.ok) throw new Error('Échec de la récupération (admin)')
@@ -100,7 +100,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           return
         }
         
-        // USER: Fetch user prestations + activities
+        // USER: Load user prestations + activities
         if (email) {
           // Fetch user prestations
           const prestRes = await fetch(`/api/prestations?email=${encodeURIComponent(email)}`)
@@ -489,6 +489,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     setSaving(true)
     try{
       const effective = {...editing}
+      
+      // Ensure user_email is always set for API calls
+      if (!effective.user_email) {
+        effective.user_email = email || (typeof window !== 'undefined' ? localStorage.getItem('email') : null)
+      }
+      console.log('[saveEdit] About to save with user_email:', effective.user_email, 'isNewPrestation:', isNewPrestation)
+      
       // Always set status to "En attente d'approbation" for non-admin/moderator users
       if (!role || (role !== 'admin' && role !== 'moderator')){
         effective.status = "En attente d'approbation"
@@ -522,30 +529,40 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
       // Handle new prestation (POST) vs updating existing one (PATCH)
       let r
-      const isAdmin = role === 'admin' || role === 'moderator'
-      const endpoint = isAdmin ? '/api/admin/prestations' : '/api/prestations'
-      
+      // Always use admin endpoint for saving prestations
       if (isNewPrestation) {
         // Create new prestation
-        r = await fetch(endpoint, {
+        r = await fetch('/api/admin/prestations', {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify(effective)
         })
       } else {
-        // Update existing prestation
-        r = await fetch(`${endpoint}/${effective.id}`, {
-          method: 'PATCH',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify(effective)
-        })
+        // Update existing prestation (skip if ID is an activity ID like "act_...")
+        if (effective.id && effective.id.toString().startsWith('act_')) {
+          // This is an activity - convert to POST for new prestation
+          r = await fetch('/api/admin/prestations', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({...effective, id: null})
+          })
+        } else {
+          // Normal PATCH update
+          r = await fetch(`/api/admin/prestations/${effective.id}`, {
+            method: 'PATCH',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(effective)
+          })
+        }
       }
       
       if (!r.ok) {
         try {
           const errData = await r.json()
+          console.error('[saveEdit] API error response:', errData)
           throw new Error(`Erreur ${r.status}: ${errData.error || 'Échec enregistrement'}`)
-        } catch(e) {
+        } catch(parseErr) {
+          console.error('[saveEdit] Could not parse error response:', parseErr)
           throw new Error(`Erreur ${r.status}: Échec enregistrement`)
         }
       }
