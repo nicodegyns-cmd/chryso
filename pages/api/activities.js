@@ -110,7 +110,7 @@ export default async function handler(req, res){
       const mapping = mappings.find(m => m.ebrigade_analytic_name === analyticsPrefix)
       
       return {
-        id: `${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`,
+        id: `ebrig_${user.liaison_ebrigade_id}_${p.E_CODE}-${p.EH_DATE_DEBUT}-${p.P_ID}`,
         date: p.EH_DATE_DEBUT,
         startTime: p.EH_DEBUT,
         endTime: p.EH_FIN,
