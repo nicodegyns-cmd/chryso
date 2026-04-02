@@ -59,7 +59,7 @@ export default function DashboardPage() {
   // Callback to refetch activities after saving a prestation
   const handlePrestationSaved = React.useCallback(() => {
     console.log('[dashboard] handlePrestationSaved called, refetching activities')
-    activitiesCardRef.current?.refetch()
+    return activitiesCardRef.current?.refetch()
   }, [])
 
   // Handle when user selects an eBrigade prestation to declare hours

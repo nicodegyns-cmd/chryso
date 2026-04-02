@@ -618,7 +618,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email, onPrestat
       // This ensures the activity card disappears and doesn't show duplicate
       if (onPrestationSaved) {
         console.log('[saveEdit] Calling onPrestationSaved callback to refresh activities')
-        onPrestationSaved()
+        await onPrestationSaved()
       }
       
       handleCloseModal()
