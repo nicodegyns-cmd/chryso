@@ -275,8 +275,8 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                   <div>
                     <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>UTILISATEUR</div>
-                    <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{viewing.user_firstName || viewing.user_lastName ? `${viewing.user_firstName || ''} ${viewing.user_lastName || ''}`.trim() : (viewing.user_email || viewing.user_id || '-')}</div>
-                    {viewing.user_email && <div style={{fontSize:12,color:'#6b7280',marginTop:4}}>{viewing.user_email}</div>}
+                    <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{viewing.user_firstName && viewing.user_lastName ? `${viewing.user_firstName} ${viewing.user_lastName}` : (viewing.user_email || viewing.user_id || '-')}</div>
+                    {viewing.user_firstName && viewing.user_lastName && viewing.user_email && <div style={{fontSize:12,color:'#6b7280',marginTop:4}}>{viewing.user_email}</div>}
                   </div>
                     <div>
                       <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>DATE</div>
