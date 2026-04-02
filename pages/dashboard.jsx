@@ -14,7 +14,34 @@ export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const userEmail = useLocalStorage('email', '')
   const userRole = useLocalStorage('role', null)
+  const [ebrigadeId, setEbrigadeId] = React.useState(null)
   const prestationsTableRef = React.useRef(null)
+  
+  // Fetch user's liaison_ebrigade_id when email changes
+  React.useEffect(() => {
+    if (!userEmail) return
+    
+    const token = localStorage.getItem('token')
+    if (!token) return
+    
+    fetch(`/api/users/by-token`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(user => {
+        console.log('[dashboard] User data:', user)
+        setEbrigadeId(user.liaison_ebrigade_id || null)
+      })
+      .catch(e => console.error('[dashboard] Error fetching user:', e))
+  }, [userEmail])
+  
+  // Force page reload when router query changes (for ebrigade_id changes)
+  React.useEffect(() => {
+    if (router.isReady && router.query.refresh) {
+      // Clear the refresh param
+      router.push(router.pathname, undefined, { shallow: false })
+    }
+  }, [router])
 
   // Handle when user clicks on an activity card to edit/declare hours
   const handleEditActivity = React.useCallback((activity) => {
@@ -106,7 +133,7 @@ export default function DashboardPage() {
               
               <RIBUploadBanner email={userEmail} />
               
-              <ActivitiesCards key={userEmail} email={userEmail} onEditActivity={handleEditActivity} />
+              <ActivitiesCards key={`${userEmail}-${ebrigadeId}`} email={userEmail} ebrigade_id={ebrigadeId} onEditActivity={handleEditActivity} />
               
               <EBrigadePrestationsDisplay email={userEmail} onSelectPrestation={handleSelectEBrigadePrestation} />\n              <PrestationsStats email={userEmail} />
               <PrestationsTable ref={prestationsTableRef} email={userEmail} />

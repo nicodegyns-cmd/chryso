@@ -6,10 +6,17 @@ export default function ActivitiesCards({ email, ebrigade_id, onEditActivity }) 
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!email) { setActivities([]); setLoading(false); return }
+    if (!email) { 
+      console.log('[ActivitiesCards] No email, clearing')
+      setActivities([]); 
+      setLoading(false); 
+      return 
+    }
     
+    console.log('[ActivitiesCards] Fetching with email:', email, 'ebrigade_id:', ebrigade_id)
     setLoading(true)
     setError(null)
+    setActivities([])  // Clear old activities IMMEDIATELY
     
     // Force fresh fetch - no caching
     const timestamp = Date.now()
@@ -18,7 +25,7 @@ export default function ActivitiesCards({ email, ebrigade_id, onEditActivity }) 
     })
       .then(r => { if (!r.ok) throw new Error(`Échec: ${r.status}`); return r.json() })
       .then(d => {
-        console.log('[ActivitiesCards] Received:', d)
+        console.log('[ActivitiesCards] Received:', d.activities?.length || 0, 'activities')
         setActivities(d.activities || [])
       })
       .catch(e => {
