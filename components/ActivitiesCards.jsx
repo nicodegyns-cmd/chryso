@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 
-export default function ActivitiesCards({ email, onEditActivity }) {
+export default function ActivitiesCards({ email, ebrigade_id, onEditActivity }) {
   const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -11,7 +11,11 @@ export default function ActivitiesCards({ email, onEditActivity }) {
     setLoading(true)
     setError(null)
     
-    fetch(`/api/activities?email=${encodeURIComponent(email)}`)
+    // Force fresh fetch - no caching
+    const timestamp = Date.now()
+    fetch(`/api/activities?email=${encodeURIComponent(email)}&t=${timestamp}`, {
+      cache: 'no-store'
+    })
       .then(r => { if (!r.ok) throw new Error(`Échec: ${r.status}`); return r.json() })
       .then(d => {
         console.log('[ActivitiesCards] Received:', d)
@@ -22,7 +26,7 @@ export default function ActivitiesCards({ email, onEditActivity }) {
         setError(e.message || 'Erreur')
       })
       .finally(() => setLoading(false))
-  }, [email])
+  }, [email, ebrigade_id])
 
   if (loading) return (
     <div className="card" style={{display:'flex',flexDirection:'column',gap:8}}>

@@ -106,7 +106,7 @@ export default function DashboardPage() {
               
               <RIBUploadBanner email={userEmail} />
               
-              <ActivitiesCards email={userEmail} onEditActivity={handleEditActivity} />
+              <ActivitiesCards key={userEmail} email={userEmail} onEditActivity={handleEditActivity} />
               
               <EBrigadePrestationsDisplay email={userEmail} onSelectPrestation={handleSelectEBrigadePrestation} />\n              <PrestationsStats email={userEmail} />
               <PrestationsTable ref={prestationsTableRef} email={userEmail} />
