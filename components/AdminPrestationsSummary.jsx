@@ -265,7 +265,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
           <div style={{width:'100%',maxWidth:800,background:'#fff',borderRadius:12,boxShadow:'0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',overflow:'auto',maxHeight:'90vh'}}>
             <div style={{padding:24,borderBottom:'1px solid #e5e7eb'}}>
               <h3 style={{margin:0,fontSize:20,fontWeight:700,color:'#1f2937'}}>
-                📋 {activityNames[viewing.id] ? `${activityNames[viewing.id]} - ` : ''}Détails demande #{viewing.ebrigade_id || viewing.request_ref || viewing.invoice_number || viewing.id}
+                📋 {viewing.ebrigade_activity_name || viewing.analytic_name ? `${viewing.ebrigade_activity_name || viewing.analytic_name} - ` : ''}Détails demande #{viewing.ebrigade_id || viewing.request_ref || viewing.invoice_number || viewing.id}
               </h3>
             </div>
 
