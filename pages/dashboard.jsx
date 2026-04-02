@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const userRole = useLocalStorage('role', null)
   const [ebrigadeId, setEbrigadeId] = React.useState(null)
   const prestationsTableRef = React.useRef(null)
+  const activitiesCardRef = React.useRef(null)
   
   // Fetch user's liaison_ebrigade_id when email changes
   React.useEffect(() => {
@@ -53,6 +54,12 @@ export default function DashboardPage() {
     } else {
       console.warn('[dashboard] openEdit not found on ref:', prestationsTableRef.current)
     }
+  }, [])
+
+  // Callback to refetch activities after saving a prestation
+  const handlePrestationSaved = React.useCallback(() => {
+    console.log('[dashboard] handlePrestationSaved called, refetching activities')
+    activitiesCardRef.current?.refetch()
   }, [])
 
   // Handle when user selects an eBrigade prestation to declare hours
@@ -133,10 +140,10 @@ export default function DashboardPage() {
               
               <RIBUploadBanner email={userEmail} />
               
-              <ActivitiesCards key={`${userEmail}-${ebrigadeId}`} email={userEmail} ebrigade_id={ebrigadeId} onEditActivity={handleEditActivity} />
+              <ActivitiesCards ref={activitiesCardRef} key={`${userEmail}-${ebrigadeId}`} email={userEmail} ebrigade_id={ebrigadeId} onEditActivity={handleEditActivity} />
               
               <EBrigadePrestationsDisplay email={userEmail} onSelectPrestation={handleSelectEBrigadePrestation} />\n              <PrestationsStats email={userEmail} />
-              <PrestationsTable ref={prestationsTableRef} email={userEmail} />
+              <PrestationsTable ref={prestationsTableRef} email={userEmail} onPrestationSaved={handlePrestationSaved} />
             </div>
           </>
         )}

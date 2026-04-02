@@ -1,9 +1,35 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useImperativeHandle, forwardRef } from 'react'
 
-export default function ActivitiesCards({ email, ebrigade_id, onEditActivity }) {
+const ActivitiesCards = forwardRef(function ActivitiesCards({ email, ebrigade_id, onEditActivity }, ref) {
   const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  // Expose refetch function through ref so parent can call it directly
+  useImperativeHandle(ref, () => ({
+    refetch: async () => {
+      if (!email) return
+      console.log('[ActivitiesCards] refetch() called via ref')
+      
+      setLoading(true)
+      const timestamp = Date.now()
+      try {
+        const res = await fetch(`/api/activities?email=${encodeURIComponent(email)}&t=${timestamp}`, {
+          cache: 'no-store'
+        })
+        if (!res.ok) throw new Error(`Échec: ${res.status}`)
+        const d = await res.json()
+        console.log('[ActivitiesCards] Refetched:', d.activities?.length || 0, 'activities')
+        setActivities(d.activities || [])
+        setError(null)
+      } catch (e) {
+        console.error('[ActivitiesCards] Refetch error:', e)
+        setError(e.message || 'Erreur')
+      } finally {
+        setLoading(false)
+      }
+    }
+  }))
 
   useEffect(() => {
     if (!email) { 
@@ -34,30 +60,6 @@ export default function ActivitiesCards({ email, ebrigade_id, onEditActivity }) 
       })
       .finally(() => setLoading(false))
   }, [email, ebrigade_id])
-  
-  // Listen for prestation saves and refetch activities to avoid duplication
-  useEffect(() => {
-    const handlePrestationSaved = () => {
-      console.log('[ActivitiesCards] prestationSaved event received, refetching activities')
-      if (!email) return
-      
-      const timestamp = Date.now()
-      fetch(`/api/activities?email=${encodeURIComponent(email)}&t=${timestamp}`, {
-        cache: 'no-store'
-      })
-        .then(r => { if (!r.ok) throw new Error(`Échec: ${r.status}`); return r.json() })
-        .then(d => {
-          console.log('[ActivitiesCards] Refetched:', d.activities?.length || 0, 'activities after save')
-          setActivities(d.activities || [])
-        })
-        .catch(e => {
-          console.warn('[ActivitiesCards] Error refetching activities:', e)
-        })
-    }
-    
-    window.addEventListener('prestationSaved', handlePrestationSaved)
-    return () => window.removeEventListener('prestationSaved', handlePrestationSaved)
-  }, [email])
 
   if (loading) return (
     <div className="card" style={{display:'flex',flexDirection:'column',gap:8}}>
@@ -192,4 +194,6 @@ export default function ActivitiesCards({ email, ebrigade_id, onEditActivity }) 
       )}
     </div>
   )
-}
+})
+
+export default ActivitiesCards

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useImperativeHandle, forwardRef, useRef, useCallback } from 'react'
 
-const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
+const PrestationsTable = forwardRef(function PrestationsTable({ email, onPrestationSaved }, ref) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -616,10 +616,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       
       // Force refresh of activities after successful save
       // This ensures the activity card disappears and doesn't show duplicate
-      setTimeout(() => {
-        console.log('[saveEdit] Dispatching prestationSaved event to refresh activities')
-        window.dispatchEvent(new Event('prestationSaved'))
-      }, 100)
+      if (onPrestationSaved) {
+        console.log('[saveEdit] Calling onPrestationSaved callback to refresh activities')
+        onPrestationSaved()
+      }
       
       handleCloseModal()
     }catch(e){
