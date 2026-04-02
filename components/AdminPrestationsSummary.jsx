@@ -66,7 +66,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
     setEstimatedAmounts(prev => {
       const newEstimates = { ...prev }
       prestations.forEach(async p => {
-        if (p.status === "En attente d'approbation" && !loadedIds.has(p.id)) {
+        if (!loadedIds.has(p.id)) {
           try {
             const r = await fetch('/api/prestations/estimate', {
               method: 'POST',
@@ -217,18 +217,13 @@ export default function AdminPrestationsSummary({ limit = 8 }){
               >
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}><strong>#{it.ebrigade_id || it.request_ref || it.invoice_number || it.id}</strong></td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>
-                  <div style={{fontWeight:500}}>{it.user_firstName || it.user_lastName ? `${it.user_firstName || ''} ${it.user_lastName || ''}`.trim() : (it.user_email || it.user_id || '-')}</div>
-                  {it.user_email && <div style={{fontSize:12,color:'#6b7280'}}>{it.user_email}</div>}
+                  <div style={{fontWeight:500}}>{it.user_firstName && it.user_lastName ? `${it.user_firstName} ${it.user_lastName}` : (it.user_email || it.user_id || '-')}</div>
+                  {it.user_firstName && it.user_lastName && it.user_email && <div style={{fontSize:12,color:'#6b7280'}}>{it.user_email}</div>}
                 </td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>{formatDate(it.date)}</td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>{it.pay_type || '-'}</td>
                 <td style={{padding:12,fontSize:14,fontWeight:600,color:'#10b981'}}>
-                  {it.status === "En attente d'approbation" && estimatedAmounts[it.id]
-                    ? estimatedAmounts[it.id] + ' €'
-                    : (it.remuneration_infi != null || it.remuneration_med != null) 
-                      ? `${it.remuneration_infi ? it.remuneration_infi + '€ ' : ''}${it.remuneration_med ? it.remuneration_med + '€' : ''}`.trim()
-                      : '-'
-                  }
+                  {estimatedAmounts[it.id] ? estimatedAmounts[it.id] + ' €' : (it.remuneration_infi != null || it.remuneration_med != null) ? `${it.remuneration_infi ? it.remuneration_infi + '€ ' : ''}${it.remuneration_med ? it.remuneration_med + '€' : ''}`.trim() : '-'}
                 </td>
                 <td style={{padding:12,fontSize:14}}>
                   <span style={{
