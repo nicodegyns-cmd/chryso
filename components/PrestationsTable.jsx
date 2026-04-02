@@ -188,8 +188,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   async function openEdit(p){
     console.log('[openEdit] called with:', p, 'items count:', items.length)
     
-    const asaisirItems = items.filter(i => i.status === "À saisir")
-    console.log('[openEdit] Looking for "À saisir" prestations:', asaisirItems.length, 'found')
+    // Search for "À saisir" prestations, but EXCLUDE activities (those have id starting with "act_")
+    const asaisirItems = items.filter(i => 
+      i.status === "À saisir" && 
+      !i.isActivity &&  // Exclude activities
+      (!i.id || !i.id.toString().startsWith('act_'))  // Extra safety check
+    )
+    console.log('[openEdit] Looking for "À saisir" prestations (NOT activities):', asaisirItems.length, 'found')
     // If this is an activity (not a prestation), look for existing "À saisir" prestation or create new one
     if (p.isActivity) {
       console.log('[openEdit] ACTIVITY DETECTED, looking for existing "À saisir" prestation...')
@@ -198,16 +203,19 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       // This is the simplest and most reliable match
       let existingPrestation = items.find(prest => 
         prest.status === "À saisir" && 
+        !prest.isActivity &&  // Exclude activities!
         prest.date === p.date &&
-        !prest.id  // Find one without an id if it exists (shouldn't happen but just in case)
+        !prest.id?.toString().startsWith('act_')
       )
       
       // If not found, try to find by date and pay_type
       if (!existingPrestation) {
         existingPrestation = items.find(prest => 
           prest.status === "À saisir" && 
+          !prest.isActivity &&  // Exclude activities!
           prest.date === p.date &&
-          prest.pay_type === p.pay_type
+          prest.pay_type === p.pay_type &&
+          !prest.id?.toString().startsWith('act_')
         )
       }
       
@@ -215,8 +223,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       if (!existingPrestation) {
         existingPrestation = items.find(prest => 
           prest.status === "À saisir" && 
+          !prest.isActivity &&  // Exclude activities!
           prest.date === p.date &&
-          (prest.analytic_code === p.analytic_code || prest.ebrigade_activity_code === p.ebrigade_activity_code)
+          (prest.analytic_code === p.analytic_code || prest.ebrigade_activity_code === p.ebrigade_activity_code) &&
+          !prest.id?.toString().startsWith('act_')
         )
       }
       
@@ -224,7 +234,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       if (!existingPrestation) {
         existingPrestation = items.find(prest => 
           prest.status === "À saisir" && 
-          prest.date === p.date
+          !prest.isActivity &&  // Exclude activities!
+          prest.date === p.date &&
+          !prest.id?.toString().startsWith('act_')
         )
       }
       
