@@ -293,6 +293,11 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       alert('Cette demande est en attente d\'envoie et ne peut plus être modifiée.')
       return
     }
+    
+    // For new prestations from activities, immediately update status to "En attente d'approbation"
+    if (isNewPrestation && editing.isActivity && (!role || (role !== 'admin' && role !== 'moderator'))) {
+      setEditing({...editing, status: "En attente d'approbation"})
+    }
 
     // Non-admin users require confirmation modal before actual save
     if (!confirmed && role !== 'admin'){
@@ -445,6 +450,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     setSaving(true)
     try{
       const effective = {...editing}
+      // Always set status to "En attente d'approbation" for non-admin/moderator users
       if (!role || (role !== 'admin' && role !== 'moderator')){
         effective.status = "En attente d'approbation"
       }
