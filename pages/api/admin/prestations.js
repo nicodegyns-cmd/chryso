@@ -13,7 +13,7 @@ export default async function handler(req, res) {
            LEFT JOIN analytics an ON p.analytic_id = an.id
            WHERE p.status IN ($1, $2, $3)
            ORDER BY p.date DESC, p.id DESC`,
-          ["A saisir", "En attente d'approbation", "En attente d'envoie"]
+          ["À saisir", "En attente d'approbation", "En attente d'envoie"]
         )
         const rows = (q && q.rows) ? q.rows : []
         return res.status(200).json({ items: rows })
@@ -109,7 +109,7 @@ export default async function handler(req, res) {
           expense_amount || null,
           expense_comment || null,
           proof_image || null,
-          status || 'A saisir',
+          status || 'À saisir',
           ebrigade_id || null,
           ebrigade_personnel_id || null,
           ebrigade_personnel_name || null,
