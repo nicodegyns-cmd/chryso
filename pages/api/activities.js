@@ -35,7 +35,7 @@ export default async function handler(req, res){
       // Continue without mappings
     }
 
-    const userResult = await pool.query('SELECT liaison_ebrigade_id FROM users WHERE email = $1', [email])
+    const userResult = await pool.query('SELECT id, liaison_ebrigade_id FROM users WHERE email = $1', [email])
     const user = userResult.rows?.[0]
 
     console.log('[activities] User query result:', userResult.rows)
@@ -122,11 +122,43 @@ export default async function handler(req, res){
         pay_type: p.TE_LIBELLE || 'Garde',
         status: 'À saisir',
         isActivity: true,
-        ebrigade_analytic_name: p.E_LIBELLE  // Keep original eBrigade name for reference
+        ebrigade_analytic_name: p.E_LIBELLE,  // Keep original eBrigade name for reference
+        _mapping: mapping  // Keep mapping for DB filtering
       }
     })
 
-    return res.status(200).json({ activities })
+    // Filter out activities that already have a prestation in the database
+    const activitiesWithoutPrestations = []
+    for (const activity of activities) {
+      try {
+        const existingPrestationResult = await pool.query(
+          `SELECT id FROM prestations 
+           WHERE user_id = $1 
+           AND date = $2 
+           AND analytic_id = $3 
+           AND status != 'Envoyé à la facturation'
+           LIMIT 1`,
+          [user.id, activity.date, activity.analytic_id]
+        )
+        
+        const hasPrestation = existingPrestationResult.rows && existingPrestationResult.rows.length > 0
+        
+        if (!hasPrestation) {
+          // Remove the temporary mapping field before returning
+          const { _mapping, ...cleanActivity } = activity
+          activitiesWithoutPrestations.push(cleanActivity)
+        } else {
+          console.log('[activities] Skipping activity (prestation exists):', activity.date, activity.analytic_code)
+        }
+      } catch (filterErr) {
+        console.warn('[activities] Error filtering activity:', filterErr.message)
+        // Include activity on error (fail open)
+        const { _mapping, ...cleanActivity } = activity
+        activitiesWithoutPrestations.push(cleanActivity)
+      }
+    }
+
+    return res.status(200).json({ activities: activitiesWithoutPrestations })
   } catch (err) {
     console.error('[activities]', err)
     return res.status(200).json({ activities: [], error: err.message })
