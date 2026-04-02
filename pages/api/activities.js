@@ -131,15 +131,38 @@ export default async function handler(req, res){
     const activitiesWithoutPrestations = []
     for (const activity of activities) {
       try {
-        const existingPrestationResult = await pool.query(
-          `SELECT id FROM prestations 
-           WHERE user_id = $1 
-           AND date = $2 
-           AND analytic_id = $3 
-           AND status != 'Envoyé à la facturation'
-           LIMIT 1`,
-          [user.id, activity.date, activity.analytic_id]
-        )
+        // Check if a prestation exists for this activity
+        // Use multiple strategies to find matching prestation:
+        // 1. By date + analytic_id (if analytic_id exists)
+        // 2. By date + analytic_code 
+        // 3. By date + ebrigade_activity_code (for eBrigade activities)
+        
+        let existingPrestationResult = null
+        
+        // Strategy 1: Match by date + analytic_id (handle NULL properly)
+        if (activity.analytic_id) {
+          existingPrestationResult = await pool.query(
+            `SELECT id FROM prestations 
+             WHERE user_id = $1 
+             AND date = $2 
+             AND analytic_id = $3
+             AND status != 'Envoyé à la facturation'
+             LIMIT 1`,
+            [user.id, activity.date, activity.analytic_id]
+          )
+        } else {
+          // Strategy 2&3: If no analytic_id, search by analytic_code or ebrigade info
+          existingPrestationResult = await pool.query(
+            `SELECT id FROM prestations p
+             LEFT JOIN analytics a ON p.analytic_id = a.id
+             WHERE p.user_id = $1 
+             AND p.date = $2 
+             AND (a.code = $3 OR p.ebrigade_activity_code = $3)
+             AND p.status != 'Envoyé à la facturation'
+             LIMIT 1`,
+            [user.id, activity.date, activity.analytic_code]
+          )
+        }
         
         const hasPrestation = existingPrestationResult.rows && existingPrestationResult.rows.length > 0
         
