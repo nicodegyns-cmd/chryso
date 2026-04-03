@@ -118,6 +118,10 @@ export default function AdminPrestationsSummary({ limit = 8 }){
       if (!r.ok) throw new Error('update failed')
       const updated = await r.json()
       setItems(prev => prev.map(p => p.id === updated.id ? updated : p))
+      // Show success notification
+      if (status === "En attente d'envoie") {
+        alert(`✅ Prestaton validée!\nFacture générée: ${updated.invoice_number || 'N/A'}\nL'utilisateur peut télécharger sa facture.`)
+      }
     }catch(e){ console.error('update status failed', e); alert('Erreur lors de la mise à jour') }
     finally{ setSavingIds(prev => { const c = {...prev}; delete c[id]; return c }) }
   }
@@ -254,6 +258,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                 <td style={{padding:12,fontSize:14}}>
                   <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                     <button disabled={!!savingIds[it.id]} onClick={()=>setViewing(it)} style={{padding:'6px 12px',borderRadius:6,border:'1px solid #d1d5db',background:'#e0e7ff',color:'#3730a3',cursor:'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}>👁️ Voir</button>
+                    {it.pdf_url && <a href={it.pdf_url} download style={{padding:'6px 12px',borderRadius:6,border:'1px solid #c7d2fe',background:'#e0e7ff',color:'#3730a3',cursor:'pointer',fontWeight:600,fontSize:13,textDecoration:'none',display:'inline-block',transition:'all 0.2s'}}>📄 Facture</a>}
                     <button disabled={!!savingIds[it.id]} onClick={()=>updateStatus(it.id, "En attente d'envoie")} style={{padding:'6px 12px',borderRadius:6,border:'1px solid #fcd34d',background:'#fef3c7',color:'#92400e',cursor:'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}>✓ Valider</button>
                     <button disabled={!!savingIds[it.id]} onClick={()=>setRefusingId(it.id)} style={{padding:'6px 12px',borderRadius:6,border:'1px solid #fca5a5',background:'#fee2e2',color:'#991b1b',cursor:'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}>✕ Refuser</button>
                   </div>
