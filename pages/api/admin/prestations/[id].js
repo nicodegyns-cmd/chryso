@@ -513,7 +513,7 @@ export default async function handler(req, res){
           const filename = `prestation-${updatedRow.id}-${Date.now()}.pdf`
           const filePath = path.join(exportsDir, filename)
           fs.writeFileSync(filePath, buffer)
-          const publicUrl = `/exports/${filename}`
+          const publicUrl = `/api/exports/download?file=${encodeURIComponent(filename)}`
 
           console.log('[pdf generation] ✅ SUCCESS for prestation', updatedRow.id, 'saved at', publicUrl)
           await pool.query('UPDATE prestations SET pdf_url = $1 WHERE id = $2', [publicUrl, updatedRow.id])
