@@ -224,8 +224,8 @@ export default function InvoicesPage() {
                             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
                               <div style={{fontWeight:700}}>{inv.total != null ? (Number(inv.total).toFixed(2)+' €') : '—'}</div>
                               <div style={{display:'flex',gap:8}}>
-                                <a href={inv.pdf_url} target="_blank" rel="noreferrer" style={{background:'#0366d6',color:'#fff',padding:'6px 10px',borderRadius:6,textDecoration:'none'}}>Voir PDF</a>
-                                <Link href={inv.pdf_url} legacyBehavior><a style={{padding:'6px 10px',borderRadius:6,border:'1px solid #d1d5db',background:'#fff',textDecoration:'none'}}>Télécharger</a></Link>
+                                <a href={inv.pdf_url ? inv.pdf_url.replace(/^\/exports\//, '/api/exports/download?file=') : '#'} target="_blank" rel="noreferrer" style={{background:'#0366d6',color:'#fff',padding:'6px 10px',borderRadius:6,textDecoration:'none'}}>Voir PDF</a>
+                                <Link href={inv.pdf_url ? inv.pdf_url.replace(/^\/exports\//, '/api/exports/download?file=') : '#'} legacyBehavior><a style={{padding:'6px 10px',borderRadius:6,border:'1px solid #d1d5db',background:'#fff',textDecoration:'none'}}>Télécharger</a></Link>
                               </div>
                             </div>
                           </div>
