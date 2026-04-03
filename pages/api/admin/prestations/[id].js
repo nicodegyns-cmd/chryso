@@ -135,38 +135,15 @@ export default async function handler(req, res){
           if (updatedRow.remuneration_med || updatedRow.remuneration_infi){
             unitPrice = isMed ? Number(updatedRow.remuneration_med || updatedRow.remuneration_infi) : Number(updatedRow.remuneration_infi || updatedRow.remuneration_med)
           } else {
-            // 2) try to fetch recent activities linked via activity_ebrigade_mappings to infer rates
+            // 2) try to fetch recent activities matching pay_type (no mapping needed, works for any eBrigade code)
             try{
-              // First check if this prestation has an ebrigade_activity_code
-              let ebrigadeAnalytic = updatedRow.ebrigade_activity_code || null
-              let activityIds = []
-              
-              if (ebrigadeAnalytic) {
-                // Fetch activity IDs linked to this eBrigade analytic
-                const [mappings] = await pool.query(
-                  'SELECT activity_id FROM activity_ebrigade_mappings WHERE ebrigade_analytic_name = $1',
-                  [ebrigadeAnalytic]
-                )
-                if (mappings && mappings.length > 0) {
-                  activityIds = mappings.map(m => m.activity_id)
-                }
-              }
-              
-              // Fallback: if no eBrigade mapping, try classic analytic_id
               let acts = []
-              if (activityIds.length > 0) {
-                const [result] = await pool.query(
-                  'SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE id = ANY($1) ORDER BY date DESC',
-                  [activityIds]
-                )
-                acts = result || []
-              } else if (updatedRow.analytic_id) {
-                const [result] = await pool.query(
-                  'SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC',
-                  [updatedRow.analytic_id]
-                )
-                acts = result || []
-              }
+              // Search for activities with matching pay_type, ordered by most recent
+              const [result] = await pool.query(
+                'SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE LOWER(pay_type) IS NOT NULL ORDER BY date DESC LIMIT 50',
+                []
+              )
+              acts = result || []
               
               if (acts && acts.length > 0){
                 // look for matching pay_type entries first, otherwise take first row
@@ -443,7 +420,7 @@ export default async function handler(req, res){
       <div class="right-column">
         <div class="right-meta">
           <div class="invoice-title">FACTURE</div>
-          <div class="invoice-ref">Référence : ${updatedRow.analytic_name || ''} ${updatedRow.analytic_identifier ? '- ' + updatedRow.analytic_identifier : ''} ${updatedRow.analytic_code ? '- ' + updatedRow.analytic_code : ''} ${updatedRow.analytic_entite ? '- ' + updatedRow.analytic_entite : ''}</div>
+          <div class=\"invoice-ref\">Référence : ${updatedRow.analytic_name || updatedRow.ebrigade_activity_name || updatedRow.analytic_code || updatedRow.ebrigade_activity_code || ''} ${updatedRow.analytic_identifier ? '- ' + updatedRow.analytic_identifier : ''} ${updatedRow.analytic_code ? '- ' + updatedRow.analytic_code : ''} ${updatedRow.analytic_entite ? '- ' + updatedRow.analytic_entite : ''}</div>
           <div class="invoice-ref">Facture No : ${updatedRow.invoice_number || ''}</div>
           <div class="invoice-ref">Date : ${invoiceDate}</div>
           <div class="invoice-ref">Compte : ${updatedRow.user_account || updatedRow.account || '-'}</div>
