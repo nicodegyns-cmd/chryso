@@ -238,7 +238,7 @@ export default async function handler(req, res){
               return (unitPrice && Number(unitPrice) > 0) ? Number(unitPrice) : (isMed ? FALLBACK_MED : FALLBACK_INF)
             })()
             gAmount = Number((gUnit * gardeH).toFixed(2))
-            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)} / Garde</td><td>${gardeH}</td><td>${(Number(gUnit)).toString().replace('.',',')}€</td><td>${(Number(gAmount)).toString().replace('.',',')}€</td></tr>`
+            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Garde</td><td>${gardeH}</td><td>${(Number(gUnit)).toString().replace('.',',')}€</td><td>${(Number(gAmount)).toString().replace('.',',')}€</td></tr>`
           }
           if (sortieH > 0){
             const sUnit = await (async ()=>{
@@ -315,7 +315,7 @@ export default async function handler(req, res){
               return (unitPrice && Number(unitPrice) > 0) ? Number(unitPrice) : (isMed ? FALLBACK_MED : FALLBACK_INF)
             })()
             sAmount = Number((sUnit * sortieH).toFixed(2))
-            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)} / Sortie</td><td>${sortieH}</td><td>${(Number(sUnit)).toString().replace('.',',')}€</td><td>${(Number(sAmount)).toString().replace('.',',')}€</td></tr>`
+            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Sortie</td><td>${sortieH}</td><td>${(Number(sUnit)).toString().replace('.',',')}€</td><td>${(Number(sAmount)).toString().replace('.',',')}€</td></tr>`
           }
           // fallback single line when no garde/sortie specific hours
           if (!rowsHtml){
