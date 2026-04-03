@@ -10,24 +10,29 @@ export default async function handler(req, res) {
     const pool = getPool()
     const { status, period } = req.query
 
+    // Fetch from prestations table with pdf_url (new system)
     const base = `
       SELECT
-        i.id,
-        i.invoice_number,
-        i.analytic_id,
-        i.user_id,
-        i.amount,
-        i.status,
-        i.created_at,
-        i.due_date,
+        p.id,
+        p.invoice_number,
+        p.request_ref,
+        p.analytic_id,
+        p.user_id,
+        p.remuneration_infi + COALESCE(p.remuneration_med, 0) AS amount,
+        p.status,
+        p.created_at,
+        p.pdf_url,
+        p.date,
         a.name AS analytic_name,
+        a.code AS analytic_code,
         u.first_name,
         u.last_name,
         u.email,
         u.company as company_name
-      FROM invoices i
-      LEFT JOIN users u ON i.user_id = u.id
-      LEFT JOIN analytics a ON i.analytic_id = a.id
+      FROM prestations p
+      LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN analytics a ON p.analytic_id = a.id
+      WHERE p.pdf_url IS NOT NULL AND p.pdf_url != ''
     `
 
     const clauses = []
@@ -35,7 +40,7 @@ export default async function handler(req, res) {
 
     // Filter by status
     if (status && status !== 'tous') {
-      clauses.push('i.status = ?')
+      clauses.push('p.status = $' + (params.length + 1))
       params.push(status)
     }
 
@@ -54,16 +59,16 @@ export default async function handler(req, res) {
       }
 
       if (startDate) {
-        clauses.push('i.created_at >= ?')
+        clauses.push('p.created_at >= $' + (params.length + 1))
         params.push(startDate.toISOString())
       }
     }
 
-    const where = clauses.length > 0 ? ` WHERE ${clauses.join(' AND ')}` : ''
-    const sql = `${base}${where} ORDER BY i.created_at DESC`
+    const where = clauses.length > 0 ? ` AND ${clauses.join(' AND ')}` : ''
+    const sql = `${base}${where} ORDER BY p.date DESC, p.id DESC`
 
     console.log('[SQL DEBUG] admin/invoices', sql, params)
-    const q = await getPool().query(sql, params)
+    const q = await pool.query(sql, params)
     const invoices = Array.isArray(q) ? q : (q && q.rows) ? q.rows : q
 
     return res.status(200).json(invoices)

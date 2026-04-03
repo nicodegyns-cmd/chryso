@@ -515,11 +515,12 @@ export default async function handler(req, res){
           fs.writeFileSync(filePath, buffer)
           const publicUrl = `/exports/${filename}`
 
+          console.log('[pdf generation] ✅ SUCCESS for prestation', updatedRow.id, 'saved at', publicUrl)
           await pool.query('UPDATE prestations SET pdf_url = $1 WHERE id = $2', [publicUrl, updatedRow.id])
           updatedRow.pdf_url = publicUrl
           await browser.close()
         }catch(e){
-          console.error('pdf generation failed', e && e.message)
+          console.error('pdf generation failed', e && e.message, e && e.stack)
         }
       }
     }
