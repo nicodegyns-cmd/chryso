@@ -317,7 +317,7 @@ export default async function handler(req, res){
           }
           // fallback single line when no garde/sortie specific hours
           if (!rowsHtml){
-            rowsHtml = `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)}${updatedRow.pay_type ? ' / '+updatedRow.pay_type : ''}</td><td>${Number(quantity)}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(lineAmount)).toString().replace('.',',')}€</td></tr>`
+            rowsHtml = `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)}${updatedRow.pay_type ? ' / '+updatedRow.pay_type : ''}</td><td>${Number(quantity)}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(lineAmount)).toString().replace('.',',')}€</td></tr>`
           }
           // overtime line
           let overtimeAmountActual = 0
@@ -434,22 +434,22 @@ export default async function handler(req, res){
         <div class="provider">
           <div class="name">${(((updatedRow.user_first_name || updatedRow.first_name || '') + ' ' + (updatedRow.user_last_name || updatedRow.last_name || '')).trim()) || (updatedRow.company_name || 'Fournisseur')}</div>
           <div class="meta">${(updatedRow.user_address || updatedRow.address || '')}</div>
-            <div class="meta">${(updatedRow.user_bce || updatedRow.bce || '')}</div>
+          <div class="meta">${(updatedRow.user_bce || updatedRow.bce || '')}</div>
         </div>
       </div>
 
       <div class="right-column">
         <div class="right-meta">
           <div class="invoice-title">FACTURE</div>
-          <div class="invoice-ref">Référence : ${updatedRow.analytic_code || ''}</div>
+          <div class="invoice-ref">Référence : ${updatedRow.analytic_name || updatedRow.analytic_code || ''}</div>
           <div class="invoice-ref">Facture No : ${updatedRow.invoice_number || ''}</div>
           <div class="invoice-ref">Date : ${invoiceDate}</div>
           <div class="invoice-ref">Compte : ${updatedRow.user_account || updatedRow.account || '-'}</div>
         </div>
         <div class="attention">
           <strong>A L'attention de :</strong>
-          <div>Croix-Rouge de Belgique</div>
-          <div>Medical Team Bruxelles Capitale</div>
+          <div>${updatedRow.analytic_name || 'Croix-Rouge de Belgique'}</div>
+          <div>${updatedRow.analytic_code || 'Medical Team Bruxelles Capitale'}</div>
           <div class="small-muted">Rue Rempart des Moines 78, 1000&nbsp;Bruxelles</div>
         </div>
       </div>
