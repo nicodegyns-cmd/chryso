@@ -120,8 +120,8 @@ export default async function handler(req, res){
           const payLower = (updatedRow.pay_type || '').toString().toLowerCase()
           const prestationDate = updatedRow.date ? new Date(updatedRow.date).toLocaleDateString('fr-FR') : invoiceDate
           let quantity = 1
-          if (payLower.includes('garde')) quantity = Number(updatedRow.garde_hours || 0)
-          else if (payLower.includes('permanence') || payLower.includes('sortie') || payLower.includes('astreinte')) quantity = Number(updatedRow.hours_actual || 0)
+          if (payLower.includes('garde')) quantity = Number(updatedRow.garde_hours || updatedRow.hours_actual || 0)
+          else if (payLower.includes('permanence') || payLower.includes('sortie') || payLower.includes('astreinte')) quantity = Number(updatedRow.hours_actual || updatedRow.garde_hours || 0)
           else quantity = Number(updatedRow.hours_actual || updatedRow.garde_hours || 1)
 
           // Resolve unit price: prefer explicit prestation remuneration, else derive from recent activities, else fallbacks
