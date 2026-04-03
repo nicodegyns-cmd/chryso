@@ -31,7 +31,7 @@ export default async function handler(req, res){
 
     // fetch refreshed row (include user and analytic info for rich invoice template)
     const [[updatedRow]] = await pool.query(
-      `SELECT p.*, u.email AS user_email, u.role AS user_role, u.first_name AS user_first_name, u.last_name AS user_last_name, u.telephone AS user_phone, u.address AS user_address, u.bce AS user_bce, u.company AS company_name, u.account AS user_account, an.name AS analytic_name, an.code AS analytic_code, an.entite AS analytic_entite, an.description AS analytic_description
+      `SELECT p.*, u.email AS user_email, u.role AS user_role, u.first_name AS user_first_name, u.last_name AS user_last_name, u.telephone AS user_phone, u.address AS user_address, u.bce AS user_bce, u.company AS company_name, u.account AS user_account, an.name AS analytic_name, an.code AS analytic_code, an.entite AS analytic_entite, an.description AS analytic_description, an.analytic_type AS analytic_identifier
        FROM prestations p
        LEFT JOIN users u ON p.user_id = u.id
        LEFT JOIN analytics an ON p.analytic_id = an.id
@@ -441,7 +441,7 @@ export default async function handler(req, res){
       <div class="right-column">
         <div class="right-meta">
           <div class="invoice-title">FACTURE</div>
-          <div class="invoice-ref">Référence : ${updatedRow.analytic_name ? updatedRow.analytic_name + (updatedRow.analytic_code ? ' (' + updatedRow.analytic_code + ')' : '') + (updatedRow.analytic_entite ? ' - ' + updatedRow.analytic_entite : '') : ''}</div>
+          <div class="invoice-ref">Référence : ${updatedRow.analytic_name || ''} ${updatedRow.analytic_identifier ? '- ' + updatedRow.analytic_identifier : ''} ${updatedRow.analytic_code ? '- ' + updatedRow.analytic_code : ''} ${updatedRow.analytic_entite ? '- ' + updatedRow.analytic_entite : ''}</div>
           <div class="invoice-ref">Facture No : ${updatedRow.invoice_number || ''}</div>
           <div class="invoice-ref">Date : ${invoiceDate}</div>
           <div class="invoice-ref">Compte : ${updatedRow.user_account || updatedRow.account || '-'}</div>
