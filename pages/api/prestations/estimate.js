@@ -145,7 +145,11 @@ export default async function handler(req, res){
     const OT_MULT = 1.5
     let estInfi = 0, estMed = 0
     console.log('[estimate] RATE RESOLUTION:', { rateGardeInfi, rateGardeMed, rateSortieInfi, rateSortieMed, payLower, allActsLength: allActs.length })
-    if (payLower.includes('garde')){
+    
+    // If we have specific garde_hours and sortie_hours, always use them (Garde type)
+    const hasGuardeBreakdown = Number(garde_hours || 0) > 0 || Number(sortie_hours || 0) > 0
+    
+    if (hasGuardeBreakdown || payLower.includes('garde')){
       estInfi = (Number(garde_hours) * rateGardeInfi) + (Number(sortie_hours) * rateSortieInfi) + (Number(overtime_hours) * rateGardeInfi * OT_MULT)
       estMed = (Number(garde_hours) * rateGardeMed) + (Number(sortie_hours) * rateSortieMed) + (Number(overtime_hours) * rateGardeMed * OT_MULT)
     } else if (payLower.includes('permanence') || payLower.includes('sortie') || payLower.includes('astreinte')) {
