@@ -895,20 +895,20 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                 </div>
 
                 {/* Section Montants */}
-                {(editing.remuneration_infi || editing.remuneration_med) && !_editPayTypeLower.includes('rmp') && (
+                {(confirmPreview?.estimated_infi || confirmPreview?.estimated_med || editing.remuneration_infi || editing.remuneration_med) && !_editPayTypeLower.includes('rmp') && (
                   <div style={{padding:12,border:'1px solid #e5e7eb',borderRadius:8,background:'#f9fafb'}}>
                     <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#1f2937'}}>💶 Montants</div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                      {editing.remuneration_infi !== null && editing.remuneration_infi !== undefined && (
+                      {(confirmPreview?.estimated_infi !== null && confirmPreview?.estimated_infi !== undefined) || (editing.remuneration_infi !== null && editing.remuneration_infi !== undefined) && (
                         <div>
                           <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT INFIRMIER</div>
-                          <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{editing.remuneration_infi} €</div>
+                          <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{confirmPreview?.estimated_infi ?? editing.remuneration_infi ?? 0} €</div>
                         </div>
                       )}
-                      {editing.remuneration_med !== null && editing.remuneration_med !== undefined && (
+                      {(confirmPreview?.estimated_med !== null && confirmPreview?.estimated_med !== undefined) || (editing.remuneration_med !== null && editing.remuneration_med !== undefined) && (
                         <div>
                           <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT MÉDECIN</div>
-                          <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{editing.remuneration_med} €</div>
+                          <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{confirmPreview?.estimated_med ?? editing.remuneration_med ?? 0} €</div>
                         </div>
                       )}
                     </div>
