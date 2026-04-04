@@ -34,9 +34,7 @@ export default async function handler(req, res){
       `SELECT p.*, u.email AS user_email, u.role AS user_role, u.first_name AS user_first_name, u.last_name AS user_last_name, u.telephone AS user_phone, u.address AS user_address, u.bce AS user_bce, u.company AS company_name, u.account AS user_account, an.name AS analytic_name, an.code AS analytic_code, an.entite AS analytic_entite, an.description AS analytic_description, an.analytic_type AS analytic_identifier
        FROM prestations p
        LEFT JOIN users u ON p.user_id = u.id
-       LEFT JOIN activity_ebrigade_mappings aem ON p.ebrigade_activity_code = aem.ebrigade_analytic_name
-       LEFT JOIN activities act ON aem.activity_id = act.id
-       LEFT JOIN analytics an ON act.analytic_id = an.id
+       LEFT JOIN analytics an ON p.analytic_id = an.id
        WHERE p.id = $1 LIMIT 1`, [id]
     )
     if (!updatedRow) return res.status(404).json({ error: 'not found' })
