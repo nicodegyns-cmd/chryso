@@ -224,7 +224,7 @@ export default async function handler(req, res){
       <div class="right-column">
         <div class="right-meta">
           <div class="invoice-title">FACTURE</div>
-          <div class=\"invoice-ref\">Référence : ${updatedRow.analytic_name || updatedRow.ebrigade_activity_name || updatedRow.analytic_code || updatedRow.ebrigade_activity_code || ''} ${updatedRow.analytic_identifier ? '- ' + updatedRow.analytic_identifier : ''} ${updatedRow.analytic_code ? '- ' + updatedRow.analytic_code : ''} ${updatedRow.analytic_entite ? '- ' + updatedRow.analytic_entite : ''}</div>
+          <div class="invoice-ref">Référence : ${updatedRow.analytic_name || updatedRow.ebrigade_activity_name || updatedRow.analytic_code || updatedRow.ebrigade_activity_code || ''} ${updatedRow.analytic_identifier ? '- ' + updatedRow.analytic_identifier : ''} ${updatedRow.analytic_code ? '- ' + updatedRow.analytic_code : ''} ${updatedRow.analytic_entite ? '- ' + updatedRow.analytic_entite : ''}</div>
           <div class="invoice-ref">Facture No : ${updatedRow.invoice_number || ''}</div>
           <div class="invoice-ref">Date : ${invoiceDate}</div>
           <div class="invoice-ref">Compte : ${updatedRow.user_account || updatedRow.account || '-'}</div>
