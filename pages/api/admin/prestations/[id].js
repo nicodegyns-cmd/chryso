@@ -39,16 +39,17 @@ export default async function handler(req, res){
     )
     if (!updatedRow) return res.status(404).json({ error: 'not found' })
 
-    // FALLBACK: If local analytic not found, try to fetch via eBrigade mappings
-    if (!updatedRow.analytic_name && updatedRow.ebrigade_activity_code) {
+    // FALLBACK: If local analytic not found, try to fetch via eBrigade name mappings
+    if (!updatedRow.analytic_name && updatedRow.ebrigade_activity_name) {
       try {
         const [[fallbackAnalytic]] = await pool.query(
           `SELECT an.name AS analytic_name, an.code AS analytic_code, an.entite AS analytic_entite, an.analytic_type AS analytic_identifier
-           FROM activity_ebrigade_mappings aem
-           LEFT JOIN activities act ON aem.activity_id = act.id
+           FROM activity_ebrigade_name_mappings nm
+           JOIN activities act ON nm.activity_id = act.id
            LEFT JOIN analytics an ON act.analytic_id = an.id
-           WHERE aem.ebrigade_analytic_name = $1 LIMIT 1`, 
-          [updatedRow.ebrigade_activity_code]
+           WHERE $1 ILIKE '%' || nm.ebrigade_analytic_name_pattern || '%'
+           ORDER BY LENGTH(nm.ebrigade_analytic_name_pattern) DESC LIMIT 1`, 
+          [updatedRow.ebrigade_activity_name]
         )
         if (fallbackAnalytic && fallbackAnalytic.analytic_name) {
           updatedRow.analytic_name = fallbackAnalytic.analytic_name
@@ -151,19 +152,19 @@ export default async function handler(req, res){
           const gardeH = Number(updatedRow.garde_hours || 0)
           const sortieH = Number(updatedRow.sortie_hours || 0)
           
-          // Fetch HOURLY RATES from activities (via ebrigade mapping or analytic_id)
+          // Fetch HOURLY RATES from activities (via ebrigade name mapping or analytic_id)
           let rateGarde = 0, rateSortie = 0
           try {
             let ratesRow = null
-            // Try via ebrigade mapping first
-            if (updatedRow.ebrigade_activity_code) {
+            // Try via ebrigade NAME mapping first (pattern match on activity name)
+            if (updatedRow.ebrigade_activity_name) {
               const ratesQ = await pool.query(
                 `SELECT act.remuneration_infi, act.remuneration_med, act.remuneration_sortie_infi, act.remuneration_sortie_med
-                 FROM activity_ebrigade_mappings aem
-                 JOIN activities act ON aem.activity_id = act.id
-                 WHERE aem.ebrigade_analytic_name = $1
-                 ORDER BY act.date DESC LIMIT 1`,
-                [updatedRow.ebrigade_activity_code]
+                 FROM activity_ebrigade_name_mappings nm
+                 JOIN activities act ON nm.activity_id = act.id
+                 WHERE $1 ILIKE '%' || nm.ebrigade_analytic_name_pattern || '%'
+                 ORDER BY LENGTH(nm.ebrigade_analytic_name_pattern) DESC LIMIT 1`,
+                [updatedRow.ebrigade_activity_name]
               )
               const ratesRows = (ratesQ && ratesQ.rows) ? ratesQ.rows : (Array.isArray(ratesQ) && Array.isArray(ratesQ[0]) ? ratesQ[0] : [])
               if (ratesRows.length > 0) ratesRow = ratesRows[0]

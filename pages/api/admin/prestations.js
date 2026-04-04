@@ -97,15 +97,28 @@ export default async function handler(req, res) {
       let calculatedRemuneSortieInfi = null
       let calculatedRemuneSortieMed = null
 
-      if (ebrigade_activity_code) {
+      if (ebrigade_activity_name || ebrigade_activity_code) {
         try {
-          // 1. Find activity via eBrigade mapping
-          const mappingData = await pool.query(
-            `SELECT aem.activity_id FROM activity_ebrigade_mappings aem
-             WHERE aem.ebrigade_analytic_name = $1 LIMIT 1`,
-            [ebrigade_activity_code]
-          )
-          const mappings = (mappingData && mappingData.rows) ? mappingData.rows : []
+          // 1. Find activity via eBrigade NAME mapping (pattern match on activity name)
+          let mappings = []
+          if (ebrigade_activity_name) {
+            const mappingData = await pool.query(
+              `SELECT nm.activity_id FROM activity_ebrigade_name_mappings nm
+               WHERE $1 ILIKE '%' || nm.ebrigade_analytic_name_pattern || '%'
+               ORDER BY LENGTH(nm.ebrigade_analytic_name_pattern) DESC LIMIT 1`,
+              [ebrigade_activity_name]
+            )
+            mappings = (mappingData && mappingData.rows) ? mappingData.rows : []
+          }
+          // Fallback: try old code-based mapping
+          if (mappings.length === 0 && ebrigade_activity_code) {
+            const mappingData2 = await pool.query(
+              `SELECT aem.activity_id FROM activity_ebrigade_mappings aem
+               WHERE aem.ebrigade_analytic_name = $1 LIMIT 1`,
+              [ebrigade_activity_code]
+            )
+            mappings = (mappingData2 && mappingData2.rows) ? mappingData2.rows : []
+          }
 
           if (mappings && mappings.length > 0) {
             const activityId = mappings[0].activity_id
