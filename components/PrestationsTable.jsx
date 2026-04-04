@@ -462,6 +462,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           preview.overtime_amount_infi = otAmount
           preview.overtime_amount_med = Math.round(((Number(preview.overtime_hours || 0) * Number(rateData.garde_med || 0) * 1.5) + Number.EPSILON) * 100) / 100
           
+          // Update editing with estimated totals (for display in Montants section)
+          setEditing({...editing, remuneration_infi: data.estimated_infi, remuneration_med: data.estimated_med})
+          
           // Prefer computing total from current user's role to match displayed breakdown
           const roleSourceLocal = role || (typeof window !== 'undefined' ? localStorage.getItem('role') : null) || editing.user_role || editing.role || ''
           const roleLowLocal = (roleSourceLocal || '').toLowerCase()
