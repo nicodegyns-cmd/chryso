@@ -88,21 +88,23 @@ export default async function handler(req, res) {
       if (!calculatedRemuneInfi || !calculatedRemuneMed) {
         try {
           // Find activity via eBrigade mapping
-          const [mappings] = await pool.query(
+          const mappingData = await pool.query(
             `SELECT aem.activity_id FROM activity_ebrigade_mappings aem
              WHERE aem.ebrigade_analytic_name = $1 LIMIT 1`,
             [ebrigade_activity_code]
           )
+          const mappings = (mappingData && mappingData.rows) ? mappingData.rows : []
 
           if (mappings && mappings.length > 0) {
             const activityId = mappings[0].activity_id
             // Fetch activities matching pay_type
-            const [activities] = await pool.query(
+            const activitiesData = await pool.query(
               `SELECT remuneration_infi, remuneration_med, date FROM activities
-               WHERE activity_id = $1 AND LOWER(pay_type) LIKE LOWER($2)
+               WHERE id = $1 AND LOWER(pay_type) LIKE LOWER($2)
                ORDER BY date DESC LIMIT 1`,
               [activityId, `%${pay_type || ''}%`]
             )
+            const activities = (activitiesData && activitiesData.rows) ? activitiesData.rows : []
 
             if (activities && activities.length > 0) {
               calculatedRemuneInfi = activities[0].remuneration_infi || calculatedRemuneInfi
