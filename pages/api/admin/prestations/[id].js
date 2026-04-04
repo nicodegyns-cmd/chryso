@@ -12,7 +12,7 @@ export default async function handler(req, res){
     if (!id) return res.status(400).json({ error: 'missing id' })
 
     // apply allowed updates (Postgres placeholders $n)
-    const allowed = ['hours_actual','garde_hours','sortie_hours','overtime_hours','comments','proof_image','remuneration_infi','remuneration_med','status','expense_amount','expense_comment']
+    const allowed = ['hours_actual','garde_hours','sortie_hours','overtime_hours','comments','proof_image','remuneration_infi','remuneration_med','remuneration_sortie_infi','remuneration_sortie_med','status','expense_amount','expense_comment']
     const updates = []
     const params = []
     let paramIndex = 1
@@ -177,50 +177,37 @@ export default async function handler(req, res){
           let gAmount = 0
           let sAmount = 0
           
-          // When we have both garde_hours and sortie_hours, we need separate rates for each
-          // Fetch detailed rates if needed
-          let gardeRate = null
-          let sortieRate = null
+          // Fetch detailed rates from prestations columns if available, otherwise from activities
+          let gardeRate = unitPrice
+          let sortieRate = updatedRow.remuneration_sortie_infi ? Number(updatedRow.remuneration_sortie_infi) : unitPrice
           
-          if ((gardeH > 0 && sortieH > 0) || (gardeH === 0 && sortieH > 0)) {
-            // Need to fetch separate rates from activities
+          // If sortie rate not in DB, try to fetch from activities
+          if (!updatedRow.remuneration_sortie_infi && gardeH > 0 && sortieH > 0 && updatedRow.ebrigade_activity_code) {
             try {
-              const [ratesData] = await pool.query(
-                `SELECT remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med
+              const [detailedRates] = await pool.query(
+                `SELECT remuneration_infi, remuneration_sortie_infi
                  FROM activity_ebrigade_mappings aem
                  LEFT JOIN activities act ON aem.activity_id = act.id
-                 WHERE aem.ebrigade_analytic_name = $1 AND LOWER(act.pay_type) LIKE $2
+                 WHERE aem.ebrigade_analytic_name = $1
                  ORDER BY act.date DESC LIMIT 1`,
-                [updatedRow.ebrigade_activity_code, `%${updatedRow.pay_type || ''}%`]
+                [updatedRow.ebrigade_activity_code]
               )
-              if (ratesData && ratesData.length > 0) {
-                gardeRate = isMed ? Number(ratesData[0].remuneration_med || 0) : Number(ratesData[0].remuneration_infi || 0)
-                sortieRate = isMed ? Number(ratesData[0].remuneration_sortie_med || ratesData[0].remuneration_med || 0) : Number(ratesData[0].remuneration_sortie_infi || ratesData[0].remuneration_infi || 0)
+              if (detailedRates && detailedRates.length > 0) {
+                gardeRate = Number(detailedRates[0].remuneration_infi || unitPrice)
+                sortieRate = Number(detailedRates[0].remuneration_sortie_infi || unitPrice)
               }
-            } catch(e) { /* ignore */ }
+            } catch(e) { 
+              console.warn('Failed to fetch detailed rates:', e && e.message)
+            }
           }
           
           if (gardeH > 0){
-            // Use separate garde rate if available, otherwise calculate from unitPrice and hours
-            let gardeRateToUse = gardeRate
-            if (!gardeRateToUse) {
-              // If unitPrice represents total amount and we have both types, we can't split reliably
-              // Fall back to asking activities or use unitPrice directly for single-type
-              gardeRateToUse = (gardeH > 0 && sortieH === 0) ? unitPrice : gardeRate
-            }
-            if (!gardeRateToUse) gardeRateToUse = unitPrice // Last resort
-            gAmount = Number((gardeH * gardeRateToUse).toFixed(2))
-            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Garde</td><td>${gardeH}</td><td>${(Number(gardeRateToUse)).toString().replace('.',',')}€</td><td>${(Number(gAmount)).toString().replace('.',',')}€</td></tr>`
+            gAmount = Number((gardeH * gardeRate).toFixed(2))
+            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Garde</td><td>${gardeH}</td><td>${(Number(gardeRate)).toString().replace('.',',')}€</td><td>${(Number(gAmount)).toString().replace('.',',')}€</td></tr>`
           }
           if (sortieH > 0){
-            // Use separate sortie rate if available, otherwise calculate from unitPrice
-            let sortieRateToUse = sortieRate
-            if (!sortieRateToUse) {
-              sortieRateToUse = (sortieH > 0 && gardeH === 0) ? unitPrice : sortieRate
-            }
-            if (!sortieRateToUse) sortieRateToUse = unitPrice // Last resort
-            sAmount = Number((sortieH * sortieRateToUse).toFixed(2))
-            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Sortie</td><td>${sortieH}</td><td>${(Number(sortieRateToUse)).toString().replace('.',',')}€</td><td>${(Number(sAmount)).toString().replace('.',',')}€</td></tr>`
+            sAmount = Number((sortieH * sortieRate).toFixed(2))
+            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Sortie</td><td>${sortieH}</td><td>${(Number(sortieRate)).toString().replace('.',',')}€</td><td>${(Number(sAmount)).toString().replace('.',',')}€</td></tr>`
           }
           
           // fallback single line when no garde/sortie specific hours

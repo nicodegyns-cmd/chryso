@@ -81,10 +81,20 @@ export default async function handler(req, res) {
 
       const userId = users[0].id
 
+      // Ensure sortie rate columns exist
+      try {
+        await pool.query("ALTER TABLE prestations ADD COLUMN IF NOT EXISTS remuneration_sortie_infi NUMERIC(8,2) DEFAULT NULL")
+      } catch(e) {}
+      try {
+        await pool.query("ALTER TABLE prestations ADD COLUMN IF NOT EXISTS remuneration_sortie_med NUMERIC(8,2) DEFAULT NULL")
+      } catch(e) {}
+
       // Find local analytique_id and calculate tariffs from eBrigade mappings
       let resolvedAnalyticId = analytic_id || null
       let calculatedRemuneInfi = remuneration_infi || null
       let calculatedRemuneMed = remuneration_med || null
+      let calculatedRemuneSortieInfi = null
+      let calculatedRemuneSortieMed = null
 
       if (ebrigade_activity_code) {
         try {
@@ -99,9 +109,9 @@ export default async function handler(req, res) {
           if (mappings && mappings.length > 0) {
             const activityId = mappings[0].activity_id
             
-            // 2. Fetch activity + analytic info
+            // 2. Fetch activity + analytic info + detailed tariffs
             const activityData = await pool.query(
-              `SELECT act.id, act.remuneration_infi, act.remuneration_med, act.pay_type, act.analytic_id
+              `SELECT act.id, act.remuneration_infi, act.remuneration_med, act.remuneration_sortie_infi, act.remuneration_sortie_med, act.pay_type, act.analytic_id
                FROM activities act
                WHERE act.id = $1 AND LOWER(act.pay_type) LIKE LOWER($2)
                ORDER BY act.date DESC LIMIT 1`,
@@ -118,6 +128,9 @@ export default async function handler(req, res) {
               // Store tariffs
               calculatedRemuneInfi = activity.remuneration_infi || calculatedRemuneInfi
               calculatedRemuneMed = activity.remuneration_med || calculatedRemuneMed
+              // Store DETAILED sortie rates if available
+              calculatedRemuneSortieInfi = activity.remuneration_sortie_infi || null
+              calculatedRemuneSortieMed = activity.remuneration_sortie_med || null
             }
           }
         } catch (e) {
@@ -131,13 +144,13 @@ export default async function handler(req, res) {
         `INSERT INTO prestations (
           user_id, analytic_id, date, pay_type,
           hours_actual, garde_hours, sortie_hours, overtime_hours,
-          remuneration_infi, remuneration_med,
+          remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med,
           comments, expense_amount, expense_comment, proof_image,
           status, created_at, updated_at,
           ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code,
           ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours,
           ebrigade_start_time, ebrigade_end_time
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW(), $16, $17, $18, $19, $20, $21, $22, $23, $24) 
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW(), $18, $19, $20, $21, $22, $23, $24, $25, $26) 
         RETURNING *`,
         [
           userId,
@@ -145,6 +158,21 @@ export default async function handler(req, res) {
           date || null,
           pay_type || null,
           hours_actual || null,
+          garde_hours || null,
+          sortie_hours || null,
+          overtime_hours || null,
+          calculatedRemuneInfi,
+          calculatedRemuneMed,
+          calculatedRemuneSortieInfi,
+          calculatedRemuneSortieMed,
+          comments || null,
+          expense_amount || null,
+          expense_comment || null,
+          proof_image || null,
+          status || 'À saisir',
+          ebrigade_id || null,
+          ebrigade_personnel_id || null,
+          ebrigade_personnel_name || null,
           garde_hours || null,
           sortie_hours || null,
           overtime_hours || null,
