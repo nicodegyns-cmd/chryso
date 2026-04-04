@@ -177,13 +177,50 @@ export default async function handler(req, res){
           let gAmount = 0
           let sAmount = 0
           
+          // When we have both garde_hours and sortie_hours, we need separate rates for each
+          // Fetch detailed rates if needed
+          let gardeRate = null
+          let sortieRate = null
+          
+          if ((gardeH > 0 && sortieH > 0) || (gardeH === 0 && sortieH > 0)) {
+            // Need to fetch separate rates from activities
+            try {
+              const [ratesData] = await pool.query(
+                `SELECT remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med
+                 FROM activity_ebrigade_mappings aem
+                 LEFT JOIN activities act ON aem.activity_id = act.id
+                 WHERE aem.ebrigade_analytic_name = $1 AND LOWER(act.pay_type) LIKE $2
+                 ORDER BY act.date DESC LIMIT 1`,
+                [updatedRow.ebrigade_activity_code, `%${updatedRow.pay_type || ''}%`]
+              )
+              if (ratesData && ratesData.length > 0) {
+                gardeRate = isMed ? Number(ratesData[0].remuneration_med || 0) : Number(ratesData[0].remuneration_infi || 0)
+                sortieRate = isMed ? Number(ratesData[0].remuneration_sortie_med || ratesData[0].remuneration_med || 0) : Number(ratesData[0].remuneration_sortie_infi || ratesData[0].remuneration_infi || 0)
+              }
+            } catch(e) { /* ignore */ }
+          }
+          
           if (gardeH > 0){
-            gAmount = Number((gardeH * unitPrice).toFixed(2))
-            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Garde</td><td>${gardeH}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(gAmount)).toString().replace('.',',')}€</td></tr>`
+            // Use separate garde rate if available, otherwise calculate from unitPrice and hours
+            let gardeRateToUse = gardeRate
+            if (!gardeRateToUse) {
+              // If unitPrice represents total amount and we have both types, we can't split reliably
+              // Fall back to asking activities or use unitPrice directly for single-type
+              gardeRateToUse = (gardeH > 0 && sortieH === 0) ? unitPrice : gardeRate
+            }
+            if (!gardeRateToUse) gardeRateToUse = unitPrice // Last resort
+            gAmount = Number((gardeH * gardeRateToUse).toFixed(2))
+            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Garde</td><td>${gardeH}</td><td>${(Number(gardeRateToUse)).toString().replace('.',',')}€</td><td>${(Number(gAmount)).toString().replace('.',',')}€</td></tr>`
           }
           if (sortieH > 0){
-            sAmount = Number((sortieH * unitPrice).toFixed(2))
-            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Sortie</td><td>${sortieH}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(sAmount)).toString().replace('.',',')}€</td></tr>`
+            // Use separate sortie rate if available, otherwise calculate from unitPrice
+            let sortieRateToUse = sortieRate
+            if (!sortieRateToUse) {
+              sortieRateToUse = (sortieH > 0 && gardeH === 0) ? unitPrice : sortieRate
+            }
+            if (!sortieRateToUse) sortieRateToUse = unitPrice // Last resort
+            sAmount = Number((sortieH * sortieRateToUse).toFixed(2))
+            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Sortie</td><td>${sortieH}</td><td>${(Number(sortieRateToUse)).toString().replace('.',',')}€</td><td>${(Number(sAmount)).toString().replace('.',',')}€</td></tr>`
           }
           
           // fallback single line when no garde/sortie specific hours
