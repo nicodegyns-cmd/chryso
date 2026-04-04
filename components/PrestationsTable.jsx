@@ -524,6 +524,17 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       if (!effective.user_email) {
         effective.user_email = email || (typeof window !== 'undefined' ? localStorage.getItem('email') : null)
       }
+
+      // Apply calculated tariffs from preview if they exist
+      if (confirmPreview) {
+        if (confirmPreview.estimated_infi !== undefined && confirmPreview.estimated_infi !== null) {
+          effective.remuneration_infi = confirmPreview.estimated_infi
+        }
+        if (confirmPreview.estimated_med !== undefined && confirmPreview.estimated_med !== null) {
+          effective.remuneration_med = confirmPreview.estimated_med
+        }
+      }
+
       console.log('[saveEdit] About to save:', {
         isNewPrestation,
         analytic_id: effective.analytic_id,
@@ -531,7 +542,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         analytic_name: effective.analytic_name,
         date: effective.date,
         pay_type: effective.pay_type,
-        user_email: effective.user_email
+        user_email: effective.user_email,
+        remuneration_infi: effective.remuneration_infi,
+        remuneration_med: effective.remuneration_med
       })
       
       // Always set status to "En attente d'approbation" for non-admin/moderator users
