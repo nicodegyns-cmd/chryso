@@ -894,24 +894,32 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   </div>
                 </div>
 
-                {/* Section Montants */}
+                {/* Section Montants - affiche seulement le montant du rôle de l'utilisateur */}
                 {(confirmPreview?.estimated_infi || confirmPreview?.estimated_med || editing.remuneration_infi || editing.remuneration_med) && !_editPayTypeLower.includes('rmp') && (
                   <div style={{padding:12,border:'1px solid #e5e7eb',borderRadius:8,background:'#f9fafb'}}>
                     <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#1f2937'}}>💶 Montants</div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                      {(confirmPreview?.estimated_infi !== null && confirmPreview?.estimated_infi !== undefined) || (editing.remuneration_infi !== null && editing.remuneration_infi !== undefined) && (
-                        <div>
-                          <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT INFIRMIER</div>
-                          <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{confirmPreview?.estimated_infi ?? editing.remuneration_infi ?? 0} €</div>
+                    {(() => {
+                      const roleLower = (clientRole || role || (typeof window !== 'undefined' ? localStorage.getItem('role') : null) || '').toLowerCase()
+                      const isMed = roleLower.includes('med') || roleLower.includes('médec') || roleLower.includes('doctor') || roleLower.includes('doc')
+                      const isInfi = roleLower.includes('infi') || roleLower.includes('infir') || roleLower.includes('infirm') || roleLower.includes('nurs')
+                      
+                      return (
+                        <div style={{display:'grid',gridTemplateColumns:'1fr',gap:12}}>
+                          {isInfi && (confirmPreview?.estimated_infi !== null && confirmPreview?.estimated_infi !== undefined) || (editing.remuneration_infi !== null && editing.remuneration_infi !== undefined) && (
+                            <div>
+                              <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT INFIRMIER</div>
+                              <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{confirmPreview?.estimated_infi ?? editing.remuneration_infi ?? 0} €</div>
+                            </div>
+                          )}
+                          {isMed && (confirmPreview?.estimated_med !== null && confirmPreview?.estimated_med !== undefined) || (editing.remuneration_med !== null && editing.remuneration_med !== undefined) && (
+                            <div>
+                              <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT MÉDECIN</div>
+                              <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{confirmPreview?.estimated_med ?? editing.remuneration_med ?? 0} €</div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {(confirmPreview?.estimated_med !== null && confirmPreview?.estimated_med !== undefined) || (editing.remuneration_med !== null && editing.remuneration_med !== undefined) && (
-                        <div>
-                          <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT MÉDECIN</div>
-                          <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{confirmPreview?.estimated_med ?? editing.remuneration_med ?? 0} €</div>
-                        </div>
-                      )}
-                    </div>
+                      )
+                    })()}
                   </div>
                 )}
 
