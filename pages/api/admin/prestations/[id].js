@@ -158,7 +158,7 @@ export default async function handler(req, res){
           // overtime line
           let overtimeAmountActual = 0
           if (overtimeHours > 0){
-            overtimeAmountActual = Number((overtimeUnit * overtimeHours).toFixed(2))
+            overtimeAmountActual = Number((unitPrice * overtimeHours).toFixed(2))
             rowsHtml += `<tr><td>Heures supplémentaires (Permanence) — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)}</td><td>${overtimeHours}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(overtimeAmountActual)).toString().replace('.',',')}€</td></tr>`
           }
           
