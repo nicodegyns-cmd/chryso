@@ -423,19 +423,31 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                   </div>
 
                   {/* Detailed calculation breakdown */}
-                  {(viewing.garde_hours || viewing.sortie_hours) && (
+                  {(viewing.garde_hours || viewing.sortie_hours) && activityRates[viewing.id].detailed && (
                     <div style={{fontSize:11,color:'#92400e',padding:10,background:'#fff',borderRadius:6,border:'1px solid #fcd34d',fontFamily:'monospace',lineHeight:'1.6'}}>
                       <div style={{fontWeight:700,marginBottom:8,color:'#b45309'}}>Calcul détaillé:</div>
-                      {viewing.garde_hours > 0 && activityRates[viewing.id].detailed?.garde_infi && (
+                      {activityRates[viewing.id].detailed?.garde_infi && (
                         <div>
-                          <div>Infirmier: ({viewing.garde_hours}h × {activityRates[viewing.id].detailed.garde_infi}€) + ({viewing.sortie_hours || 0}h × {activityRates[viewing.id].detailed?.sortie_infi || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${activityRates[viewing.id].detailed.garde_infi}€ × 1.5)` : ''}</div>
-                          {viewing.remuneration_infi && <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {viewing.remuneration_infi} €</div>}
+                          <div>Infirmier: ({viewing.garde_hours || 0}h × {activityRates[viewing.id].detailed.garde_infi}€) + ({viewing.sortie_hours || 0}h × {activityRates[viewing.id].detailed?.sortie_infi || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${activityRates[viewing.id].detailed.garde_infi}€ × 1.5)` : ''}</div>
+                          <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {(() => {
+                            const garde = (viewing.garde_hours || 0) * (activityRates[viewing.id].detailed.garde_infi || 0)
+                            const sortie = (viewing.sortie_hours || 0) * (activityRates[viewing.id].detailed.sortie_infi || 0)
+                            const ot = (viewing.overtime_hours || 0) * (activityRates[viewing.id].detailed.garde_infi || 0) * 1.5
+                            const total = Math.round((garde + sortie + ot + Number.EPSILON) * 100) / 100
+                            return total
+                          })()} €</div>
                         </div>
                       )}
-                      {viewing.remuneration_med && activityRates[viewing.id].detailed?.garde_med && (
+                      {activityRates[viewing.id].detailed?.garde_med && (
                         <div style={{marginTop:6}}>
-                          <div>Médecin: ({viewing.garde_hours > 0 ? viewing.garde_hours : viewing.hours_actual || 0}h × {activityRates[viewing.id].detailed.garde_med}€) + ({viewing.sortie_hours || 0}h × {activityRates[viewing.id].detailed?.sortie_med || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${activityRates[viewing.id].detailed.garde_med}€ × 1.5)` : ''}</div>
-                          <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {viewing.remuneration_med} €</div>
+                          <div>Médecin: ({viewing.garde_hours || 0}h × {activityRates[viewing.id].detailed.garde_med}€) + ({viewing.sortie_hours || 0}h × {activityRates[viewing.id].detailed?.sortie_med || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${activityRates[viewing.id].detailed.garde_med}€ × 1.5)` : ''}</div>
+                          <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {(() => {
+                            const garde = (viewing.garde_hours || 0) * (activityRates[viewing.id].detailed.garde_med || 0)
+                            const sortie = (viewing.sortie_hours || 0) * (activityRates[viewing.id].detailed.sortie_med || 0)
+                            const ot = (viewing.overtime_hours || 0) * (activityRates[viewing.id].detailed.garde_med || 0) * 1.5
+                            const total = Math.round((garde + sortie + ot + Number.EPSILON) * 100) / 100
+                            return total
+                          })()} €</div>
                         </div>
                       )}
                     </div>
