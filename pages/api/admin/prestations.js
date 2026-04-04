@@ -81,13 +81,14 @@ export default async function handler(req, res) {
 
       const userId = users[0].id
 
-      // Calculate tariffs from local activities if missing
+      // Find local analytique_id and calculate tariffs from eBrigade mappings
+      let resolvedAnalyticId = analytic_id || null
       let calculatedRemuneInfi = remuneration_infi || null
       let calculatedRemuneMed = remuneration_med || null
 
-      if (!calculatedRemuneInfi || !calculatedRemuneMed) {
+      if (ebrigade_activity_code) {
         try {
-          // Find activity via eBrigade mapping
+          // 1. Find activity via eBrigade mapping
           const mappingData = await pool.query(
             `SELECT aem.activity_id FROM activity_ebrigade_mappings aem
              WHERE aem.ebrigade_analytic_name = $1 LIMIT 1`,
@@ -97,23 +98,31 @@ export default async function handler(req, res) {
 
           if (mappings && mappings.length > 0) {
             const activityId = mappings[0].activity_id
-            // Fetch activities matching pay_type
-            const activitiesData = await pool.query(
-              `SELECT remuneration_infi, remuneration_med, date FROM activities
-               WHERE id = $1 AND LOWER(pay_type) LIKE LOWER($2)
-               ORDER BY date DESC LIMIT 1`,
+            
+            // 2. Fetch activity + analytic info
+            const activityData = await pool.query(
+              `SELECT act.id, act.remuneration_infi, act.remuneration_med, act.pay_type, act.analytic_id
+               FROM activities act
+               WHERE act.id = $1 AND LOWER(act.pay_type) LIKE LOWER($2)
+               ORDER BY act.date DESC LIMIT 1`,
               [activityId, `%${pay_type || ''}%`]
             )
-            const activities = (activitiesData && activitiesData.rows) ? activitiesData.rows : []
+            const activities = (activityData && activityData.rows) ? activityData.rows : []
 
             if (activities && activities.length > 0) {
-              calculatedRemuneInfi = activities[0].remuneration_infi || calculatedRemuneInfi
-              calculatedRemuneMed = activities[0].remuneration_med || calculatedRemuneMed
+              const activity = activities[0]
+              // Store the local analytic_id
+              if (activity.analytic_id && !resolvedAnalyticId) {
+                resolvedAnalyticId = activity.analytic_id
+              }
+              // Store tariffs
+              calculatedRemuneInfi = activity.remuneration_infi || calculatedRemuneInfi
+              calculatedRemuneMed = activity.remuneration_med || calculatedRemuneMed
             }
           }
         } catch (e) {
-          console.warn('[prestations] tariff calculation error:', e && e.message)
-          // Continue even if tariff lookup fails
+          console.warn('[prestations] activity/tariff lookup error:', e && e.message)
+          // Continue even if lookup fails
         }
       }
 
@@ -132,7 +141,7 @@ export default async function handler(req, res) {
         RETURNING *`,
         [
           userId,
-          analytic_id || null,
+          resolvedAnalyticId,
           date || null,
           pay_type || null,
           hours_actual || null,
