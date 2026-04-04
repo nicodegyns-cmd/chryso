@@ -7,7 +7,8 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       try {
         const q = await pool.query(
-          `SELECT p.*, u.email AS user_email, u.first_name AS user_firstname, u.last_name AS user_lastname, an.name AS analytic_name, an.code AS analytic_code
+          `SELECT p.*, u.email AS user_email, u.first_name AS user_firstname, u.last_name AS user_lastname, an.name AS analytic_name, an.code AS analytic_code,
+           (SELECT string_agg(r.code, ',') FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = u.id) AS role_codes
            FROM prestations p
            LEFT JOIN users u ON p.user_id = u.id
            LEFT JOIN analytics an ON p.analytic_id = an.id

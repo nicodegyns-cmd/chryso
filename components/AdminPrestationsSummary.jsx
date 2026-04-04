@@ -235,7 +235,15 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>{formatDate(it.date)}</td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>{it.pay_type || '-'}</td>
                 <td style={{padding:12,fontSize:14,fontWeight:600,color:'#10b981'}}>
-                  {(it.remuneration_infi != null || it.remuneration_med != null) ? `${it.remuneration_infi ? it.remuneration_infi + '€' : ''}${it.remuneration_infi && it.remuneration_med ? ' + ' : ''}${it.remuneration_med ? it.remuneration_med + '€' : ''}` : estimatedAmounts[it.id] ? estimatedAmounts[it.id] + ' €' : '-'}
+                  {(() => {
+                    const rc = (it.role_codes || '').toUpperCase()
+                    const isInfi = rc.includes('INFI')
+                    const isMed = rc.includes('MED') && !isInfi
+                    const amt = isMed ? it.remuneration_med : it.remuneration_infi
+                    if (amt != null && amt > 0) return `${amt}€`
+                    if (estimatedAmounts[it.id]) return `${estimatedAmounts[it.id]} €`
+                    return '-'
+                  })()}
                 </td>
                 <td style={{padding:12,fontSize:14}}>
                   <span style={{
@@ -360,100 +368,75 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                 </div>
               </div>
 
-              {/* Section Montants */}
-              {viewing.pay_type !== 'APS' && (viewing.remuneration_infi || viewing.remuneration_med) && (
-                <div style={{padding:12,border:'1px solid #e5e7eb',borderRadius:8,background:'#f9fafb',marginBottom:16}}>
-                  <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#1f2937'}}>💶 Montants</div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-                    {viewing.remuneration_infi !== null && viewing.remuneration_infi !== undefined && (
-                      <div>
-                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT INFIRMIER</div>
-                        <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{viewing.remuneration_infi} €</div>
-                      </div>
-                    )}
-                    {viewing.remuneration_med !== null && viewing.remuneration_med !== undefined && (
-                      <div>
-                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT MÉDECIN</div>
-                        <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{viewing.remuneration_med} €</div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Detailed breakdown by garde/sortie if available */}
-                  {(viewing.garde_hours || viewing.sortie_hours) && (
-                    <div style={{fontSize:12,color:'#6b7280',padding:8,background:'#fff',borderRadius:6,border:'1px dashed #d1d5db'}}>
-                      <div style={{fontWeight:600,marginBottom:6,color:'#374151'}}>Décomposition:</div>
-                      {viewing.garde_hours > 0 && <div>• Garde: {viewing.garde_hours}h</div>}
-                      {viewing.sortie_hours > 0 && <div>• Sortie: {viewing.sortie_hours}h</div>}
-                      {viewing.overtime_hours > 0 && <div>• Supplémentaires: {viewing.overtime_hours}h (x1.5)</div>}
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {/* Section Tarifs de l'activité locale */}
-              {activityRates[viewing.id] && (
+
+              {/* Section Tarifs & Calcul de l'activité locale */}
+              {activityRates[viewing.id] && (() => {
+                const rc = (viewing.role_codes || '').toUpperCase()
+                const isInfi = rc.includes('INFI')
+                const isMed = rc.includes('MED') && !isInfi
+                const d = activityRates[viewing.id].detailed || {}
+                return (
                 <div style={{padding:12,border:'1px solid #d97706',borderRadius:8,background:'#fffbeb',marginBottom:16}}>
                   <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>📍 Tarifs de l'activité locale</div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-                    {activityRates[viewing.id].detailed?.garde_infi != null && (
+                    {!isMed && d.garde_infi != null && (
                       <div>
                         <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>GARDE - INFIRMIER</div>
-                        <div style={{fontSize:14,fontWeight:600,color:'#d97706'}}>{activityRates[viewing.id].detailed.garde_infi} €/h</div>
+                        <div style={{fontSize:14,fontWeight:600,color:'#d97706'}}>{d.garde_infi} €/h</div>
                       </div>
                     )}
-                    {activityRates[viewing.id].detailed?.garde_med != null && (
+                    {!isInfi && d.garde_med != null && (
                       <div>
                         <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>GARDE - MÉDECIN</div>
-                        <div style={{fontSize:14,fontWeight:600,color:'#d97706'}}>{activityRates[viewing.id].detailed.garde_med} €/h</div>
+                        <div style={{fontSize:14,fontWeight:600,color:'#d97706'}}>{d.garde_med} €/h</div>
                       </div>
                     )}
-                    {activityRates[viewing.id].detailed?.sortie_infi != null && (
+                    {!isMed && d.sortie_infi != null && (
                       <div>
                         <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>SORTIE - INFIRMIER</div>
-                        <div style={{fontSize:14,fontWeight:600,color:'#d97706'}}>{activityRates[viewing.id].detailed.sortie_infi} €/h</div>
+                        <div style={{fontSize:14,fontWeight:600,color:'#d97706'}}>{d.sortie_infi} €/h</div>
                       </div>
                     )}
-                    {activityRates[viewing.id].detailed?.sortie_med != null && (
+                    {!isInfi && d.sortie_med != null && (
                       <div>
                         <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>SORTIE - MÉDECIN</div>
-                        <div style={{fontSize:14,fontWeight:600,color:'#d97706'}}>{activityRates[viewing.id].detailed.sortie_med} €/h</div>
+                        <div style={{fontSize:14,fontWeight:600,color:'#d97706'}}>{d.sortie_med} €/h</div>
                       </div>
                     )}
                   </div>
 
-                  {/* Detailed calculation breakdown */}
-                  {(viewing.garde_hours || viewing.sortie_hours) && activityRates[viewing.id].detailed && (
+                  {/* Detailed calculation breakdown - only for user's role */}
+                  {(viewing.garde_hours || viewing.sortie_hours) && d && (
                     <div style={{fontSize:11,color:'#92400e',padding:10,background:'#fff',borderRadius:6,border:'1px solid #fcd34d',fontFamily:'monospace',lineHeight:'1.6'}}>
                       <div style={{fontWeight:700,marginBottom:8,color:'#b45309'}}>Calcul détaillé:</div>
-                      {activityRates[viewing.id].detailed?.garde_infi && (
+                      {!isMed && d.garde_infi != null && (
                         <div>
-                          <div>Infirmier: ({viewing.garde_hours || 0}h × {activityRates[viewing.id].detailed.garde_infi}€) + ({viewing.sortie_hours || 0}h × {activityRates[viewing.id].detailed?.sortie_infi || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${activityRates[viewing.id].detailed.garde_infi}€ × 1.5)` : ''}</div>
+                          <div>Infirmier: ({viewing.garde_hours || 0}h × {d.garde_infi}€) + ({viewing.sortie_hours || 0}h × {d.sortie_infi || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${d.garde_infi}€ × 1.5)` : ''}</div>
                           <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {(() => {
-                            const garde = (viewing.garde_hours || 0) * (activityRates[viewing.id].detailed.garde_infi || 0)
-                            const sortie = (viewing.sortie_hours || 0) * (activityRates[viewing.id].detailed.sortie_infi || 0)
-                            const ot = (viewing.overtime_hours || 0) * (activityRates[viewing.id].detailed.garde_infi || 0) * 1.5
-                            const total = Math.round((garde + sortie + ot + Number.EPSILON) * 100) / 100
-                            return total
+                            const garde = (viewing.garde_hours || 0) * (d.garde_infi || 0)
+                            const sortie = (viewing.sortie_hours || 0) * (d.sortie_infi || 0)
+                            const ot = (viewing.overtime_hours || 0) * (d.garde_infi || 0) * 1.5
+                            return Math.round((garde + sortie + ot + Number.EPSILON) * 100) / 100
                           })()} €</div>
                         </div>
                       )}
-                      {activityRates[viewing.id].detailed?.garde_med && (
+                      {!isInfi && d.garde_med != null && (
                         <div style={{marginTop:6}}>
-                          <div>Médecin: ({viewing.garde_hours || 0}h × {activityRates[viewing.id].detailed.garde_med}€) + ({viewing.sortie_hours || 0}h × {activityRates[viewing.id].detailed?.sortie_med || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${activityRates[viewing.id].detailed.garde_med}€ × 1.5)` : ''}</div>
+                          <div>Médecin: ({viewing.garde_hours || 0}h × {d.garde_med}€) + ({viewing.sortie_hours || 0}h × {d.sortie_med || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${d.garde_med}€ × 1.5)` : ''}</div>
                           <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {(() => {
-                            const garde = (viewing.garde_hours || 0) * (activityRates[viewing.id].detailed.garde_med || 0)
-                            const sortie = (viewing.sortie_hours || 0) * (activityRates[viewing.id].detailed.sortie_med || 0)
-                            const ot = (viewing.overtime_hours || 0) * (activityRates[viewing.id].detailed.garde_med || 0) * 1.5
-                            const total = Math.round((garde + sortie + ot + Number.EPSILON) * 100) / 100
-                            return total
+                            const garde = (viewing.garde_hours || 0) * (d.garde_med || 0)
+                            const sortie = (viewing.sortie_hours || 0) * (d.sortie_med || 0)
+                            const ot = (viewing.overtime_hours || 0) * (d.garde_med || 0) * 1.5
+                            return Math.round((garde + sortie + ot + Number.EPSILON) * 100) / 100
                           })()} €</div>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
-              )}
+              )
+              })()}
 
               {/* Section Commentaires */}
               {viewing.comments && (
