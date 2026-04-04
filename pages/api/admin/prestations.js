@@ -125,12 +125,35 @@ export default async function handler(req, res) {
               if (activity.analytic_id && !resolvedAnalyticId) {
                 resolvedAnalyticId = activity.analytic_id
               }
-              // Store tariffs
-              calculatedRemuneInfi = activity.remuneration_infi || calculatedRemuneInfi
-              calculatedRemuneMed = activity.remuneration_med || calculatedRemuneMed
               // Store DETAILED sortie rates if available
               calculatedRemuneSortieInfi = activity.remuneration_sortie_infi || null
               calculatedRemuneSortieMed = activity.remuneration_sortie_med || null
+
+              // Calculate TOTAL amounts (not hourly rates)
+              // Formula: (garde_hours × garde_rate) + (sortie_hours × sortie_rate)
+              const gH = Number(garde_hours || 0)
+              const sH = Number(sortie_hours || 0)
+              const oH = Number(overtime_hours || 0)
+              const totalH = Number(hours_actual || 0) || (gH + sH)
+
+              const rateGardeInfi = Number(activity.remuneration_infi || 0)
+              const rateGardeMed = Number(activity.remuneration_med || 0)
+              const rateSortieInfi = Number(activity.remuneration_sortie_infi || rateGardeInfi)
+              const rateSortieMed = Number(activity.remuneration_sortie_med || rateGardeMed)
+
+              if (gH > 0 || sH > 0) {
+                // Garde + Sortie breakdown
+                if (rateGardeInfi > 0) calculatedRemuneInfi = (gH * rateGardeInfi) + (sH * rateSortieInfi) + (oH * rateGardeInfi)
+                if (rateGardeMed > 0) calculatedRemuneMed = (gH * rateGardeMed) + (sH * rateSortieMed) + (oH * rateGardeMed)
+              } else if (totalH > 0) {
+                // Simple: hours × rate
+                if (rateGardeInfi > 0) calculatedRemuneInfi = totalH * rateGardeInfi
+                if (rateGardeMed > 0) calculatedRemuneMed = totalH * rateGardeMed
+              } else {
+                // No hours info, store hourly rates as fallback
+                calculatedRemuneInfi = activity.remuneration_infi || calculatedRemuneInfi
+                calculatedRemuneMed = activity.remuneration_med || calculatedRemuneMed
+              }
             }
           }
         } catch (e) {

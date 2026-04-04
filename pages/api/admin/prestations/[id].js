@@ -176,50 +176,79 @@ export default async function handler(req, res){
           let rowsHtml = ''
           let gAmount = 0
           let sAmount = 0
-          
-          // Fetch detailed rates from prestations columns if available, otherwise from activities
-          let gardeRate = unitPrice
-          let sortieRate = updatedRow.remuneration_sortie_infi ? Number(updatedRow.remuneration_sortie_infi) : unitPrice
-          
-          // If sortie rate not in DB, try to fetch from activities
-          if (!updatedRow.remuneration_sortie_infi && gardeH > 0 && sortieH > 0 && updatedRow.ebrigade_activity_code) {
-            try {
-              const [detailedRates] = await pool.query(
-                `SELECT remuneration_infi, remuneration_sortie_infi
-                 FROM activity_ebrigade_mappings aem
-                 LEFT JOIN activities act ON aem.activity_id = act.id
-                 WHERE aem.ebrigade_analytic_name = $1
-                 ORDER BY act.date DESC LIMIT 1`,
-                [updatedRow.ebrigade_activity_code]
-              )
-              if (detailedRates && detailedRates.length > 0) {
-                gardeRate = Number(detailedRates[0].remuneration_infi || unitPrice)
-                sortieRate = Number(detailedRates[0].remuneration_sortie_infi || unitPrice)
-              }
-            } catch(e) { 
-              console.warn('Failed to fetch detailed rates:', e && e.message)
-            }
-          }
-          
           if (gardeH > 0){
-            gAmount = Number((gardeH * gardeRate).toFixed(2))
-            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Garde</td><td>${gardeH}</td><td>${(Number(gardeRate)).toString().replace('.',',')}€</td><td>${(Number(gAmount)).toString().replace('.',',')}€</td></tr>`
+            const gUnit = await (async ()=>{
+              try{
+                const [actsG] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%garde%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                if (actsG && actsG.length>0){
+                  const pref = isMed ? (actsG[0].remuneration_med ?? actsG[0].remuneration_infi) : (actsG[0].remuneration_infi ?? actsG[0].remuneration_med)
+                  const val = Number(pref)
+                  if (val && !isNaN(val) && val > 0) return val
+                }
+              }catch(e){}
+              // fallback to previously resolved unitPrice or global fallback
+              return (unitPrice && Number(unitPrice) > 0) ? Number(unitPrice) : (isMed ? FALLBACK_MED : FALLBACK_INF)
+            })()
+            gAmount = Number((gUnit * gardeH).toFixed(2))
+            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)} / Garde</td><td>${gardeH}</td><td>${(Number(gUnit)).toString().replace('.',',')}€</td><td>${(Number(gAmount)).toString().replace('.',',')}€</td></tr>`
           }
           if (sortieH > 0){
-            sAmount = Number((sortieH * sortieRate).toFixed(2))
-            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Sortie</td><td>${sortieH}</td><td>${(Number(sortieRate)).toString().replace('.',',')}€</td><td>${(Number(sAmount)).toString().replace('.',',')}€</td></tr>`
+            const sUnit = await (async ()=>{
+              try{
+                // prefer explicit 'sortie' entries
+                const [actsSortie] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%sortie%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                if (actsSortie && actsSortie.length>0){
+                  const pref = isMed ? (actsSortie[0].remuneration_med ?? actsSortie[0].remuneration_infi) : (actsSortie[0].remuneration_infi ?? actsSortie[0].remuneration_med)
+                  const val = Number(pref)
+                  if (val && !isNaN(val) && val > 0) return val
+                }
+                // else prefer permanence
+                const [actsPerm] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%permanence%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                if (actsPerm && actsPerm.length>0){
+                  const pref2 = isMed ? (actsPerm[0].remuneration_med ?? actsPerm[0].remuneration_infi) : (actsPerm[0].remuneration_infi ?? actsPerm[0].remuneration_med)
+                  const val2 = Number(pref2)
+                  if (val2 && !isNaN(val2) && val2 > 0) return val2
+                }
+                // else try astreinte
+                const [actsA] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%astreinte%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                if (actsA && actsA.length>0){
+                  const pref3 = isMed ? (actsA[0].remuneration_med ?? actsA[0].remuneration_infi) : (actsA[0].remuneration_infi ?? actsA[0].remuneration_med)
+                  const val3 = Number(pref3)
+                  if (val3 && !isNaN(val3) && val3 > 0) return val3
+                }
+              }catch(e){}
+              return (unitPrice && Number(unitPrice) > 0) ? Number(unitPrice) : (isMed ? FALLBACK_MED : FALLBACK_INF)
+            })()
+            sAmount = Number((sUnit * sortieH).toFixed(2))
+            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)} / Sortie</td><td>${sortieH}</td><td>${(Number(sUnit)).toString().replace('.',',')}€</td><td>${(Number(sAmount)).toString().replace('.',',')}€</td></tr>`
           }
-          
           // fallback single line when no garde/sortie specific hours
           if (!rowsHtml){
-            rowsHtml = `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)}${updatedRow.pay_type ? ' / '+updatedRow.pay_type : ''}</td><td>${Number(quantity)}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(lineAmount)).toString().replace('.',',')}€</td></tr>`
+            rowsHtml = `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)}${updatedRow.pay_type ? ' / '+updatedRow.pay_type : ''}</td><td>${Number(quantity)}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(lineAmount)).toString().replace('.',',')}€</td></tr>`
           }
-          
           // overtime line
           let overtimeAmountActual = 0
           if (overtimeHours > 0){
-            overtimeAmountActual = Number((unitPrice * overtimeHours).toFixed(2))
-            rowsHtml += `<tr><td>Heures supplémentaires (Permanence) — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)}</td><td>${overtimeHours}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(overtimeAmountActual)).toString().replace('.',',')}€</td></tr>`
+            // prefer permanence rate for overtime
+            const overtimeUnit = await (async ()=>{
+              try{
+                const [actsPerm] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%permanence%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                if (actsPerm && actsPerm.length>0){
+                  const pref = isMed ? (actsPerm[0].remuneration_med ?? actsPerm[0].remuneration_infi) : (actsPerm[0].remuneration_infi ?? actsPerm[0].remuneration_med)
+                  const val = Number(pref)
+                  if (val && !isNaN(val) && val > 0) return val
+                }
+                const [actsA] = await pool.query('SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE "%astreinte%" ORDER BY date DESC LIMIT 1', [updatedRow.analytic_id])
+                if (actsA && actsA.length>0){
+                  const pref2 = isMed ? (actsA[0].remuneration_med ?? actsA[0].remuneration_infi) : (actsA[0].remuneration_infi ?? actsA[0].remuneration_med)
+                  const val2 = Number(pref2)
+                  if (val2 && !isNaN(val2) && val2 > 0) return val2
+                }
+              }catch(e){}
+              return (unitPrice && Number(unitPrice) > 0) ? Number(unitPrice) : (isMed ? FALLBACK_MED : FALLBACK_INF)
+            })()
+            overtimeAmountActual = Number((overtimeUnit * overtimeHours).toFixed(2))
+            rowsHtml += `<tr><td>Heures supplémentaires (Permanence) — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)}</td><td>${overtimeHours}</td><td>${(Number(overtimeUnit)).toString().replace('.',',')}€</td><td>${(Number(overtimeAmountActual)).toString().replace('.',',')}€</td></tr>`
           }
           
           // Compute total: include garde/sortie amounts when present, otherwise include the fallback line amount
