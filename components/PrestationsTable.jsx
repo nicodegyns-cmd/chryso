@@ -528,15 +528,15 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         effective.user_email = email || (typeof window !== 'undefined' ? localStorage.getItem('email') : null)
       }
 
-      // When we have separate garde/sortie hours with detailed rates, copy the exact rates
-      if (confirmPreview && confirmPreview.rates && confirmPreview.rates.detailed) {
-        // Always save the garde rate in remuneration_infi
-        effective.remuneration_infi = confirmPreview.rates.detailed.garde_infi || confirmPreview.rates.infi || 0
-        effective.remuneration_med = confirmPreview.rates.detailed.garde_med || confirmPreview.rates.med || 0
+      // When we have separate garde/sortie hours with detailed rates, save TOTALS not hourly rates
+      if (confirmPreview && confirmPreview.estimated_infi !== undefined) {
+        // Save the TOTAL calculated amount
+        effective.remuneration_infi = confirmPreview.estimated_infi
+        effective.remuneration_med = confirmPreview.estimated_med || 0
         
         // Also save sortie rates if available (for PDF to use later)
-        effective.remuneration_sortie_infi = confirmPreview.rates.detailed.sortie_infi || null
-        effective.remuneration_sortie_med = confirmPreview.rates.detailed.sortie_med || null
+        effective.remuneration_sortie_infi = confirmPreview.rates?.detailed?.sortie_infi || null
+        effective.remuneration_sortie_med = confirmPreview.rates?.detailed?.sortie_med || null
       } else if (confirmPreview) {
         // Fallback if no detailed rates: use provided estimates
         if (confirmPreview.estimated_infi !== undefined && confirmPreview.estimated_infi !== null) {
