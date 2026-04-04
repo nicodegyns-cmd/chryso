@@ -205,23 +205,24 @@ export default async function handler(req, res){
           let rowsHtml = ''
           let gAmount = 0
           let sAmount = 0
+          const codeRef = updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)
           if (gardeH > 0){
             gAmount = Number((rateGarde * gardeH).toFixed(2))
-            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)} / Garde</td><td>${gardeH}</td><td>${(Number(rateGarde)).toString().replace('.',',')}€</td><td>${(Number(gAmount)).toString().replace('.',',')}€</td></tr>`
+            rowsHtml += `<tr><td>Prestation — ${prestationDate} — ${codeRef} / Garde</td><td>${gardeH}</td><td>${(Number(rateGarde)).toString().replace('.',',')}€</td><td>${(Number(gAmount)).toString().replace('.',',')}€</td></tr>`
           }
           if (sortieH > 0){
             sAmount = Number((rateSortie * sortieH).toFixed(2))
-            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)} / Sortie</td><td>${sortieH}</td><td>${(Number(rateSortie)).toString().replace('.',',')}€</td><td>${(Number(sAmount)).toString().replace('.',',')}€</td></tr>`
+            rowsHtml += `<tr><td>Prestation — ${prestationDate} — ${codeRef} / Sortie</td><td>${sortieH}</td><td>${(Number(rateSortie)).toString().replace('.',',')}€</td><td>${(Number(sAmount)).toString().replace('.',',')}€</td></tr>`
           }
           // fallback single line when no garde/sortie specific hours
           if (!rowsHtml){
-            rowsHtml = `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)}${updatedRow.pay_type ? ' / '+updatedRow.pay_type : ''}</td><td>${Number(quantity)}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(lineAmount)).toString().replace('.',',')}€</td></tr>`
+            rowsHtml = `<tr><td>Prestation — ${prestationDate} — ${codeRef}${updatedRow.pay_type ? ' / '+updatedRow.pay_type : ''}</td><td>${Number(quantity)}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(lineAmount)).toString().replace('.',',')}€</td></tr>`
           }
           // overtime line
           let overtimeAmountActual = 0
           if (overtimeHours > 0){
             overtimeAmountActual = Number((rateGarde * overtimeHours).toFixed(2))
-            rowsHtml += `<tr><td>Heures supplémentaires (Permanence) — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)}</td><td>${overtimeHours}</td><td>${(Number(rateGarde)).toString().replace('.',',')}€</td><td>${(Number(overtimeAmountActual)).toString().replace('.',',')}€</td></tr>`
+            rowsHtml += `<tr><td>Heures supplémentaires (Permanence) — ${prestationDate} — ${codeRef}</td><td>${overtimeHours}</td><td>${(Number(rateGarde)).toString().replace('.',',')}€</td><td>${(Number(overtimeAmountActual)).toString().replace('.',',')}€</td></tr>`
           }
           
           // Compute total: include garde/sortie amounts when present, otherwise include the fallback line amount
@@ -293,8 +294,8 @@ export default async function handler(req, res){
         </div>
         <div class="attention">
           <strong>A L'attention de :</strong>
-          <div>${updatedRow.analytic_name || 'Croix-Rouge de Belgique'}</div>
-          <div>${updatedRow.analytic_code || 'Medical Team Bruxelles Capitale'}</div>
+          <div>Croix-Rouge de Belgique</div>
+          <div>Medical Team Bruxelles Capitale</div>
           <div class="small-muted">Rue Rempart des Moines 78, 1000&nbsp;Bruxelles</div>
         </div>
       </div>
