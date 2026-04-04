@@ -81,6 +81,40 @@ export default async function handler(req, res) {
 
       const userId = users[0].id
 
+      // Calculate tariffs from local activities if missing
+      let calculatedRemuneInfi = remuneration_infi || null
+      let calculatedRemuneMed = remuneration_med || null
+
+      if (!calculatedRemuneInfi || !calculatedRemuneMed) {
+        try {
+          // Find activity via eBrigade mapping
+          const [mappings] = await pool.query(
+            `SELECT aem.activity_id FROM activity_ebrigade_mappings aem
+             WHERE aem.ebrigade_analytic_name = $1 LIMIT 1`,
+            [ebrigade_activity_code]
+          )
+
+          if (mappings && mappings.length > 0) {
+            const activityId = mappings[0].activity_id
+            // Fetch activities matching pay_type
+            const [activities] = await pool.query(
+              `SELECT remuneration_infi, remuneration_med, date FROM activities
+               WHERE activity_id = $1 AND LOWER(pay_type) LIKE LOWER($2)
+               ORDER BY date DESC LIMIT 1`,
+              [activityId, `%${pay_type || ''}%`]
+            )
+
+            if (activities && activities.length > 0) {
+              calculatedRemuneInfi = activities[0].remuneration_infi || calculatedRemuneInfi
+              calculatedRemuneMed = activities[0].remuneration_med || calculatedRemuneMed
+            }
+          }
+        } catch (e) {
+          console.warn('[prestations] tariff calculation error:', e && e.message)
+          // Continue even if tariff lookup fails
+        }
+      }
+
       // Insert new prestation with eBrigade data
       const q2 = await pool.query(
         `INSERT INTO prestations (
@@ -103,8 +137,8 @@ export default async function handler(req, res) {
           garde_hours || null,
           sortie_hours || null,
           overtime_hours || null,
-          remuneration_infi || null,
-          remuneration_med || null,
+          calculatedRemuneInfi,
+          calculatedRemuneMed,
           comments || null,
           expense_amount || null,
           expense_comment || null,

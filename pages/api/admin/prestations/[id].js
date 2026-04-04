@@ -39,6 +39,26 @@ export default async function handler(req, res){
     )
     if (!updatedRow) return res.status(404).json({ error: 'not found' })
 
+    // FALLBACK: If local analytic not found, try to fetch via eBrigade mappings
+    if (!updatedRow.analytic_name && updatedRow.ebrigade_activity_code) {
+      try {
+        const [[fallbackAnalytic]] = await pool.query(
+          `SELECT an.name AS analytic_name, an.code AS analytic_code, an.entite AS analytic_entite, an.analytic_type AS analytic_identifier
+           FROM activity_ebrigade_mappings aem
+           LEFT JOIN activities act ON aem.activity_id = act.id
+           LEFT JOIN analytics an ON act.analytic_id = an.id
+           WHERE aem.ebrigade_analytic_name = $1 LIMIT 1`, 
+          [updatedRow.ebrigade_activity_code]
+        )
+        if (fallbackAnalytic && fallbackAnalytic.analytic_name) {
+          updatedRow.analytic_name = fallbackAnalytic.analytic_name
+          updatedRow.analytic_code = fallbackAnalytic.analytic_code
+          updatedRow.analytic_entite = fallbackAnalytic.analytic_entite
+          updatedRow.analytic_identifier = fallbackAnalytic.analytic_identifier
+        }
+      } catch(e) { /* ignore fallback failure */ }
+    }
+
     // If status moved to 'En attente d'envoie', generate PDF if missing
     if (Object.prototype.hasOwnProperty.call(req.body, 'status') && req.body.status === 'En attente d\'envoie'){
       if (!updatedRow.pdf_url){
@@ -125,7 +145,25 @@ export default async function handler(req, res){
           // Use remuneration from prestation record directly (already calculated by user)
           const roleLow = ((updatedRow.user_role || '') + '').toLowerCase()
           const isMed = (updatedRow.user_role && String(updatedRow.user_role).toUpperCase().includes('MED')) || roleLow.includes('med')
-          const unitPrice = isMed ? Number(updatedRow.remuneration_med || updatedRow.remuneration_infi || 0) : Number(updatedRow.remuneration_infi || updatedRow.remuneration_med || 0)
+          let unitPrice = isMed ? Number(updatedRow.remuneration_med || updatedRow.remuneration_infi || 0) : Number(updatedRow.remuneration_infi || updatedRow.remuneration_med || 0)
+          
+          // FALLBACK: If no remuneration in prestation, try to fetch from activities via eBrigade mapping
+          if (unitPrice === 0 && updatedRow.ebrigade_activity_code) {
+            try {
+              const [activities] = await pool.query(
+                `SELECT remuneration_infi, remuneration_med
+                 FROM activity_ebrigade_mappings aem
+                 LEFT JOIN activities act ON aem.activity_id = act.id
+                 WHERE aem.ebrigade_analytic_name = $1 AND LOWER(act.pay_type) LIKE $2
+                 ORDER BY act.date DESC LIMIT 1`,
+                [updatedRow.ebrigade_activity_code, `%${updatedRow.pay_type || ''}%`]
+              )
+              if (activities && activities.length > 0) {
+                const fallbackRate = isMed ? (activities[0].remuneration_med || activities[0].remuneration_infi) : (activities[0].remuneration_infi || activities[0].remuneration_med)
+                if (fallbackRate) unitPrice = Number(fallbackRate)
+              }
+            } catch(e) { /* ignore fallback */ }
+          }
           
           const lineAmount = (Number(unitPrice || 0) * Number(quantity || 0)).toFixed(2)
           const overtimeHours = Number(updatedRow.overtime_hours || 0)
