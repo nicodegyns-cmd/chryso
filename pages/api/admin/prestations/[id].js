@@ -124,240 +124,44 @@ export default async function handler(req, res){
           else if (payLower.includes('permanence') || payLower.includes('sortie') || payLower.includes('astreinte')) quantity = Number(updatedRow.hours_actual || updatedRow.garde_hours || 0)
           else quantity = Number(updatedRow.hours_actual || updatedRow.garde_hours || 1)
 
-          // Resolve unit price: prefer explicit prestation remuneration, else derive from recent activities, else fallbacks
-          const FALLBACK_INF = 20
-          const FALLBACK_MED = 30
-          let unitPrice = 0
+          // Use remuneration from prestation record directly (already calculated by user)
           const roleLow = ((updatedRow.user_role || '') + '').toLowerCase()
           const isMed = (updatedRow.user_role && String(updatedRow.user_role).toUpperCase().includes('MED')) || roleLow.includes('med')
-
-          // 1) use remuneration set on prestation if present
-          if (updatedRow.remuneration_med || updatedRow.remuneration_infi){
-            unitPrice = isMed ? Number(updatedRow.remuneration_med || updatedRow.remuneration_infi) : Number(updatedRow.remuneration_infi || updatedRow.remuneration_med)
-          } else {
-            // 2) try to fetch recent activities matching pay_type (no mapping needed, works for any eBrigade code)
-            try{
-              let acts = []
-              // Search for activities with matching pay_type, ordered by most recent
-              const [result] = await pool.query(
-                'SELECT pay_type, remuneration_infi, remuneration_med, date FROM activities WHERE LOWER(pay_type) IS NOT NULL ORDER BY date DESC LIMIT 50',
-                []
-              )
-              acts = result || []
-              
-              if (acts && acts.length > 0){
-                // look for matching pay_type entries first, otherwise take first row
-                let chosen = null
-                for (const a of acts){
-                  const pt = (a.pay_type||'').toString().toLowerCase()
-                  if (payLower.includes('garde') && pt.includes('garde')){ chosen = a; break }
-                  if (payLower.includes('sortie') && (pt.includes('sortie') || pt.includes('permanence') || pt.includes('astreinte'))){ chosen = a; break }
-                  if (payLower.includes('permanence') && pt.includes('permanence')){ chosen = a; break }
-                }
-                if (!chosen) chosen = acts[0]
-                // prefer explicit remuneration fields, fall back to sensible defaults when missing or invalid
-                try{
-                  const preferred = isMed ? (chosen.remuneration_med ?? chosen.remuneration_infi) : (chosen.remuneration_infi ?? chosen.remuneration_med)
-                  let candidate = Number(preferred)
-                  if (!candidate || isNaN(candidate) || candidate <= 0) candidate = isMed ? FALLBACK_MED : FALLBACK_INF
-                  unitPrice = candidate
-                }catch(e){ unitPrice = isMed ? FALLBACK_MED : FALLBACK_INF }
-              } else {
-                unitPrice = isMed ? FALLBACK_MED : FALLBACK_INF
-              }
-            }catch(e){
-              unitPrice = isMed ? FALLBACK_MED : FALLBACK_INF
-            }
-          }
-
+          const unitPrice = isMed ? Number(updatedRow.remuneration_med || updatedRow.remuneration_infi || 0) : Number(updatedRow.remuneration_infi || updatedRow.remuneration_med || 0)
+          
           const lineAmount = (Number(unitPrice || 0) * Number(quantity || 0)).toFixed(2)
           const overtimeHours = Number(updatedRow.overtime_hours || 0)
           const overtimeAmount = Number(unitPrice || 0) * overtimeHours
           const expenses = Number(updatedRow.expense_amount || 0)
+          
           // Build rows: support separate garde_hours and sortie_hours if present
           const gardeH = Number(updatedRow.garde_hours || 0)
           const sortieH = Number(updatedRow.sortie_hours || 0)
           let rowsHtml = ''
           let gAmount = 0
           let sAmount = 0
+          
           if (gardeH > 0){
-            const gUnit = await (async ()=>{
-              try{
-                let ebrigadeAnalytic = updatedRow.ebrigade_activity_code || null
-                let activityIds = []
-                if (ebrigadeAnalytic) {
-                  const [mappings] = await pool.query(
-                    'SELECT activity_id FROM activity_ebrigade_mappings WHERE ebrigade_analytic_name = $1',
-                    [ebrigadeAnalytic]
-                  )
-                  if (mappings && mappings.length > 0) activityIds = mappings.map(m => m.activity_id)
-                }
-                let actsG = []
-                if (activityIds.length > 0) {
-                  const [result] = await pool.query(
-                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE id = ANY($1) AND LOWER(pay_type) LIKE \'%garde%\' ORDER BY date DESC LIMIT 1',
-                    [activityIds]
-                  )
-                  actsG = result || []
-                } else if (updatedRow.analytic_id) {
-                  const [result] = await pool.query(
-                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE \'%garde%\' ORDER BY date DESC LIMIT 1',
-                    [updatedRow.analytic_id]
-                  )
-                  actsG = result || []
-                }
-                if (actsG && actsG.length>0){
-                  const pref = isMed ? (actsG[0].remuneration_med ?? actsG[0].remuneration_infi) : (actsG[0].remuneration_infi ?? actsG[0].remuneration_med)
-                  const val = Number(pref)
-                  if (val && !isNaN(val) && val > 0) return val
-                }
-              }catch(e){}
-              return (unitPrice && Number(unitPrice) > 0) ? Number(unitPrice) : (isMed ? FALLBACK_MED : FALLBACK_INF)
-            })()
-            gAmount = Number((gUnit * gardeH).toFixed(2))
-            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Garde</td><td>${gardeH}</td><td>${(Number(gUnit)).toString().replace('.',',')}€</td><td>${(Number(gAmount)).toString().replace('.',',')}€</td></tr>`
+            gAmount = Number((gardeH * unitPrice).toFixed(2))
+            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Garde</td><td>${gardeH}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(gAmount)).toString().replace('.',',')}€</td></tr>`
           }
           if (sortieH > 0){
-            const sUnit = await (async ()=>{
-              try{
-                let ebrigadeAnalytic = updatedRow.ebrigade_activity_code || null
-                let activityIds = []
-                if (ebrigadeAnalytic) {
-                  const [mappings] = await pool.query(
-                    'SELECT activity_id FROM activity_ebrigade_mappings WHERE ebrigade_analytic_name = $1',
-                    [ebrigadeAnalytic]
-                  )
-                  if (mappings && mappings.length > 0) activityIds = mappings.map(m => m.activity_id)
-                }
-                let actsSortie = []
-                if (activityIds.length > 0) {
-                  const [result] = await pool.query(
-                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE id = ANY($1) AND LOWER(pay_type) LIKE \'%sortie%\' ORDER BY date DESC LIMIT 1',
-                    [activityIds]
-                  )
-                  actsSortie = result || []
-                } else if (updatedRow.analytic_id) {
-                  const [result] = await pool.query(
-                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE \'%sortie%\' ORDER BY date DESC LIMIT 1',
-                    [updatedRow.analytic_id]
-                  )
-                  actsSortie = result || []
-                }
-                if (actsSortie && actsSortie.length>0){
-                  const pref = isMed ? (actsSortie[0].remuneration_med ?? actsSortie[0].remuneration_infi) : (actsSortie[0].remuneration_infi ?? actsSortie[0].remuneration_med)
-                  const val = Number(pref)
-                  if (val && !isNaN(val) && val > 0) return val
-                }
-                // else prefer permanence
-                let actsPerm = []
-                if (activityIds.length > 0) {
-                  const [result] = await pool.query(
-                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE id = ANY($1) AND LOWER(pay_type) LIKE \'%permanence%\' ORDER BY date DESC LIMIT 1',
-                    [activityIds]
-                  )
-                  actsPerm = result || []
-                } else if (updatedRow.analytic_id) {
-                  const [result] = await pool.query(
-                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE \'%permanence%\' ORDER BY date DESC LIMIT 1',
-                    [updatedRow.analytic_id]
-                  )
-                  actsPerm = result || []
-                }
-                if (actsPerm && actsPerm.length>0){
-                  const pref2 = isMed ? (actsPerm[0].remuneration_med ?? actsPerm[0].remuneration_infi) : (actsPerm[0].remuneration_infi ?? actsPerm[0].remuneration_med)
-                  const val2 = Number(pref2)
-                  if (val2 && !isNaN(val2) && val2 > 0) return val2
-                }
-                // else try astreinte
-                let actsA = []
-                if (activityIds.length > 0) {
-                  const [result] = await pool.query(
-                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE id = ANY($1) AND LOWER(pay_type) LIKE \'%astreinte%\' ORDER BY date DESC LIMIT 1',
-                    [activityIds]
-                  )
-                  actsA = result || []
-                } else if (updatedRow.analytic_id) {
-                  const [result] = await pool.query(
-                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE \'%astreinte%\' ORDER BY date DESC LIMIT 1',
-                    [updatedRow.analytic_id]
-                  )
-                  actsA = result || []
-                }
-                if (actsA && actsA.length>0){
-                  const pref3 = isMed ? (actsA[0].remuneration_med ?? actsA[0].remuneration_infi) : (actsA[0].remuneration_infi ?? actsA[0].remuneration_med)
-                  const val3 = Number(pref3)
-                  if (val3 && !isNaN(val3) && val3 > 0) return val3
-                }
-              }catch(e){}
-              return (unitPrice && Number(unitPrice) > 0) ? Number(unitPrice) : (isMed ? FALLBACK_MED : FALLBACK_INF)
-            })()
-            sAmount = Number((sUnit * sortieH).toFixed(2))
-            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Sortie</td><td>${sortieH}</td><td>${(Number(sUnit)).toString().replace('.',',')}€</td><td>${(Number(sAmount)).toString().replace('.',',')}€</td></tr>`
+            sAmount = Number((sortieH * unitPrice).toFixed(2))
+            rowsHtml += `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)} / Sortie</td><td>${sortieH}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(sAmount)).toString().replace('.',',')}€</td></tr>`
           }
+          
           // fallback single line when no garde/sortie specific hours
           if (!rowsHtml){
             rowsHtml = `<tr><td>Prestation — ${prestationDate} — Réf ${updatedRow.ebrigade_activity_code || updatedRow.request_ref || ('#'+updatedRow.id)}${updatedRow.pay_type ? ' / '+updatedRow.pay_type : ''}</td><td>${Number(quantity)}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(lineAmount)).toString().replace('.',',')}€</td></tr>`
           }
+          
           // overtime line
           let overtimeAmountActual = 0
           if (overtimeHours > 0){
-            // prefer permanence rate for overtime
-            const overtimeUnit = await (async ()=>{
-              try{
-                let ebrigadeAnalytic = updatedRow.ebrigade_activity_code || null
-                let activityIds = []
-                if (ebrigadeAnalytic) {
-                  const [mappings] = await pool.query(
-                    'SELECT activity_id FROM activity_ebrigade_mappings WHERE ebrigade_analytic_name = $1',
-                    [ebrigadeAnalytic]
-                  )
-                  if (mappings && mappings.length > 0) activityIds = mappings.map(m => m.activity_id)
-                }
-                let actsPerm = []
-                if (activityIds.length > 0) {
-                  const [result] = await pool.query(
-                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE id = ANY($1) AND LOWER(pay_type) LIKE \'%permanence%\' ORDER BY date DESC LIMIT 1',
-                    [activityIds]
-                  )
-                  actsPerm = result || []
-                } else if (updatedRow.analytic_id) {
-                  const [result] = await pool.query(
-                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE \'%permanence%\' ORDER BY date DESC LIMIT 1',
-                    [updatedRow.analytic_id]
-                  )
-                  actsPerm = result || []
-                }
-                if (actsPerm && actsPerm.length>0){
-                  const pref = isMed ? (actsPerm[0].remuneration_med ?? actsPerm[0].remuneration_infi) : (actsPerm[0].remuneration_infi ?? actsPerm[0].remuneration_med)
-                  const val = Number(pref)
-                  if (val && !isNaN(val) && val > 0) return val
-                }
-                let actsA = []
-                if (activityIds.length > 0) {
-                  const [result] = await pool.query(
-                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE id = ANY($1) AND LOWER(pay_type) LIKE \'%astreinte%\' ORDER BY date DESC LIMIT 1',
-                    [activityIds]
-                  )
-                  actsA = result || []
-                } else if (updatedRow.analytic_id) {
-                  const [result] = await pool.query(
-                    'SELECT remuneration_infi,remuneration_med,pay_type FROM activities WHERE analytic_id = $1 AND LOWER(pay_type) LIKE \'%astreinte%\' ORDER BY date DESC LIMIT 1',
-                    [updatedRow.analytic_id]
-                  )
-                  actsA = result || []
-                }
-                if (actsA && actsA.length>0){
-                  const pref2 = isMed ? (actsA[0].remuneration_med ?? actsA[0].remuneration_infi) : (actsA[0].remuneration_infi ?? actsA[0].remuneration_med)
-                  const val2 = Number(pref2)
-                  if (val2 && !isNaN(val2) && val2 > 0) return val2
-                }
-              }catch(e){}
-              return (unitPrice && Number(unitPrice) > 0) ? Number(unitPrice) : (isMed ? FALLBACK_MED : FALLBACK_INF)
-            })()
             overtimeAmountActual = Number((overtimeUnit * overtimeHours).toFixed(2))
-            rowsHtml += `<tr><td>Heures supplémentaires (Permanence) — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)}</td><td>${overtimeHours}</td><td>${(Number(overtimeUnit)).toString().replace('.',',')}€</td><td>${(Number(overtimeAmountActual)).toString().replace('.',',')}€</td></tr>`
+            rowsHtml += `<tr><td>Heures supplémentaires (Permanence) — ${prestationDate} — Réf ${updatedRow.request_ref || ('#'+updatedRow.id)}</td><td>${overtimeHours}</td><td>${(Number(unitPrice)).toString().replace('.',',')}€</td><td>${(Number(overtimeAmountActual)).toString().replace('.',',')}€</td></tr>`
           }
-          // expenses line appended later in template
+          
           // Compute total: include garde/sortie amounts when present, otherwise include the fallback line amount
           let baseAmount = 0
           if (gardeH > 0 || sortieH > 0){
