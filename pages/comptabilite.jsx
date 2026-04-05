@@ -330,7 +330,6 @@ export default function ComptabilitePage() {
                 <thead>
                   <tr style={{background: '#f3f4f6', borderBottom: '2px solid #e5e7eb'}}>
                     <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Collaborateur</th>
-                    <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Email</th>
                     <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Activité</th>
                     <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Montant</th>
                     <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Date</th>
@@ -343,9 +342,6 @@ export default function ComptabilitePage() {
                     <tr key={prestation.id || idx} style={{borderBottom: '1px solid #e5e7eb', transition: 'background 0.2s', _hover: {background: '#f9fafb'}}}>
                       <td style={{padding: 12, fontSize: 13, fontWeight: 600, color: '#1f2937'}}>
                         {prestation.user_name || `${prestation.first_name} ${prestation.last_name}`.trim()}
-                      </td>
-                      <td style={{padding: 12, fontSize: 13, color: '#374151'}}>
-                        {prestation.email}
                       </td>
                       <td style={{padding: 12, fontSize: 13, color: '#374151'}}>
                         {prestation.analytic_name || prestation.activity_type || '-'}
@@ -603,13 +599,17 @@ export default function ComptabilitePage() {
 
 function StatusBadge({ status }) {
   const statusConfig = {
-    sent_to_billing: { bg: '#fef3c7', color: '#92400e', label: '📋 À facturer' },
-    invoiced: { bg: '#dcfce7', color: '#166534', label: '✅ Facturée' },
-    paid: { bg: '#dbeafe', color: '#0c4a6e', label: '💳 Payée' },
-    pending: { bg: '#f3f4f6', color: '#374151', label: '⏳ En attente' }
+    'Envoyé à la facturation': { bg: '#fef3c7', color: '#92400e', label: '📋 À facturer' },
+    'Facturé': { bg: '#dcfce7', color: '#166534', label: '✅ Facturé' },
+    'Payé': { bg: '#dbeafe', color: '#0c4a6e', label: '💳 Payé' },
+    // Fallback for old codes
+    'sent_to_billing': { bg: '#fef3c7', color: '#92400e', label: '📋 À facturer' },
+    'invoiced': { bg: '#dcfce7', color: '#166534', label: '✅ Facturé' },
+    'paid': { bg: '#dbeafe', color: '#0c4a6e', label: '💳 Payé' },
+    'pending': { bg: '#f3f4f6', color: '#374151', label: '⏳ En attente' }
   }
   
-  const config = statusConfig[status] || statusConfig.pending
+  const config = statusConfig[status] || { bg: '#f3f4f6', color: '#374151', label: '⏳ Inconnu' }
   
   return (
     <span style={{
