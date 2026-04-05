@@ -61,7 +61,10 @@ export default async function handler(req, res){
     }
 
     // If status moved to 'En attente d'envoie' or 'Envoyé à la facturation', ensure invoice_number and generate PDF if missing
-    if (Object.prototype.hasOwnProperty.call(req.body, 'status') && (req.body.status === 'En attente d\'envoie' || req.body.status === 'Envoyé à la facturation')){
+    const targetStatus = req.body.status
+    const isInvoiceableStatus = targetStatus === 'En attente d\'envoie' || targetStatus === 'Envoyé à la facturation'
+    
+    if (isInvoiceableStatus){
       // Ensure columns exist
       try{ await pool.query("ALTER TABLE prestations ADD COLUMN IF NOT EXISTS invoice_number VARCHAR(64) DEFAULT NULL") }catch(e){}
       try{ await pool.query("ALTER TABLE prestations ADD COLUMN IF NOT EXISTS request_ref VARCHAR(64) DEFAULT NULL") }catch(e){}
@@ -70,21 +73,29 @@ export default async function handler(req, res){
       // Generate invoice_number if missing
       if (!updatedRow.invoice_number){
         try{
+          console.log(`[admin/prestations/${id}] Generating invoice_number for prestation ${id}...`)
           const year = new Date().getFullYear()
           const like = `${year}-%`
-          const [resInv] = await pool.query('SELECT invoice_number FROM prestations WHERE invoice_number LIKE $1 ORDER BY invoice_number DESC LIMIT 1', [like])
+          // Query for the latest invoice_number for this year
+          const maxInvRes = await pool.query(
+            'SELECT invoice_number FROM prestations WHERE invoice_number LIKE $1 ORDER BY CAST(SUBSTRING(invoice_number, 6) AS INT) DESC LIMIT 1', 
+            [like]
+          )
           let nextNum = 1
-          if (resInv && resInv.length > 0 && resInv[0].invoice_number){
-            const parts = String(resInv[0].invoice_number).split('-')
-            const last = parts[1] || ''
-            const n = parseInt(last.replace(/^0+/, '') || '0', 10)
-            if (!isNaN(n)) nextNum = n + 1
+          const invRows = maxInvRes.rows || maxInvRes[0] || []
+          if (invRows && invRows.length > 0 && invRows[0].invoice_number){
+            const parts = String(invRows[0].invoice_number).split('-')
+            const numPart = parseInt(parts[1] || '0', 10)
+            if (!isNaN(numPart)) nextNum = numPart + 1
           }
           const padded = String(nextNum).padStart(5, '0')
           const newInv = `${year}-${padded}`
+          console.log(`[admin/prestations/${id}] Generated invoice_number: ${newInv}`)
           await pool.query('UPDATE prestations SET invoice_number = $1 WHERE id = $2', [newInv, updatedRow.id])
           updatedRow.invoice_number = newInv
-        }catch(e){ console.warn('invoice_number generation failed', e && e.message) }
+        }catch(e){ 
+          console.error(`[admin/prestations/${id}] invoice_number generation failed: ${e && e.message}`)
+        }
       }
 
       // Generate PDF if missing
