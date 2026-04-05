@@ -119,8 +119,8 @@ export default function AdminPrestationsSummary({ limit = 8 }){
       const updated = await r.json()
       setItems(prev => prev.map(p => p.id === updated.id ? updated : p))
       // Show success notification
-      if (status === "En attente d'envoie") {
-        alert(`✅ Prestaton validée!\nFacture générée: ${updated.invoice_number || 'N/A'}\nL'utilisateur peut télécharger sa facture.`)
+      if (status === "Envoyé à la facturation") {
+        alert(`✅ Prestation envoyée à la comptabilité!\nFacture: ${updated.invoice_number || 'N/A'}\nLa comptabilité peut maintenant traiter le dossier.`)
       }
     }catch(e){ console.error('update status failed', e); alert('Erreur lors de la mise à jour') }
     finally{ setSavingIds(prev => { const c = {...prev}; delete c[id]; return c }) }
@@ -269,7 +269,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                     {it.pdf_url && <a href={it.pdf_url.replace(/^\/exports\//, '/api/exports/download?file=')} download style={{padding:'6px 12px',borderRadius:6,border:'1px solid #c7d2fe',background:'#e0e7ff',color:'#3730a3',cursor:'pointer',fontWeight:600,fontSize:13,textDecoration:'none',display:'inline-block',transition:'all 0.2s'}}>📄 Facture</a>}
                     {it.status === "En attente d'approbation" && (
                       <>
-                        <button disabled={!!savingIds[it.id]} onClick={()=>updateStatus(it.id, "En attente d'envoie")} style={{padding:'6px 12px',borderRadius:6,border:'1px solid #fcd34d',background:'#fef3c7',color:'#92400e',cursor:'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}>✓ Valider</button>
+                        <button disabled={!!savingIds[it.id]} onClick={()=>updateStatus(it.id, "Envoyé à la facturation")} style={{padding:'6px 12px',borderRadius:6,border:'1px solid #fcd34d',background:'#fef3c7',color:'#92400e',cursor:'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}>✓ Valider</button>
                         <button disabled={!!savingIds[it.id]} onClick={()=>setRefusingId(it.id)} style={{padding:'6px 12px',borderRadius:6,border:'1px solid #fca5a5',background:'#fee2e2',color:'#991b1b',cursor:'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}>✕ Refuser</button>
                       </>
                     )}
