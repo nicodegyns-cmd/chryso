@@ -15,8 +15,9 @@ export default async function handler(req, res) {
         p.id,
         p.user_id,
         p.analytic_id,
-        a.name AS analytic_name,
-        a.code AS analytic_code,
+        p.ebrigade_activity_code,
+        COALESCE(a.name, aam.ebrigade_analytic_name) AS analytic_name,
+        COALESCE(a.code, '') AS analytic_code,
         act.pay_type AS activity_type,
         COALESCE(p.remuneration_infi, p.remuneration_med) AS remuneration,
         p.date,
@@ -31,6 +32,7 @@ export default async function handler(req, res) {
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN analytics a ON p.analytic_id = a.id
       LEFT JOIN activities act ON p.activity_id = act.id
+      LEFT JOIN activity_ebrigade_mappings aam ON p.ebrigade_activity_code = aam.ebrigade_analytic_name
       WHERE 1=1
     `
     const params = []

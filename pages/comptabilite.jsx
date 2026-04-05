@@ -451,24 +451,17 @@ export default function ComptabilitePage() {
               </div>
             </div>
 
-            {/* PDF card */}
-            <div className={adminStyles['document-preview']} style={{marginTop:12}}>
-              <h3>📄 Document PDF associé</h3>
-              <div className={adminStyles['document-info']}>
-                <p><strong>Fichier:</strong> {selectedPrestation.pdf_filename || '—'}</p>
-                <p><strong>Taille:</strong> {selectedPrestation.pdf_size ? `${(selectedPrestation.pdf_size/1024).toFixed(2)} KB` : '—'}</p>
-              </div>
-              <div style={{display:'flex',gap:8}}>
-                {selectedPrestation.pdf_url ? (
-                  <a href={selectedPrestation.pdf_url} target="_blank" rel="noreferrer" className={adminStyles['view-document-btn']}>👁️ Voir le PDF</a>
-                ) : (
-                  <button disabled style={{padding:'8px 12px',background:'#9ca3af',color:'#fff',borderRadius:6,border:'none'}}>Aucun PDF</button>
-                )}
-                {selectedPrestation.pdf_url ? (
-                  <a href={selectedPrestation.pdf_url} download style={{padding:'8px 12px',background:'#6b7280',color:'#fff',borderRadius:6,textDecoration:'none',display:'inline-block',textAlign:'center'}}>Télécharger</a>
-                ) : null}
-                <button onClick={() => { setConfirmPaymentItem(selectedPrestation); setConfirmPaymentOpen(true); }} style={{padding:'8px 12px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Encodé</button>
-              </div>
+            {/* PDF buttons only - no card */}
+            <div style={{display:'flex',gap:8,marginTop:12}}>
+              {selectedPrestation.pdf_url ? (
+                <a href={selectedPrestation.pdf_url} target="_blank" rel="noreferrer" className={adminStyles['view-document-btn']}>👁️ Voir le PDF</a>
+              ) : (
+                <button disabled style={{padding:'8px 12px',background:'#9ca3af',color:'#fff',borderRadius:6,border:'none'}}>Aucun PDF</button>
+              )}
+              {selectedPrestation.pdf_url ? (
+                <a href={selectedPrestation.pdf_url} download style={{padding:'8px 12px',background:'#6b7280',color:'#fff',borderRadius:6,textDecoration:'none',display:'inline-block',textAlign:'center'}}>Télécharger</a>
+              ) : null}
+              <button onClick={() => { setConfirmPaymentItem(selectedPrestation); setConfirmPaymentOpen(true); }} style={{padding:'8px 12px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Encodé</button>
             </div>
 
             <div className={adminStyles['validation-actions']}>
