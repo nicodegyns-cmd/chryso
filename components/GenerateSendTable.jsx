@@ -101,13 +101,13 @@ export default function GenerateSendTable(){
     if (sending[analyticId]) return
     setSending(prev => ({...prev, [analyticId]: true}))
     try{
-      const r = await fetch(`/api/admin/analytics/${analyticId}/send-invoices`, { method: 'POST' })
+      const r = await fetch(`/api/admin/analytics/${analyticId}/send-merged-pdfs`, { method: 'POST' })
       if (!r.ok) {
         const err = await r.text()
         throw new Error(err || 'send failed')
       }
       const data = await r.json()
-      alert(`✅ Factures envoyées avec succès à ${data.recipients?.length || 0} destinataire(s)`)
+      alert(`✅ Factures mergées et envoyées avec succès à ${data.recipients?.length || 0} destinataire(s)`)
       // Refresh prestations list and history
       await fetchPrestations()
       await fetchSendHistory(analyticId)
