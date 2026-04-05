@@ -76,9 +76,9 @@ export default function GenerateSendTable(){
       return (a.code || a.name).localeCompare(b.code || b.name)
     })
     
-    // Load history for each analytic
+    // Load history for each analytic (skip orphan group)
     result.forEach(analytic => {
-      if (!sendHistory[analytic.id]) {
+      if (analytic.id !== '__orphan__' && !sendHistory[analytic.id]) {
         fetchSendHistory(analytic.id)
       }
     })
