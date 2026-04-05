@@ -481,13 +481,13 @@ export default function ComptabilitePage() {
               <button onClick={() => { setConfirmPaymentOpen(false); setConfirmPaymentItem(null); }} style={{padding:'8px 12px',background:'#f3f4f6',borderRadius:6,border:'none',cursor:'pointer'}}>Annuler</button>
               <button onClick={async () => {
                 try {
-                  // call API to update prestation status to 'paid'
+                  // call API to update prestation status to 'Payé'
                   const res = await fetch(`/api/admin/prestations/${confirmPaymentItem.id}`, {
-                    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status: 'paid' })
+                    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status: 'Payé' })
                   })
                   if (!res.ok) throw new Error('Erreur serveur')
-                  // update UI: remove or update item in list
-                  setPrestations(prev => prev.map(p => p.id === confirmPaymentItem.id ? {...p, status: 'paid'} : p))
+                  // Refresh the list to remove encoded item (it's now filtered out)
+                  await fetchPrestations()
                 } catch (e) {
                   console.error('Encodage paiement failed', e)
                   alert('Erreur lors de l\'encodage du paiement')
