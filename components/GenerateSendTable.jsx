@@ -51,16 +51,30 @@ export default function GenerateSendTable(){
       }
     })
     
+    // Create a group for prestations without analytic_id
+    groups['__orphan__'] = {
+      id: '__orphan__',
+      name: '⚠️ Sans analytique',
+      code: 'ORPHAN',
+      count: 0,
+      prestations: []
+    }
+    
     // Add prestation counts
     prestations.forEach(p => {
-      const analyticId = p.analytic_id
+      const analyticId = p.analytic_id || '__orphan__'
       if (groups[analyticId]) {
         groups[analyticId].count += 1
         groups[analyticId].prestations.push(p)
       }
     })
     
-    const result = Object.values(groups).sort((a, b) => (a.code || a.name).localeCompare(b.code || b.name))
+    const result = Object.values(groups).sort((a, b) => {
+      // Put orphan group last
+      if (a.id === '__orphan__') return 1
+      if (b.id === '__orphan__') return -1
+      return (a.code || a.name).localeCompare(b.code || b.name)
+    })
     
     // Load history for each analytic
     result.forEach(analytic => {
@@ -151,32 +165,33 @@ export default function GenerateSendTable(){
                 </div>
                 <button
                   onClick={() => handleSendInvoices(analytic.id)}
-                  disabled={!!sending[analytic.id] || analytic.count === 0}
+                  disabled={!!sending[analytic.id] || analytic.count === 0 || analytic.id === '__orphan__'}
                   style={{
                     width:'100%',
                     padding:'10px 16px',
-                    background:(sending[analytic.id] || analytic.count === 0) ? '#d1d5db' : '#10b981',
+                    background:(sending[analytic.id] || analytic.count === 0 || analytic.id === '__orphan__') ? '#d1d5db' : '#10b981',
                     color:'#fff',
                     border:'none',
                     borderRadius:6,
                     fontSize:14,
                     fontWeight:600,
-                    cursor:(sending[analytic.id] || analytic.count === 0) ? 'not-allowed' : 'pointer',
+                    cursor:(sending[analytic.id] || analytic.count === 0 || analytic.id === '__orphan__') ? 'not-allowed' : 'pointer',
                     transition:'background 0.2s',
-                    opacity:(sending[analytic.id] || analytic.count === 0) ? 0.6 : 1
+                    opacity:(sending[analytic.id] || analytic.count === 0 || analytic.id === '__orphan__') ? 0.6 : 1
                   }}
                   onMouseEnter={(e) => {
-                    if (!sending[analytic.id] && analytic.count > 0) {
+                    if (!sending[analytic.id] && analytic.count > 0 && analytic.id !== '__orphan__') {
                       e.currentTarget.style.background = '#059669'
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (!sending[analytic.id] && analytic.count > 0) {
+                    if (!sending[analytic.id] && analytic.count > 0 && analytic.id !== '__orphan__') {
                       e.currentTarget.style.background = '#10b981'
                     }
                   }}
+                  title={analytic.id === '__orphan__' ? 'Assigner une analytique à ces factures avant envoi' : ''}
                 >
-                  {sending[analytic.id] ? '📧 Envoi en cours...' : analytic.count === 0 ? '0 facture à envoyer' : '📧 Envoyer les factures'}
+                  {sending[analytic.id] ? '📧 Envoi en cours...' : analytic.count === 0 ? '0 facture à envoyer' : analytic.id === '__orphan__' ? '⚠️ Assigner analytique' : '📧 Envoyer les factures'}
                 </button>
               </div>
             ))}
