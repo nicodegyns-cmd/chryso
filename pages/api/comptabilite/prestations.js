@@ -22,6 +22,7 @@ export default async function handler(req, res) {
         p.date,
         p.status,
         p.created_at,
+        p.pdf_url,
         u.first_name,
         u.last_name,
         u.email,

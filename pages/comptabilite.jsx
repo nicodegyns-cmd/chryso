@@ -427,10 +427,6 @@ export default function ComptabilitePage() {
                 <span>{selectedPrestation.user_name || `${selectedPrestation.first_name || ''} ${selectedPrestation.last_name || ''}`.trim()}</span>
               </div>
               <div className={adminStyles['info-row']}>
-                <span className={adminStyles.label}>Email:</span>
-                <span>{selectedPrestation.email || '-'}</span>
-              </div>
-              <div className={adminStyles['info-row']}>
                 <span className={adminStyles.label}>Date:</span>
                 <span>{new Date(selectedPrestation.date || selectedPrestation.created_at).toLocaleDateString('fr-FR')}</span>
               </div>
