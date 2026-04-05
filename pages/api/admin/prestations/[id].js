@@ -89,6 +89,10 @@ export default async function handler(req, res){
 
       // Generate PDF if missing
       if (!updatedRow.pdf_url){
+        try{
+          const fs = require('fs')
+          const path = require('path')
+          const puppeteer = require('puppeteer')
 
           // Build rich invoice HTML (based on scripts/generate_invoice.js template)
           const invoiceDate = new Date().toLocaleDateString('fr-FR')
