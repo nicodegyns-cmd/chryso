@@ -161,7 +161,7 @@ export default async function handler(req, res) {
           new Date(),
           invitationExpiresAt,
           batchId,
-          0
+          0 // is_active uses integer 0, not false
         ]
       )
 

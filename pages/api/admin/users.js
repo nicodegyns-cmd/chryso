@@ -75,7 +75,7 @@ export default async function handler(req, res) {
           true, // must_complete_profile
           false, // accepted_cgu
           false, // accepted_privacy
-          false, // is_active = 0 (pending validation)
+          0, // is_active = 0 (pending validation) - SMALLINT not boolean
           'pending_validation' // onboarding_status
         ]
       )
