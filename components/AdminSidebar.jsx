@@ -51,6 +51,11 @@ export default function AdminSidebar({ onNavigate }) {
             </Link>
           </li>
           <li>
+            <Link href="/admin/manual-entry" className={`sidebar-btn ${isActive('/admin/manual-entry') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('manual-entry')}>
+              Encodage Manuel
+            </Link>
+          </li>
+          <li>
             <Link href="/admin/statistics" className={`sidebar-btn ${isActive('/admin/statistics') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('statistics')}>
               Statistiques
             </Link>
