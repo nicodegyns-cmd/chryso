@@ -9,12 +9,17 @@ export default function ProfilePage(){
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
   const [saveError, setSaveError] = useState(null)
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  
+  // Onboarding flow: 'profile' → 'acceptance' → 'password' → null
+  const [onboardingStep, setOnboardingStep] = useState(null)
+  
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordError, setPasswordError] = useState(null)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
   const [completedPasswordChange, setCompletedPasswordChange] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
+  
+  const [acceptanceError, setAcceptanceError] = useState(null)
 
   useEffect(() => {
     const email = typeof window !== 'undefined' ? localStorage.getItem('email') : null
@@ -50,9 +55,9 @@ export default function ProfilePage(){
             acceptedCgu: !!me.accepted_cgu,
             acceptedPrivacy: !!me.accepted_privacy,
           })
-          // If account requires completion (first login), force password change modal
+          // If account requires completion, start onboarding flow (step 1: profile completion)
           if (me.must_complete_profile) {
-            setShowPasswordModal(true)
+            setOnboardingStep('profile')
           }
         }
       } catch (err) {
@@ -69,17 +74,7 @@ export default function ProfilePage(){
   async function save() {
     try {
       setSaveError(null)
-      // If account requires completion, ensure user changed temp password and accepted CGU/Privacy
-      if (user.must_complete_profile) {
-        if (!completedPasswordChange) {
-          setSaveError('Veuillez d\'abord changer votre mot de passe temporaire')
-          return
-        }
-        if (!form.acceptedCgu || !form.acceptedPrivacy) {
-          setSaveError('Vous devez accepter les CGU et la politique de confidentialité pour continuer')
-          return
-        }
-      }
+      
       const payload = {
         email: user.email,
         role: user.role,
@@ -104,7 +99,15 @@ export default function ProfilePage(){
       if (!resp.ok) throw new Error('Erreur lors de la mise à jour')
       const body = await resp.json()
       setUser(body.user)
-      setEditing(false)
+      
+      // If in onboarding and just finished profile step, move to acceptance
+      if (onboardingStep === 'profile') {
+        setOnboardingStep('acceptance')
+        setEditing(false)
+      } else {
+        // Normal profile edit outside onboarding
+        setEditing(false)
+      }
     } catch (err) {
       console.error('Save profile failed', err)
       setSaveError(err.message || 'Erreur')
@@ -153,8 +156,19 @@ export default function ProfilePage(){
       setPasswordSuccess(true)
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' })
       setCompletedPasswordChange(true)
+      
+      // Update user to mark onboarding as complete
+      const userResp = await fetch('/api/admin/users')
+      const userData = await userResp.json()
+      const email = localStorage.getItem('email')
+      const updatedUser = (userData.users || []).find((u) => (u.email || '').toLowerCase() === email.toLowerCase())
+      if (updatedUser) {
+        setUser(updatedUser)
+      }
+      
       setTimeout(() => {
-        setShowPasswordModal(false)
+        // Onboarding complete - close all modals
+        setOnboardingStep(null)
         setPasswordSuccess(false)
       }, 1500)
     } catch (err) {
@@ -208,7 +222,7 @@ export default function ProfilePage(){
                       <div style={{gridColumn:'1 / -1'}}><div style={{fontSize:12,color:'#888',marginBottom:4}}>ADRESSE</div><div style={{fontSize:14,color:'#222'}}>{user.address || user.adresse || '—'}</div></div>
                     </div>
                     <div style={{display:'flex',justifyContent:'flex-end',marginTop:16,gap:8}}>
-                      <button className="secondary" onClick={() => setShowPasswordModal(true)}>Modifier mon mot de passe</button>
+                      <button className="secondary" onClick={() => setOnboardingStep(onboardingStep ? null : 'password')}>Modifier mon mot de passe</button>
                       <button className="primary" onClick={() => setEditing(true)}>Modifier</button>
                     </div>
                   </div>
@@ -268,19 +282,6 @@ export default function ProfilePage(){
                         <input value={form.adresse} onChange={(e) => setForm({...form, adresse: e.target.value})} />
                       </label>
                     </div>
-                    {/* If user was required to complete profile, show acceptance checkboxes */}
-                    {user.must_complete_profile && (
-                      <div style={{marginTop:16, padding:12, background:'#fff8e1', borderRadius:6}}>
-                        <div style={{marginBottom:8}}>Avant de continuer, veuillez compléter toutes vos informations et accepter les conditions suivantes :</div>
-                        <label style={{display:'block',marginBottom:8}}>
-                          <input type="checkbox" checked={!!form.acceptedCgu} onChange={(e) => setForm({...form, acceptedCgu: e.target.checked})} /> J'accepte les <a href="/cgu" target="_blank" rel="noopener noreferrer">Conditions Générales d'Utilisation (CGU)</a>
-                        </label>
-                        <label style={{display:'block',marginBottom:8}}>
-                          <input type="checkbox" checked={!!form.acceptedPrivacy} onChange={(e) => setForm({...form, acceptedPrivacy: e.target.checked})} /> J'ai lu la <a href="/privacy" target="_blank" rel="noopener noreferrer">Politique de Confidentialité</a>
-                        </label>
-                        <div style={{fontSize:13,color:'#666'}}>Ces éléments sont requis pour activer complètement votre compte.</div>
-                      </div>
-                    )}
                     {saveError && <div style={{color:'#d32f2f',fontSize:13,marginTop:12}}>{saveError}</div>}
                     <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:16}}>
                       <button type="button" className="secondary" onClick={() => { setEditing(false); setSaveError(null) }}>Abandonner</button>
@@ -294,14 +295,122 @@ export default function ProfilePage(){
         </div>
       </main>
 
-      {showPasswordModal && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={() => setShowPasswordModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{maxWidth:400}}>
+      {/* ONBOARDING STEP 1: Profile Completion Modal */}
+      {onboardingStep === 'profile' && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(e) => e.preventDefault()}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{maxWidth:600}}>
             <div className="modal-header">
-              <strong>Modifier mon mot de passe</strong>
-              <button className="modal-close" onClick={() => { setShowPasswordModal(false); setPasswordError(null); setPasswordSuccess(false) }} aria-label="Fermer">×</button>
+              <strong>Complétez votre profil</strong>
             </div>
             <div className="modal-body">
+              <p style={{marginBottom:16,fontSize:14}}>Avant de continuer, veuillez renseigner vos informations personnelles.</p>
+              <form onSubmit={(e) => { e.preventDefault(); save() }}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                  <label className="form-row">
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>PRÉNOM</div>
+                    <input value={form.firstName} onChange={(e) => setForm({...form, firstName: e.target.value})} />
+                  </label>
+                  <label className="form-row">
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NOM</div>
+                    <input value={form.lastName} onChange={(e) => setForm({...form, lastName: e.target.value})} />
+                  </label>
+                  <label className="form-row">
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>TÉLÉPHONE</div>
+                    <input value={form.telephone} onChange={(e) => setForm({...form, telephone: e.target.value})} />
+                  </label>
+                  <label className="form-row">
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>FONCTION</div>
+                    <select value={form.fonction} onChange={(e) => setForm({...form, fonction: e.target.value})}>
+                      <option value="">— Choisir —</option>
+                      <option value="INFI">INFI</option>
+                      <option value="MED">MED</option>
+                    </select>
+                  </label>
+                  <label className="form-row">
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>N'INAMI</div>
+                    <input value={form.ninami} onChange={(e) => setForm({...form, ninami: e.target.value})} />
+                  </label>
+                  <label className="form-row">
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS</div>
+                    <input value={form.niss} onChange={(e) => setForm({...form, niss: e.target.value})} />
+                  </label>
+                  <label className="form-row">
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE</div>
+                    <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} />
+                  </label>
+                  <label className="form-row">
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>SOCIÉTÉ</div>
+                    <input value={form.societe} onChange={(e) => setForm({...form, societe: e.target.value})} />
+                  </label>
+                  <label className="form-row">
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE</div>
+                    <input value={form.compte} onChange={(e) => setForm({...form, compte: e.target.value})} />
+                  </label>
+                  <label className="form-row" style={{gridColumn:'1 / -1'}}>
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>ADRESSE</div>
+                    <input value={form.adresse} onChange={(e) => setForm({...form, adresse: e.target.value})} />
+                  </label>
+                </div>
+                {saveError && <div style={{color:'#d32f2f',fontSize:13,marginTop:12}}>{saveError}</div>}
+                <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:16}}>
+                  <button type="submit" className="primary">Continuer →</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ONBOARDING STEP 2: CGU & Privacy Acceptance Modal */}
+      {onboardingStep === 'acceptance' && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(e) => e.preventDefault()}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{maxWidth:500}}>
+            <div className="modal-header">
+              <strong>Acceptez les conditions</strong>
+            </div>
+            <div className="modal-body">
+              <p style={{marginBottom:16,fontSize:14}}>Avant de continuer, vous devez accepter nos conditions d'utilisation et notre politique de confidentialité.</p>
+              <form onSubmit={(e) => { e.preventDefault(); setOnboardingStep('password') }}>
+                <div style={{padding:12, background:'#f3f4f6', borderRadius:6, marginBottom:16}}>
+                  <label style={{display:'flex',alignItems:'flex-start',marginBottom:12,cursor:'pointer'}}>
+                    <input 
+                      type="checkbox" 
+                      checked={!!form.acceptedCgu} 
+                      onChange={(e) => setForm({...form, acceptedCgu: e.target.checked})}
+                      style={{marginTop:2,marginRight:8,cursor:'pointer'}}
+                    /> 
+                    <span style={{fontSize:14}}>J'accepte les <a href="/cgu" target="_blank" rel="noopener noreferrer" style={{color:'#2563eb',textDecoration:'underline'}}>Conditions Générales d'Utilisation (CGU)</a></span>
+                  </label>
+                  <label style={{display:'flex',alignItems:'flex-start',cursor:'pointer'}}>
+                    <input 
+                      type="checkbox" 
+                      checked={!!form.acceptedPrivacy} 
+                      onChange={(e) => setForm({...form, acceptedPrivacy: e.target.checked})}
+                      style={{marginTop:2,marginRight:8,cursor:'pointer'}}
+                    /> 
+                    <span style={{fontSize:14}}>J'ai lu et j'accepte la <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{color:'#2563eb',textDecoration:'underline'}}>Politique de Confidentialité</a></span>
+                  </label>
+                </div>
+                {acceptanceError && <div style={{color:'#d32f2f',fontSize:13,marginBottom:12}}>{acceptanceError}</div>}
+                <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                  <button type="button" className="secondary" onClick={() => setOnboardingStep('profile')}>← Retour</button>
+                  <button type="submit" className="primary" disabled={!form.acceptedCgu || !form.acceptedPrivacy}>Continuer →</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ONBOARDING STEP 3: Password Change Modal */}
+      {onboardingStep === 'password' && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(e) => e.preventDefault()}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{maxWidth:400}}>
+            <div className="modal-header">
+              <strong>Changez votre mot de passe</strong>
+            </div>
+            <div className="modal-body">
+              <p style={{marginBottom:16,fontSize:14}}>Pour finaliser votre inscription, veuillez changer votre mot de passe temporaire.</p>
               <form onSubmit={(e) => { e.preventDefault(); savePassword() }}>
                 <label className="form-row full">
                   Mot de passe actuel
@@ -330,8 +439,8 @@ export default function ProfilePage(){
                 {passwordError && <div className="form-error" style={{marginTop:12}}>{passwordError}</div>}
                 {passwordSuccess && <div style={{color:'#10b981',fontSize:13,marginTop:12,fontWeight:600}}>Mot de passe modifié avec succès!</div>}
                 <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:16}}>
-                  <button type="button" className="secondary" onClick={() => { setShowPasswordModal(false); setPasswordError(null); setPasswordSuccess(false) }} disabled={passwordLoading}>Annuler</button>
-                  <button className="primary" type="submit" disabled={passwordLoading}>{passwordLoading ? 'Enregistrement…' : 'Enregistrer'}</button>
+                  <button type="button" className="secondary" onClick={() => setOnboardingStep('acceptance')} disabled={passwordLoading}>← Retour</button>
+                  <button type="submit" className="primary" disabled={passwordLoading}>{passwordLoading ? 'Enregistrement…' : 'Valider'}</button>
                 </div>
               </form>
             </div>
