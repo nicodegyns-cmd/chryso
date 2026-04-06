@@ -44,7 +44,7 @@ export default async function handler(req, res) {
       await query(`
         INSERT INTO acceptance_audit_log (user_id, email, first_name, last_name, accepted_cgu, accepted_privacy, accepted_at, ip_address)
         VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
-      `, [userId, email, firstName || null, lastName || null, !!acceptedCgu, !!acceptedPrivacy, ip])
+      `, [userId, email, firstName || null, lastName || null, acceptedCgu ? 1 : 0, acceptedPrivacy ? 1 : 0, ip])
 
       return res.status(201).json({ success: true })
     } catch (error) {

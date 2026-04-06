@@ -149,7 +149,7 @@ export default async function handler(req, res) {
             await pool.query(`
               INSERT INTO acceptance_audit_log (user_id, email, first_name, last_name, accepted_cgu, accepted_privacy, accepted_at, ip_address)
               VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
-            `, [updatedUser.id, updatedUser.email, updatedUser.first_name, updatedUser.last_name, true, true, ip])
+            `, [updatedUser.id, updatedUser.email, updatedUser.first_name, updatedUser.last_name, 1, 1, ip])
           } catch (e) {
             console.warn('Failed to log audit event', e)
           }
