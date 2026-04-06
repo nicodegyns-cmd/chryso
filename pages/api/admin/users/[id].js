@@ -39,51 +39,93 @@ export default async function handler(req, res) {
           }).filter(Boolean)
         return Array.from(new Set(mapped)).join(',') || null
       }
-      const roleValue = normalizeRoles(role)
-      // If the user completes profile and accepts CGU/privacy, clear must_complete_profile
-      const updateParts = []
+      
+      // Build UPDATE dynamically only including fields that are provided
+      const setClauses = []
       const params = []
-        let idx = 1
-      params.push(email ? email.toLowerCase() : null) // $1
-      params.push(roleValue) // $2
-      params.push(firstName || null) // $3
-      params.push(lastName || null) // $4
-      params.push(ninami || null) // $5
-      params.push(telephone || null) // $6
-      params.push(adresse || null) // $7
-      params.push(niss || null) // $8
-      params.push(bce || null) // $9
-      params.push(societe || null) // $10
-      params.push(compte || null) // $11
-      params.push(fonction || null) // $12
-      params.push(liaisonId || null) // $13
-      idx = 14
-      let sql = `UPDATE users SET email = $1, role = $2, first_name = $3, last_name = $4, ninami = $5, telephone = $6, address = $7, niss = $8, bce = $9, company = $10, account = $11, fonction = $12, liaison_ebrigade_id = $13, updated_at = NOW()`
+      let paramIdx = 1
+      
+      if (typeof email !== 'undefined' && email !== null) {
+        setClauses.push(`email = $${paramIdx++}`)
+        params.push(email.toLowerCase())
+      }
+      if (typeof role !== 'undefined' && role !== null) {
+        const roleValue = normalizeRoles(role)
+        setClauses.push(`role = $${paramIdx++}`)
+        params.push(roleValue)
+      }
+      if (typeof firstName !== 'undefined') {
+        setClauses.push(`first_name = $${paramIdx++}`)
+        params.push(firstName || null)
+      }
+      if (typeof lastName !== 'undefined') {
+        setClauses.push(`last_name = $${paramIdx++}`)
+        params.push(lastName || null)
+      }
+      if (typeof ninami !== 'undefined') {
+        setClauses.push(`ninami = $${paramIdx++}`)
+        params.push(ninami || null)
+      }
+      if (typeof telephone !== 'undefined') {
+        setClauses.push(`telephone = $${paramIdx++}`)
+        params.push(telephone || null)
+      }
+      if (typeof adresse !== 'undefined') {
+        setClauses.push(`address = $${paramIdx++}`)
+        params.push(adresse || null)
+      }
+      if (typeof niss !== 'undefined') {
+        setClauses.push(`niss = $${paramIdx++}`)
+        params.push(niss || null)
+      }
+      if (typeof bce !== 'undefined') {
+        setClauses.push(`bce = $${paramIdx++}`)
+        params.push(bce || null)
+      }
+      if (typeof societe !== 'undefined') {
+        setClauses.push(`company = $${paramIdx++}`)
+        params.push(societe || null)
+      }
+      if (typeof compte !== 'undefined') {
+        setClauses.push(`account = $${paramIdx++}`)
+        params.push(compte || null)
+      }
+      if (typeof fonction !== 'undefined') {
+        setClauses.push(`fonction = $${paramIdx++}`)
+        params.push(fonction || null)
+      }
+      if (typeof liaisonId !== 'undefined') {
+        setClauses.push(`liaison_ebrigade_id = $${paramIdx++}`)
+        params.push(liaisonId || null)
+      }
+      
+      // Always update timestamp
+      setClauses.push(`updated_at = NOW()`)
+      
       if (typeof acceptedCgu !== 'undefined') {
+        setClauses.push(`accepted_cgu = $${paramIdx++}`)
         params.push(!!acceptedCgu)
-        sql += `, accepted_cgu = $${idx}`
-        idx++
       }
       if (typeof acceptedPrivacy !== 'undefined') {
+        setClauses.push(`accepted_privacy = $${paramIdx++}`)
         params.push(!!acceptedPrivacy)
-        sql += `, accepted_privacy = $${idx}`
-        idx++
       }
+      
       // If both accepted flags set true, clear must_complete_profile and set onboarding_status to pending_validation
       if (acceptedCgu && acceptedPrivacy) {
+        setClauses.push(`must_complete_profile = $${paramIdx++}`)
         params.push(false)
-        sql += `, must_complete_profile = $${idx}`
-        idx++
+        setClauses.push(`onboarding_status = $${paramIdx++}`)
         params.push('pending_validation')
-        sql += `, onboarding_status = $${idx}`
-        idx++
       }
+      
       params.push(id)
-      sql += ` WHERE id = $${idx}`
+      const sql = `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramIdx}`
       await pool.query(sql, params)
+      
       const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy FROM users WHERE id = $1', [id])
       const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
-        const updatedUser = rows[0]
+      const updatedUser = rows[0]
 
         // If the user just set acceptedCgu + acceptedPrivacy -> notify user that account is pending validation
         if (acceptedCgu && acceptedPrivacy) {

@@ -77,7 +77,6 @@ export default function ProfilePage(){
       
       const payload = {
         email: user.email,
-        role: user.role,
         firstName: form.firstName,
         lastName: form.lastName,
         telephone: form.telephone,
