@@ -43,6 +43,11 @@ export default function UserValidation() {
   }
 
   async function handleValidate(userId) {
+    if (!form.role) {
+      alert('Veuillez sélectionner un rôle')
+      return
+    }
+    
     if (validating[userId]) return
     setValidating(prev => ({ ...prev, [userId]: true }))
 
@@ -53,13 +58,17 @@ export default function UserValidation() {
         body: JSON.stringify(form)
       })
 
-      if (!r.ok) throw new Error('validation failed')
+      if (!r.ok) {
+        const errorData = await r.json()
+        throw new Error(errorData.error || 'Erreur lors de la validation')
+      }
 
       setUsers(prev => prev.filter(u => u.id !== userId))
       setViewing(null)
+      alert('✓ Utilisateur validé et activé avec succès!')
     } catch (e) {
       console.error('validate failed', e)
-      alert('Erreur lors de la validation')
+      alert(`Erreur: ${e.message}`)
     } finally {
       setValidating(prev => { const c = { ...prev }; delete c[userId]; return c })
     }
@@ -166,8 +175,12 @@ export default function UserValidation() {
                   onChange={e => setForm({ ...form, role: e.target.value })}
                   style={{ padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
                 >
+                  <option value="">-- Sélectionner un rôle --</option>
                   <option value="INFI">Infirmier</option>
                   <option value="MED">Médecin</option>
+                  <option value="moderator">Modérateur</option>
+                  <option value="comptabilite">Comptabilité</option>
+                  <option value="admin">Admin</option>
                 </select>
               </label>
 

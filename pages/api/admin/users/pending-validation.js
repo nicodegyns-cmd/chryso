@@ -6,8 +6,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Some schemas use `onboarding_status`, others only have `is_active`.
-    // Fetch users that appear not active (is_active = 0) as pending validation.
+    // Fetch users that are pending validation:
+    // - Not active yet (is_active = 0)
+    // - AND completed onboarding (onboarding_status = 'pending_validation' OR (must_complete_profile = false AND accepted_cgu = true AND accepted_privacy = true))
     const rows = await query(
       `SELECT id, email, first_name, last_name, telephone, address, fonction, company, role, liaison_ebrigade_id, niss, bce, account, is_active, must_complete_profile, accepted_cgu, accepted_privacy, onboarding_status
        FROM users
@@ -34,7 +35,7 @@ export default async function handler(req, res) {
         niss: row.niss,
         bce: row.bce,
         account: row.account,
-        onboarding_status: row.is_active ? 'active' : 'pending_validation'
+        onboarding_status: 'pending_validation'
       }))
     })
   } catch (error) {

@@ -13,15 +13,8 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields' })
     }
 
-    // Generate a new temporary password to send to the user upon validation
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%'
-    let tempPassword = ''
-    for (let i = 0; i < 10; i++) tempPassword += chars.charAt(Math.floor(Math.random() * chars.length))
-
-    const bcrypt = require('bcryptjs')
-    const passwordHash = await bcrypt.hash(tempPassword, 10)
-
-    // Update user: set liaison_ebrigade_id, role, admin fields, mark as active and set onboarding_status active, and update password
+    // Update user: set liaison_ebrigade_id, role, admin fields, mark as active
+    // DO NOT change password - user set their own password in onboarding step 3
     const result = await query(
       `UPDATE users
        SET liaison_ebrigade_id = $1,
@@ -31,22 +24,39 @@ module.exports = async function handler(req, res) {
            account = $5,
            onboarding_status = $6,
            is_active = 1,
-           password_hash = $7
-       WHERE id = $8 AND onboarding_status = $9
+           must_complete_profile = false
+       WHERE id = $7
        RETURNING id, email, first_name, last_name, role`,
-      [liaison_ebrigade_id || null, role, niss || null, bce || null, account || null, 'active', passwordHash, parseInt(id), 'pending_validation']
+      [liaison_ebrigade_id || null, role, niss || null, bce || null, account || null, 'active', parseInt(id)]
     )
 
     if (!result || !result.rows || result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found or already validated' })
+      return res.status(404).json({ error: 'User not found' })
     }
 
     const user = result.rows[0]
+    const roleLabel = role === 'INFI' ? 'Infirmier' : role === 'MED' ? 'Médecin' : role
 
-    // Send email to user notifying validation and include the new temporary password
+    // Send email to user notifying validation
     try {
-      const { sendUserCreationEmail } = require('../../../../../services/emailService')
-      await sendUserCreationEmail(user.email, tempPassword, user.first_name)
+      const { send } = require('../../../../../services/emailService')
+      const appName = process.env.APP_NAME || 'Fenix'
+      const appUrl = process.env.APP_URL || 'https://www.sirona-consult.be'
+      
+      const html = `<p>Bonjour ${user.first_name || ''},</p>
+<p>Votre compte a été <strong>validé et activé</strong> par l'administration.</p>
+<p>Vous êtes maintenant inscrit en tant que <strong>${roleLabel}</strong> sur la plateforme.</p>
+<p>Vous pouvez accéder à votre espace ici : <a href="${appUrl}" style="color: #f97316; font-weight: 600;">Connexion</a></p>
+<p>-- ${appName}</p>`
+      
+      const text = `Bonjour ${user.first_name || ''},\n\nVotre compte a été validé et activé par l'administration!\nVous êtes maintenant inscrit en tant que ${roleLabel}.\n\nAccédez à votre espace : ${appUrl}`
+
+      await send({
+        to: user.email,
+        subject: `${appName} - Compte activé`,
+        html,
+        text
+      })
     } catch (e) {
       console.warn('Failed to send validation email to user', e)
     }
