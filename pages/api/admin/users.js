@@ -73,8 +73,10 @@ export default async function handler(req, res) {
           liaisonId || null,
           passwordHash,
           true, // must_complete_profile
-          false,
-          false,          false, // is_active = 0 (pending validation)        ]
+          false, // accepted_cgu
+          false, // accepted_privacy
+          false // is_active = 0 (pending validation)
+        ]
       )
 
       const result = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
