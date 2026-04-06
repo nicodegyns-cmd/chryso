@@ -201,6 +201,7 @@ Si vous n'avez pas demandé la création de ce compte, veuillez ignorer cet emai
     }
 
     const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'no-reply@sirona-consult.be'
+    const domainFromEmail = fromEmail.split('@')[1]
     
     const info = await mailer.sendMail({
       from: {
@@ -212,7 +213,30 @@ Si vous n'avez pas demandé la création de ce compte, veuillez ignorer cet emai
       html: htmlContent,
       text: textContent,
       replyTo: fromEmail,
-      headers: getEmailHeaders(fromEmail)
+      headers: {
+        ...getEmailHeaders(fromEmail),
+        // Enhanced deliverability headers
+        'X-Priority': '3 (Normal)',
+        'X-MSMail-Priority': 'Normal',
+        'Return-Path': `<${fromEmail}>`,
+        'X-Originating-IP': '[127.0.0.1]',
+        'X-Mailer': 'Fenix-NotificationService/1.0',
+        'X-Service-Version': '1.0',
+        // Additional authenticity signals
+        'Bounces-To': fromEmail,
+        'Errors-To': fromEmail,
+        'X-Feedback-To': fromEmail,
+        // Prevent spam filter false positives
+        'X-Has-Attachments': 'false',
+        'Content-Class': 'urn:content-classes:message',
+        'X-Universally-Unique-ID': `<${Date.now()}@${domainFromEmail}>`,
+        // Transactional email identifier
+        'X-Status': 'PU',
+        'X-UID': '1',
+        // Prevent auto-replies
+        'X-Automatic-Reply': 'No',
+        'X-Precedence': 'auto_reply'
+      }
     })
 
     console.log('[EmailService] Email sent:', { email, messageId: info.messageId })
