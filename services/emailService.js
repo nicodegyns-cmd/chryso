@@ -37,7 +37,11 @@ function getEmailHeaders(fromEmail) {
     'List-ID': `<fenix.${domainFromEmail}>`,
     'List-Help': `<mailto:${fromEmail}?subject=help>`,
     'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
-    'List-Post': 'NO'
+    'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    'List-Post': 'NO',
+    
+    // Return-Path MUST be properly set
+    'Return-Path': `<${fromEmail}>`
   }
 }
 
@@ -215,27 +219,11 @@ Si vous n'avez pas demandé la création de ce compte, veuillez ignorer cet emai
       replyTo: fromEmail,
       headers: {
         ...getEmailHeaders(fromEmail),
-        // Enhanced deliverability headers
-        'X-Priority': '3 (Normal)',
-        'X-MSMail-Priority': 'Normal',
-        'Return-Path': `<${fromEmail}>`,
+        // Critical for Outlook deliverability - signals legitimate transactional email
         'X-Originating-IP': '[127.0.0.1]',
-        'X-Mailer': 'Fenix-NotificationService/1.0',
-        'X-Service-Version': '1.0',
-        // Additional authenticity signals
         'Bounces-To': fromEmail,
         'Errors-To': fromEmail,
-        'X-Feedback-To': fromEmail,
-        // Prevent spam filter false positives
-        'X-Has-Attachments': 'false',
-        'Content-Class': 'urn:content-classes:message',
-        'X-Universally-Unique-ID': `<${Date.now()}@${domainFromEmail}>`,
-        // Transactional email identifier
-        'X-Status': 'PU',
-        'X-UID': '1',
-        // Prevent auto-replies
-        'X-Automatic-Reply': 'No',
-        'X-Precedence': 'auto_reply'
+        'X-Feedback-To': fromEmail
       }
     })
 
