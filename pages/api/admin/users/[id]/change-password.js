@@ -44,16 +44,10 @@ export default async function handler(req, res) {
     if (userCheck && userCheck.length > 0) {
       const u = userCheck[0]
       if (u.accepted_cgu && u.accepted_privacy) {
-        // Mark onboarding as complete
-        await pool.query(
-          'UPDATE users SET onboarding_status = $1, must_complete_profile = $2 WHERE id = $3',
-          ['pending_validation', false, id]
-        )
-      }
-    }
-
-    return res.status(200).json({ success: true, message: 'Password changed successfully' })
-  } catch (err) {
+          // Mark onboarding as complete and ensure is_active = false until admin validates
+          await pool.query(
+            'UPDATE users SET onboarding_status = $1, must_complete_profile = $2, is_active = $3 WHERE id = $4',
+            ['pending_validation', false, false, id]
     console.error('[api/admin/users/[id]/change-password] error', err)
     return res.status(500).json({ error: 'db_error', detail: err.message })
   }

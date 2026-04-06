@@ -112,11 +112,14 @@ export default async function handler(req, res) {
       }
       
       // If both accepted flags set true, clear must_complete_profile and set onboarding_status to pending_validation
+      // Also ensure is_active = false until admin validates
       if (acceptedCgu && acceptedPrivacy) {
         setClauses.push(`must_complete_profile = $${paramIdx++}`)
         params.push(false)
         setClauses.push(`onboarding_status = $${paramIdx++}`)
         params.push('pending_validation')
+        setClauses.push(`is_active = $${paramIdx++}`)
+        params.push(false)
       }
       
       params.push(id)

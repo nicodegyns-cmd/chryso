@@ -1,0 +1,2 @@
+UPDATE users SET is_active = 0 WHERE onboarding_status = 'pending_validation' AND is_active = 1;
+SELECT id, email, is_active, onboarding_status FROM users WHERE onboarding_status = 'pending_validation';
