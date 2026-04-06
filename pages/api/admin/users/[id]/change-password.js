@@ -38,6 +38,20 @@ export default async function handler(req, res) {
     // Update password in database
     await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, id])
 
+    // After password change, check if both CGU and privacy were accepted
+    // If yes, complete the onboarding and move to pending validation
+    const [userCheck] = await pool.query('SELECT accepted_cgu, accepted_privacy FROM users WHERE id = $1', [id])
+    if (userCheck && userCheck.length > 0) {
+      const u = userCheck[0]
+      if (u.accepted_cgu && u.accepted_privacy) {
+        // Mark onboarding as complete
+        await pool.query(
+          'UPDATE users SET onboarding_status = $1, must_complete_profile = $2 WHERE id = $3',
+          ['pending_validation', false, id]
+        )
+      }
+    }
+
     return res.status(200).json({ success: true, message: 'Password changed successfully' })
   } catch (err) {
     console.error('[api/admin/users/[id]/change-password] error', err)
