@@ -17,6 +17,28 @@ export default function DashboardPage() {
   const [ebrigadeId, setEbrigadeId] = React.useState(null)
   const prestationsTableRef = React.useRef(null)
   
+  // Check if user is active, redirect to pending page if not
+  React.useEffect(() => {
+    if (!userEmail) return
+    
+    async function checkActive() {
+      try {
+        const res = await fetch('/api/admin/users')
+        const data = await res.json()
+        const list = data.users || []
+        const me = list.find((u) => (u.email || '').toLowerCase() === userEmail.toLowerCase())
+        
+        if (me && !me.is_active) {
+          router.push('/account-pending')
+        }
+      } catch (err) {
+        console.error('Failed to check user status', err)
+      }
+    }
+    
+    checkActive()
+  }, [userEmail, router])
+  
   // Fetch user's liaison_ebrigade_id when email changes
   React.useEffect(() => {
     if (!userEmail) return

@@ -1,12 +1,40 @@
 import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/router'
 import AdminHeader from '../components/AdminHeader'
 import UserSidebar from '../components/UserSidebar'
 
 export default function PrestatairesPage(){
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  const [userEmail, setUserEmail] = useState('')
+
+  // Check if user is active, redirect to pending page if not
+  useEffect(() => {
+    const email = typeof window !== 'undefined' ? localStorage.getItem('email') : null
+    if (email) {
+      setUserEmail(email)
+      
+      async function checkActive() {
+        try {
+          const res = await fetch('/api/admin/users')
+          const data = await res.json()
+          const list = data.users || []
+          const me = list.find((u) => (u.email || '').toLowerCase() === email.toLowerCase())
+          
+          if (me && !me.is_active) {
+            router.push('/account-pending')
+          }
+        } catch (err) {
+          console.error('Failed to check user status', err)
+        }
+      }
+      
+      checkActive()
+    }
+  }, [router])
 
   useEffect(()=>{ load() }, [])
 

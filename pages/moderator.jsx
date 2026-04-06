@@ -7,6 +7,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 export default function ModeratorPage() {
   const router = useRouter()
   const [checking, setChecking] = useState(true)
+  const [userEmail, setUserEmail] = useLocalStorage('email', '')
   const role = useLocalStorage('role', null)
 
   useEffect(() => {
@@ -26,6 +27,28 @@ export default function ModeratorPage() {
       setChecking(false)
     }
   }, [role, router])
+
+  useEffect(() => {
+    // Also check if user is active
+    if (!userEmail || !role) return
+    
+    async function checkActive() {
+      try {
+        const res = await fetch('/api/admin/users')
+        const data = await res.json()
+        const list = data.users || []
+        const me = list.find((u) => (u.email || '').toLowerCase() === userEmail.toLowerCase())
+        
+        if (me && !me.is_active) {
+          router.replace('/account-pending')
+        }
+      } catch (err) {
+        console.error('Failed to check user status', err)
+      }
+    }
+    
+    checkActive()
+  }, [userEmail, role, router])
 
   if (checking) return <div style={{padding:20}}>Vérification des droits…</div>
 

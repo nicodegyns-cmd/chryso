@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/router'
 import AdminHeader from '../components/AdminHeader'
 import UserSidebar from '../components/UserSidebar'
 
 export default function ProfilePage(){
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -40,6 +42,13 @@ export default function ProfilePage(){
           setUser(null)
         } else {
           setUser(me)
+          
+          // If user is not active, redirect to pending page
+          if (!me.is_active) {
+            router.push('/account-pending')
+            return
+          }
+          
           setForm({
             firstName: me.first_name || me.firstName || '',
             lastName: me.last_name || me.lastName || '',
@@ -70,7 +79,7 @@ export default function ProfilePage(){
     }
 
     load()
-  }, [])
+  }, [router])
 
   async function save() {
     try {

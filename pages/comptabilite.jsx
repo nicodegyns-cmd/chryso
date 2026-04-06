@@ -28,6 +28,28 @@ export default function ComptabilitePage() {
   const userRole = useLocalStorage('role', null)
   const userEmail = useLocalStorage('email', '')
 
+  // Check if user is active, redirect to pending page if not
+  useEffect(() => {
+    if (!userEmail) return
+    
+    async function checkActive() {
+      try {
+        const res = await fetch('/api/admin/users')
+        const data = await res.json()
+        const list = data.users || []
+        const me = list.find((u) => (u.email || '').toLowerCase() === userEmail.toLowerCase())
+        
+        if (me && !me.is_active) {
+          router.push('/account-pending')
+        }
+      } catch (err) {
+        console.error('Failed to check user status', err)
+      }
+    }
+    
+    checkActive()
+  }, [userEmail, router])
+
   // Redirect non-comptabilité users
   useEffect(() => {
     // Only check if userRole has been initialized (not null)
