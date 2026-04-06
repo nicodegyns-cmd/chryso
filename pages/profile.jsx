@@ -88,6 +88,7 @@ export default function ProfilePage(){
         bce: form.bce,
         societe: form.societe,
         compte: form.compte,
+        liaisonId: form.liaisonId,
         acceptedCgu: form.acceptedCgu,
         acceptedPrivacy: form.acceptedPrivacy,
       }
@@ -96,7 +97,10 @@ export default function ProfilePage(){
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      if (!resp.ok) throw new Error('Erreur lors de la mise à jour')
+      if (!resp.ok) {
+        const errorData = await resp.json()
+        throw new Error(errorData.detail || 'Erreur lors de la mise à jour')
+      }
       const body = await resp.json()
       setUser(body.user)
       
@@ -263,7 +267,8 @@ export default function ProfilePage(){
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE</div>
-                        <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} />
+                        <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} placeholder="Optionnel" />
+                        <div style={{fontSize:11,color:'#d32f2f',marginTop:4}}>⚠️ Ne pas remplir si vous êtes indépendant</div>
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>SOCIÉTÉ</div>
@@ -336,7 +341,8 @@ export default function ProfilePage(){
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE</div>
-                    <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} />
+                    <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} placeholder="Optionnel" />
+                    <div style={{fontSize:11,color:'#d32f2f',marginTop:4}}>⚠️ Ne pas remplir si vous êtes indépendant</div>
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>SOCIÉTÉ</div>
