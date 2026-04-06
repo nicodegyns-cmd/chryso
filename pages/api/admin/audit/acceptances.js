@@ -4,13 +4,15 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     // Fetch acceptance audit log
     try {
-      const rows = await query(`
+      const result = await query(`
         SELECT id, user_id, email, first_name, last_name, accepted_cgu, accepted_privacy, 
                accepted_at, ip_address
         FROM acceptance_audit_log
         ORDER BY accepted_at DESC
         LIMIT 1000
       `)
+      
+      const rows = result.rows || result[0] || []
 
       return res.status(200).json({
         items: (rows || []).map(row => ({

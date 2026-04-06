@@ -9,13 +9,15 @@ export default async function handler(req, res) {
     // Fetch users that are pending validation:
     // - Not active yet (is_active = 0)
     // - AND completed onboarding (onboarding_status = 'pending_validation')
-    const rows = await query(
+    const result = await query(
       `SELECT id, email, first_name, last_name, telephone, address, fonction, company, role, liaison_ebrigade_id, niss, bce, account, is_active, must_complete_profile, accepted_cgu, accepted_privacy, onboarding_status
        FROM users
        WHERE is_active = 0
          AND onboarding_status = 'pending_validation'
        ORDER BY created_at DESC`
     )
+    
+    const rows = result.rows || result[0] || []
 
     return res.status(200).json({
       items: (rows || []).map(row => ({
