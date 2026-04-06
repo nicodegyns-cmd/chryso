@@ -20,6 +20,7 @@ export default function ProfilePage(){
   const [passwordLoading, setPasswordLoading] = useState(false)
   
   const [acceptanceError, setAcceptanceError] = useState(null)
+  const [acceptanceLoading, setAcceptanceLoading] = useState(false)
 
   useEffect(() => {
     const email = typeof window !== 'undefined' ? localStorage.getItem('email') : null
@@ -375,7 +376,48 @@ export default function ProfilePage(){
             </div>
             <div className="modal-body">
               <p style={{marginBottom:16,fontSize:14}}>Avant de continuer, vous devez accepter nos conditions d'utilisation et notre politique de confidentialité.</p>
-              <form onSubmit={(e) => { e.preventDefault(); setOnboardingStep('password') }}>
+              <form onSubmit={async (e) => { 
+                e.preventDefault()
+                setAcceptanceLoading(true)
+                // Save acceptance flags to database before moving to password step
+                try {
+                  setSaveError(null)
+                  const payload = {
+                    email: user.email,
+                    firstName: form.firstName,
+                    lastName: form.lastName,
+                    telephone: form.telephone,
+                    adresse: form.adresse,
+                    fonction: form.fonction,
+                    ninami: form.ninami,
+                    niss: form.niss,
+                    bce: form.bce,
+                    societe: form.societe,
+                    compte: form.compte,
+                    liaisonId: form.liaisonId,
+                    acceptedCgu: !!form.acceptedCgu,
+                    acceptedPrivacy: !!form.acceptedPrivacy,
+                  }
+                  const resp = await fetch(`/api/admin/users/${user.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                  })
+                  if (!resp.ok) {
+                    const errorData = await resp.json()
+                    throw new Error(errorData.detail || 'Erreur lors de la sauvegarde')
+                  }
+                  const body = await resp.json()
+                  setUser(body.user)
+                  // Now move to password step
+                  setOnboardingStep('password')
+                } catch (err) {
+                  console.error('Save acceptance failed', err)
+                  setAcceptanceError(err.message || 'Erreur lors de la sauvegarde')
+                } finally {
+                  setAcceptanceLoading(false)
+                }
+              }}>
                 <div style={{padding:12, background:'#f3f4f6', borderRadius:6, marginBottom:16}}>
                   <label style={{display:'flex',alignItems:'flex-start',marginBottom:12,cursor:'pointer'}}>
                     <input 
@@ -398,8 +440,8 @@ export default function ProfilePage(){
                 </div>
                 {acceptanceError && <div style={{color:'#d32f2f',fontSize:13,marginBottom:12}}>{acceptanceError}</div>}
                 <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-                  <button type="button" className="secondary" onClick={() => setOnboardingStep('profile')}>← Retour</button>
-                  <button type="submit" className="primary" disabled={!form.acceptedCgu || !form.acceptedPrivacy}>Continuer →</button>
+                  <button type="button" className="secondary" onClick={() => setOnboardingStep('profile')} disabled={acceptanceLoading}>← Retour</button>
+                  <button type="submit" className="primary" disabled={!form.acceptedCgu || !form.acceptedPrivacy || acceptanceLoading}>{acceptanceLoading ? 'Enregistrement…' : 'Continuer →'}</button>
                 </div>
               </form>
             </div>

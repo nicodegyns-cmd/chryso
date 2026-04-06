@@ -9,13 +9,17 @@ async function ensureUsersTable() {
       email VARCHAR(254) NOT NULL UNIQUE,
       password_hash VARCHAR(255) NOT NULL,
       role VARCHAR(50) NOT NULL DEFAULT 'user',
+      is_active BOOLEAN DEFAULT false,
+      onboarding_status VARCHAR(50) DEFAULT 'incomplete',
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `)
   // Add new columns if they don't exist (safe for existing DBs)
   try {
-    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS must_complete_profile BOOLEAN DEFAULT false")
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT false")
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_status VARCHAR(50) DEFAULT 'incomplete'")
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS must_complete_profile BOOLEAN DEFAULT true")
     await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS accepted_cgu BOOLEAN DEFAULT false")
     await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS accepted_privacy BOOLEAN DEFAULT false")
   } catch (err) {
@@ -38,7 +42,7 @@ async function createUser({ email, password, role = 'user' }) {
   else if (low === 'admin') canonicalRole = 'admin'
   else canonicalRole = 'user'
 
-  const resQ = await pool.query('INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id', [normalized, hash, canonicalRole])
+  const resQ = await pool.query('INSERT INTO users (email, password_hash, role, is_active, must_complete_profile, accepted_cgu, accepted_privacy, onboarding_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id', [normalized, hash, canonicalRole, false, true, false, false, 'incomplete'])
   const insertedId = resQ.rows?.[0]?.id || null
   return { id: insertedId, email: normalized, role: canonicalRole }
 }
