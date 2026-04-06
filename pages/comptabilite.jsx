@@ -28,18 +28,25 @@ export default function ComptabilitePage() {
   const userRole = useLocalStorage('role', null)
   const userEmail = useLocalStorage('email', '')
 
-  // Check if user is active, redirect to pending page if not
+  // Check user status: onboarding > pending validation > full access
   useEffect(() => {
     if (!userEmail) return
     
-    async function checkActive() {
+    async function checkStatus() {
       try {
         const res = await fetch('/api/admin/users')
         const data = await res.json()
         const list = data.users || []
         const me = list.find((u) => (u.email || '').toLowerCase() === userEmail.toLowerCase())
         
-        if (me && !me.is_active) {
+        if (!me) return
+        
+        // Priority 1: If onboarding not complete, go to profile to complete it
+        if (me.must_complete_profile) {
+          router.push('/profile')
+        }
+        // Priority 2: If onboarding complete but not active, show pending validation
+        else if (!me.is_active) {
           router.push('/account-pending')
         }
       } catch (err) {
@@ -47,7 +54,7 @@ export default function ComptabilitePage() {
       }
     }
     
-    checkActive()
+    checkStatus()
   }, [userEmail, router])
 
   // Redirect non-comptabilité users

@@ -43,12 +43,6 @@ export default function ProfilePage(){
         } else {
           setUser(me)
           
-          // If user is not active, redirect to pending page
-          if (!me.is_active) {
-            router.push('/account-pending')
-            return
-          }
-          
           setForm({
             firstName: me.first_name || me.firstName || '',
             lastName: me.last_name || me.lastName || '',
@@ -65,9 +59,16 @@ export default function ProfilePage(){
             acceptedCgu: !!me.accepted_cgu,
             acceptedPrivacy: !!me.accepted_privacy,
           })
-          // If account requires completion, start onboarding flow (step 1: profile completion)
+          
+          // Priority 1: If account requires completion, start onboarding flow (step 1: profile completion)
+          // This takes priority over is_active check
           if (me.must_complete_profile) {
             setOnboardingStep('profile')
+          }
+          // Priority 2: If user is not active and onboarding is complete, redirect to pending page
+          else if (!me.is_active) {
+            router.push('/account-pending')
+            return
           }
         }
       } catch (err) {

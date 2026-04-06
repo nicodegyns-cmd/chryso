@@ -29,17 +29,24 @@ export default function ModeratorPage() {
   }, [role, router])
 
   useEffect(() => {
-    // Also check if user is active
+    // Check user status: onboarding > pending validation
     if (!userEmail || !role) return
     
-    async function checkActive() {
+    async function checkStatus() {
       try {
         const res = await fetch('/api/admin/users')
         const data = await res.json()
         const list = data.users || []
         const me = list.find((u) => (u.email || '').toLowerCase() === userEmail.toLowerCase())
         
-        if (me && !me.is_active) {
+        if (!me) return
+        
+        // Priority 1: If onboarding not complete, go to profile to complete it
+        if (me.must_complete_profile) {
+          router.replace('/profile')
+        }
+        // Priority 2: If onboarding complete but not active, show pending validation
+        else if (!me.is_active) {
           router.replace('/account-pending')
         }
       } catch (err) {
@@ -47,7 +54,7 @@ export default function ModeratorPage() {
       }
     }
     
-    checkActive()
+    checkStatus()
   }, [userEmail, role, router])
 
   if (checking) return <div style={{padding:20}}>Vérification des droits…</div>
