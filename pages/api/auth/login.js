@@ -13,6 +13,12 @@ export default async function handler(req, res) {
     console.log('[api/login] verifyUser returned', !!user)
     if (!user) return res.status(401).json({ error: 'Invalid credentials' })
 
+    // If account not active yet, allow login only when user must complete profile
+    // (first-login with temporary password). Otherwise block access.
+    if (!user.is_active && !user.must_complete_profile) {
+      return res.status(403).json({ error: 'account_pending', message: 'Votre compte est en attente de validation par l\'administration' })
+    }
+
     // Try to load roles from normalized tables (roles + user_roles)
     let dbRoles = []
     try {
@@ -61,6 +67,9 @@ export default async function handler(req, res) {
       role: active,
       roles,
       email: user.email,
+      must_complete_profile: !!user.must_complete_profile,
+      accepted_cgu: !!user.accepted_cgu,
+      accepted_privacy: !!user.accepted_privacy,
       message: 'Login successful'
     })
   } catch (err) {

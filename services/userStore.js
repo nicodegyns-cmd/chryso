@@ -13,6 +13,14 @@ async function ensureUsersTable() {
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `)
+  // Add new columns if they don't exist (safe for existing DBs)
+  try {
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS must_complete_profile BOOLEAN DEFAULT false")
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS accepted_cgu BOOLEAN DEFAULT false")
+    await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS accepted_privacy BOOLEAN DEFAULT false")
+  } catch (err) {
+    console.warn('[userStore] ensureUsersTable: could not alter users table', err.message)
+  }
 }
 
 async function createUser({ email, password, role = 'user' }) {
@@ -38,8 +46,8 @@ async function createUser({ email, password, role = 'user' }) {
 async function verifyUser(email, password) {
   const pool = getPool()
   const normalized = (email || '').toLowerCase()
-  console.log('[DB DEBUG] verifyUser SQL', 'SELECT id, email, password_hash, role FROM users WHERE email = $1', [normalized])
-  const q = await pool.query('SELECT id, email, password_hash, role FROM users WHERE email = $1', [normalized])
+  console.log('[DB DEBUG] verifyUser SQL', 'SELECT id, email, password_hash, role, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status FROM users WHERE email = $1', [normalized])
+  const q = await pool.query('SELECT id, email, password_hash, role, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status FROM users WHERE email = $1', [normalized])
   console.log('[DB DEBUG] query result type:', typeof q, 'isArray:', Array.isArray(q), 'has rows prop:', !!q.rows)
   const rows = Array.isArray(q) && q.length > 0 ? q[0] : (q && q.rows ? q.rows : [])
   console.log('[DB DEBUG] rows type:', typeof rows, 'isArray:', Array.isArray(rows), 'length:', rows ? rows.length : 'N/A')
@@ -55,7 +63,16 @@ async function verifyUser(email, password) {
     return null
   }
   console.log('[DB DEBUG] Password OK, returning user')
-  return { id: user.id, email: user.email, role: user.role }
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    must_complete_profile: user.must_complete_profile,
+    accepted_cgu: user.accepted_cgu,
+    accepted_privacy: user.accepted_privacy,
+    is_active: user.is_active,
+    onboarding_status: user.onboarding_status
+  }
 }
 
 async function findUserByEmail(email) {

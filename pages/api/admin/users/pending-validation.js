@@ -9,9 +9,13 @@ export default async function handler(req, res) {
     // Some schemas use `onboarding_status`, others only have `is_active`.
     // Fetch users that appear not active (is_active = 0) as pending validation.
     const rows = await query(
-      `SELECT id, email, first_name, last_name, telephone, address, fonction, company, role, liaison_ebrigade_id, niss, bce, account, is_active
+      `SELECT id, email, first_name, last_name, telephone, address, fonction, company, role, liaison_ebrigade_id, niss, bce, account, is_active, must_complete_profile, accepted_cgu, accepted_privacy, onboarding_status
        FROM users
        WHERE COALESCE(is_active, 0) = 0
+         AND (
+           COALESCE(onboarding_status, '') = 'pending_validation'
+           OR (COALESCE(must_complete_profile, false) = false AND accepted_cgu = true AND accepted_privacy = true)
+         )
        ORDER BY created_at DESC`
     )
 

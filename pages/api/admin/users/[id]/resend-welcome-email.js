@@ -32,9 +32,9 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: emailResult.error || 'Erreur lors de l\'envoi de l\'email' })
     }
 
-    // Hash the new password and update it in the database
+    // Hash the new password and update it in the database. Mark user as needing to complete profile.
     const passwordHash = await bcrypt.hash(tempPassword, 10)
-    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, id])
+    await pool.query('UPDATE users SET password_hash = $1, must_complete_profile = true, accepted_cgu = false, accepted_privacy = false WHERE id = $2', [passwordHash, id])
 
     return res.status(200).json({
       success: true,

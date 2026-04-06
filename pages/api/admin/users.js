@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const q = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction FROM users ORDER BY id DESC')
+      const q = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction, must_complete_profile, accepted_cgu, accepted_privacy FROM users ORDER BY id DESC')
       const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
       // return rows as-is; `role` may contain comma-separated canonical codes
       return res.status(200).json({ users: rows })
@@ -55,8 +55,8 @@ export default async function handler(req, res) {
 
     try {
       const q = await pool.query(
-        `INSERT INTO users (email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, password_hash)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+        `INSERT INTO users (email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, password_hash, must_complete_profile, accepted_cgu, accepted_privacy)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
         [
           (email || '').toLowerCase(),
           roleValue,
@@ -72,6 +72,9 @@ export default async function handler(req, res) {
           fonction || null,
           liaisonId || null,
           passwordHash,
+          true, // must_complete_profile
+          false,
+          false,
         ]
       )
 
@@ -79,7 +82,7 @@ export default async function handler(req, res) {
       const insertedId = result && result[0] ? result[0].id : null
       if (!insertedId) throw new Error('Failed to get inserted user ID')
       
-      const q2 = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction FROM users WHERE id = $1', [insertedId])
+      const q2 = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction, must_complete_profile, accepted_cgu, accepted_privacy FROM users WHERE id = $1', [insertedId])
       const rows = (q2 && q2.rows) ? q2.rows : Array.isArray(q2) ? q2[0] : []
       const user = rows && rows[0] ? rows[0] : null
 

@@ -50,6 +50,12 @@ export default function LoginForm() {
       const r = localStorage.getItem('role')
       console.log('[LoginForm] redirecting to role page:', r)
       
+      // If user must complete profile (first login with temp password), redirect to profile page
+      if (data.must_complete_profile) {
+        setTimeout(() => router.push('/profile?must_complete=1'), 200)
+        return
+      }
+
       // Use a longer delay and router.push (not window.location.href) to ensure localStorage is synced
       setTimeout(() => {
         if (r === 'admin') router.push('/admin')

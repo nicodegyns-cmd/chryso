@@ -13,6 +13,7 @@ export default function ProfilePage(){
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordError, setPasswordError] = useState(null)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [completedPasswordChange, setCompletedPasswordChange] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
 
   useEffect(() => {
@@ -46,7 +47,13 @@ export default function ProfilePage(){
             compte: me.account || me.compte || '',
             email: me.email || '',
             liaisonId: me.liaison_ebrigade_id || '',
+            acceptedCgu: !!me.accepted_cgu,
+            acceptedPrivacy: !!me.accepted_privacy,
           })
+          // If account requires completion (first login), force password change modal
+          if (me.must_complete_profile) {
+            setShowPasswordModal(true)
+          }
         }
       } catch (err) {
         console.error('Failed to load profile', err)
@@ -62,6 +69,17 @@ export default function ProfilePage(){
   async function save() {
     try {
       setSaveError(null)
+      // If account requires completion, ensure user changed temp password and accepted CGU/Privacy
+      if (user.must_complete_profile) {
+        if (!completedPasswordChange) {
+          setSaveError('Veuillez d\'abord changer votre mot de passe temporaire')
+          return
+        }
+        if (!form.acceptedCgu || !form.acceptedPrivacy) {
+          setSaveError('Vous devez accepter les CGU et la politique de confidentialité pour continuer')
+          return
+        }
+      }
       const payload = {
         email: user.email,
         role: user.role,
@@ -75,6 +93,8 @@ export default function ProfilePage(){
         bce: form.bce,
         societe: form.societe,
         compte: form.compte,
+        acceptedCgu: form.acceptedCgu,
+        acceptedPrivacy: form.acceptedPrivacy,
       }
       const resp = await fetch(`/api/admin/users/${user.id}`, {
         method: 'PUT',
@@ -132,6 +152,7 @@ export default function ProfilePage(){
       
       setPasswordSuccess(true)
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' })
+      setCompletedPasswordChange(true)
       setTimeout(() => {
         setShowPasswordModal(false)
         setPasswordSuccess(false)
@@ -247,6 +268,19 @@ export default function ProfilePage(){
                         <input value={form.adresse} onChange={(e) => setForm({...form, adresse: e.target.value})} />
                       </label>
                     </div>
+                    {/* If user was required to complete profile, show acceptance checkboxes */}
+                    {user.must_complete_profile && (
+                      <div style={{marginTop:16, padding:12, background:'#fff8e1', borderRadius:6}}>
+                        <div style={{marginBottom:8}}>Avant de continuer, veuillez compléter toutes vos informations et accepter les conditions suivantes :</div>
+                        <label style={{display:'block',marginBottom:8}}>
+                          <input type="checkbox" checked={!!form.acceptedCgu} onChange={(e) => setForm({...form, acceptedCgu: e.target.checked})} /> J'accepte les <a href="/cgu" target="_blank" rel="noopener noreferrer">Conditions Générales d'Utilisation (CGU)</a>
+                        </label>
+                        <label style={{display:'block',marginBottom:8}}>
+                          <input type="checkbox" checked={!!form.acceptedPrivacy} onChange={(e) => setForm({...form, acceptedPrivacy: e.target.checked})} /> J'ai lu la <a href="/privacy" target="_blank" rel="noopener noreferrer">Politique de Confidentialité</a>
+                        </label>
+                        <div style={{fontSize:13,color:'#666'}}>Ces éléments sont requis pour activer complètement votre compte.</div>
+                      </div>
+                    )}
                     {saveError && <div style={{color:'#d32f2f',fontSize:13,marginTop:12}}>{saveError}</div>}
                     <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:16}}>
                       <button type="button" className="secondary" onClick={() => { setEditing(false); setSaveError(null) }}>Abandonner</button>
