@@ -6,48 +6,38 @@ const nodemailer = require('nodemailer')
  * @returns {Object} Headers object
  */
 function getEmailHeaders(fromEmail) {
-  const domainFromEmail = fromEmail.split('@')[1] || 'sirona-consult.be'
+  const domainFromEmail = fromEmail.split('@')[1] || 'nexio7.be'
   const timestamp = Date.now()
   const uniqueId = `${Math.random().toString(36).substr(2, 9)}-${timestamp}`
   
   return {
-    // Anti-spam and authentication headers
+    // Standard headers for email client compatibility
     'X-Mailer': 'Fenix-Mailer/2.0',
     'X-Priority': '3 (Normal)',
     'Importance': 'normal',
-    'Sensitivity': 'Normal',
     'X-MSMail-Priority': 'Normal',
-    'Reply-To': fromEmail,
-    'Content-Type': 'text/html; charset=UTF-8',
     'MIME-Version': '1.0',
+    'Content-Type': 'text/html; charset=UTF-8',
+    'Content-Transfer-Encoding': '7bit',
+    'Reply-To': fromEmail,
     
-    // Bulk/transactional email headers
+    // Transaction email headers (prevents auto-reply loops)
     'Precedence': 'bulk',
-    'List-ID': `<fenix-notifications.${domainFromEmail}>`,
-    'List-Help': `<mailto:${fromEmail}?subject=help>`,
-    'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
-    'List-Post': 'NO',
-    
-    // Auto-response suppression
     'Auto-Submitted': 'auto-generated',
     'X-Auto-Response-Suppress': 'All',
-    'X-Mailer-Error-Report': 'No',
+    'X-FC-Machine-Generated': 'true',
     
-    // Security and tracking headers
-    'X-Service': 'Fenix/SironaConsult',
+    // Unique identifier for tracking
     'X-Entity-Ref-ID': uniqueId,
-    'X-Originating-IP': '[127.0.0.1]',
-    'X-Return-Path': fromEmail,
+    'Message-ID': `<${uniqueId}@${domainFromEmail}>`,
     
-    // Content and filter headers
-    'X-Content-Filtered': 'Fenix',
-    'Suppress-All-Mail-Filters': 'yes',
-    'X-Originator-Organization': 'Sirona Consult Belgium',
-    
-    // Additional spam prevention
-    'X-Suspected-Phishing': 'No',
-    'X-Spam-Status': 'No',
-    'X-Spam-Score': '0'
+    // Service identification
+    'X-Service': 'Fenix',
+    'X-Origin': 'Fenix Platform',
+    'List-ID': `<fenix.${domainFromEmail}>`,
+    'List-Help': `<mailto:${fromEmail}?subject=help>`,
+    'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
+    'List-Post': 'NO'
   }
 }
 
