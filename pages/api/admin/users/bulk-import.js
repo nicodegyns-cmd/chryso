@@ -53,7 +53,7 @@ module.exports = async function handler(req, res) {
           `INSERT INTO users (email, first_name, last_name, role, onboarding_status, invitation_token, invitation_sent_at, invitation_expires_at, import_batch_id, is_active)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING id, email, first_name, last_name, role, invitation_token, invitation_expires_at`,
-          [email, firstName, lastName, role, 'pending_signup', invitationToken, new Date(), invitationExpiresAt, batchId, 1]
+          [email, firstName, lastName, role, 'pending_signup', invitationToken, new Date(), invitationExpiresAt, batchId, 0]
         )
 
         const user = result.rows[0]

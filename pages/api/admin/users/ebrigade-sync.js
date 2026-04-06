@@ -161,7 +161,7 @@ export default async function handler(req, res) {
           new Date(),
           invitationExpiresAt,
           batchId,
-          1
+          0
         ]
       )
 
