@@ -268,7 +268,7 @@ export default function ProfilePage(){
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE</div>
                         <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} placeholder="Optionnel" />
-                        <div style={{fontSize:11,color:'#d32f2f',marginTop:4}}>⚠️ Ne pas remplir si vous êtes indépendant</div>
+                        <div style={{fontSize:12,color:'#fff',fontWeight:600,marginTop:6,padding:8,background:'#f97316',borderRadius:4,lineHeight:1.4}}>⚠️ Ne remplir uniquement si vous êtes en société (personne morale)</div>
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>SOCIÉTÉ</div>
@@ -342,7 +342,7 @@ export default function ProfilePage(){
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE</div>
                     <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} placeholder="Optionnel" />
-                    <div style={{fontSize:11,color:'#d32f2f',marginTop:4}}>⚠️ Ne pas remplir si vous êtes indépendant</div>
+                    <div style={{fontSize:12,color:'#fff',fontWeight:600,marginTop:6,padding:8,background:'#f97316',borderRadius:4,lineHeight:1.4}}>⚠️ Ne remplir uniquement si vous êtes en société (personne morale)</div>
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>SOCIÉTÉ</div>
