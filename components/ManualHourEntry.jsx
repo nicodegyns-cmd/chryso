@@ -59,13 +59,19 @@ export default function ManualHourEntry() {
     const loadUserPrestations = async () => {
       setLoading(true)
       try {
+        console.log('Fetching prestations for user_id:', selectedUser.id)
         const res = await fetch(`/api/admin/user-prestations?user_id=${selectedUser.id}`)
+        const data = await res.json()
+        console.log('Prestations response:', data)
         if (res.ok) {
-          const data = await res.json()
           setUserPrestations(data.prestations || [])
+        } else {
+          console.error('Error response:', data)
+          setError(data.message || 'Erreur lors du chargement des prestations')
         }
       } catch (err) {
         console.error('Error loading prestations:', err)
+        setError('Erreur lors du chargement des prestations')
       } finally {
         setLoading(false)
       }

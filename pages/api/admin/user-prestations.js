@@ -22,6 +22,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ message: 'user_id est obligatoire' })
   }
 
+  console.log('[user-prestations API] Searching for user_id:', user_id)
+
   const client = await pool.connect()
 
   try {
@@ -49,9 +51,11 @@ export default async function handler(req, res) {
     `
 
     const result = await client.query(query, [user_id])
+    console.log('[user-prestations API] Found', result.rows.length, 'prestations for user_id:', user_id)
 
     return res.status(200).json({
-      prestations: result.rows || []
+      prestations: result.rows || [],
+      count: result.rows.length
     })
   } catch (err) {
     console.error('Error fetching prestations:', err)
