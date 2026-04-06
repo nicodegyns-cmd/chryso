@@ -19,6 +19,11 @@ export default function AccountPendingPage() {
         const list = data.users || []
         const me = list.find((u) => (u.email || '').toLowerCase() === email.toLowerCase())
         if (me) {
+          // If user is already validated and active, redirect to dashboard
+          if (me.is_active === 1) {
+            if (typeof window !== 'undefined') window.location.href = '/dashboard'
+            return
+          }
           setUser(me)
         }
       } catch (err) {
