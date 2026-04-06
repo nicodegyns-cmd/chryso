@@ -104,22 +104,22 @@ export default async function handler(req, res) {
       
       if (typeof acceptedCgu !== 'undefined') {
         setClauses.push(`accepted_cgu = $${paramIdx++}`)
-        params.push(!!acceptedCgu)
+        params.push(acceptedCgu ? 1 : 0) // Use 1/0 for SMALLINT, not boolean
       }
       if (typeof acceptedPrivacy !== 'undefined') {
         setClauses.push(`accepted_privacy = $${paramIdx++}`)
-        params.push(!!acceptedPrivacy)
+        params.push(acceptedPrivacy ? 1 : 0) // Use 1/0 for SMALLINT, not boolean
       }
       
       // If both accepted flags set true, clear must_complete_profile and set onboarding_status to pending_validation
       // Also ensure is_active = false until admin validates
       if (acceptedCgu && acceptedPrivacy) {
         setClauses.push(`must_complete_profile = $${paramIdx++}`)
-        params.push(false)
+        params.push(0) // false -> 0 for SMALLINT
         setClauses.push(`onboarding_status = $${paramIdx++}`)
         params.push('pending_validation')
         setClauses.push(`is_active = $${paramIdx++}`)
-        params.push(false)
+        params.push(0) // false -> 0 for SMALLINT
       }
       
       params.push(id)

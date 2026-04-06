@@ -47,7 +47,7 @@ export default async function handler(req, res) {
         // Mark onboarding as complete and ensure is_active = false until admin validates
         await pool.query(
           'UPDATE users SET onboarding_status = $1, must_complete_profile = $2, is_active = $3 WHERE id = $4',
-          ['pending_validation', false, false, id]
+          ['pending_validation', false, 0, id] // is_active uses 0 (integer), not false (boolean)
         )
       }
     }
