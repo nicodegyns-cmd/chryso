@@ -12,7 +12,7 @@ function getEmailHeaders(fromEmail) {
   
   return {
     // Standard headers for email client compatibility
-    'X-Mailer': 'Fenix-Mailer/2.0',
+    'X-Mailer': 'Fenix-Notification-Service/1.0',
     'X-Priority': '3 (Normal)',
     'Importance': 'normal',
     'X-MSMail-Priority': 'Normal',
@@ -21,24 +21,20 @@ function getEmailHeaders(fromEmail) {
     'Content-Transfer-Encoding': '7bit',
     'Reply-To': fromEmail,
     
+    // CRITICAL: Tell Outlook/Gmail this is NOT a mailing list, it's transactional
+    'Precedence': 'transactional',
+    'X-Mailer-Precedence': 'transactional',
+    
     // Transaction email headers (prevents auto-reply loops)
-    'Precedence': 'bulk',
     'Auto-Submitted': 'auto-generated',
     'X-Auto-Response-Suppress': 'All',
     'X-FC-Machine-Generated': 'true',
+    'X-Service': 'Fenix',
+    'X-Origin': 'Fenix Platform',
     
     // Unique identifier for tracking
     'X-Entity-Ref-ID': uniqueId,
     'Message-ID': `<${uniqueId}@${domainFromEmail}>`,
-    
-    // Service identification
-    'X-Service': 'Fenix',
-    'X-Origin': 'Fenix Platform',
-    'List-ID': `<fenix.${domainFromEmail}>`,
-    'List-Help': `<mailto:${fromEmail}?subject=help>`,
-    'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
-    'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-    'List-Post': 'NO',
     
     // Return-Path MUST be properly set
     'Return-Path': `<${fromEmail}>`
