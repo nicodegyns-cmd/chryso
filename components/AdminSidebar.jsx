@@ -65,6 +65,11 @@ export default function AdminSidebar({ onNavigate }) {
               Facturation
             </Link>
           </li>
+          <li>
+            <Link href="/admin/audit" className={`sidebar-btn ${isActive('/admin/audit') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('audit')}>
+              Audit
+            </Link>
+          </li>
         </ul>
       </nav>
     </aside>
