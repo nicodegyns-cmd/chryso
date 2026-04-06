@@ -1,6 +1,6 @@
 const { query } = require('../../../../../services/db')
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -30,11 +30,12 @@ module.exports = async function handler(req, res) {
       [liaison_ebrigade_id || null, role, niss || null, bce || null, account || null, 'active', parseInt(id)]
     )
 
-    if (!result || !result.rows || result.rows.length === 0) {
+    const rows = result.rows || result[0] || []
+    if (!rows || rows.length === 0) {
       return res.status(404).json({ error: 'User not found' })
     }
 
-    const user = result.rows[0]
+    const user = rows[0]
     const roleLabel = role === 'INFI' ? 'Infirmier' : role === 'MED' ? 'Médecin' : role
 
     // Send email to user notifying validation
