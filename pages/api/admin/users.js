@@ -55,8 +55,8 @@ export default async function handler(req, res) {
 
     try {
       const q = await pool.query(
-        `INSERT INTO users (email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, password_hash, must_complete_profile, accepted_cgu, accepted_privacy, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id`,
+        `INSERT INTO users (email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, password_hash, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
         [
           (email || '').toLowerCase(),
           roleValue,
@@ -75,7 +75,8 @@ export default async function handler(req, res) {
           true, // must_complete_profile
           false, // accepted_cgu
           false, // accepted_privacy
-          false // is_active = 0 (pending validation)
+          false, // is_active = 0 (pending validation)
+          'pending_validation' // onboarding_status
         ]
       )
 
