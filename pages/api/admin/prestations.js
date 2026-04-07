@@ -105,22 +105,32 @@ export default async function handler(req, res) {
           console.log('  ebrigade_activity_code:', ebrigade_activity_code)
           console.log('  pay_type:', pay_type)
           
+          // Extract prefix from eBrigade name (before ' - ' or ' | ')
+          const extractPrefix = (name) => {
+            if (!name) return null
+            const match = name.match(/^([^-|]+?)(?:\s*[-|])/)
+            return match ? match[1].trim() : name
+          }
+          
+          const namePrefix = extractPrefix(ebrigade_activity_name)
+          console.log('[prestations POST]   Extracted prefix:', namePrefix)
+          
           // 1. Find activity via eBrigade NAME mapping (EXACT pattern match on activity name)
           let mappings = []
           let matchedPattern = null
-          if (ebrigade_activity_name) {
+          if (namePrefix) {
             const mappingData = await pool.query(
               `SELECT nm.activity_id, nm.ebrigade_analytic_name_pattern FROM activity_ebrigade_name_mappings nm
-               WHERE $1 ILIKE '%' || nm.ebrigade_analytic_name_pattern || '%'
-               ORDER BY LENGTH(nm.ebrigade_analytic_name_pattern) DESC LIMIT 1`,
-              [ebrigade_activity_name]
+               WHERE nm.ebrigade_analytic_name_pattern = $1
+               LIMIT 1`,
+              [namePrefix]
             )
             mappings = (mappingData && mappingData.rows) ? mappingData.rows : []
             if (mappings.length > 0) {
               matchedPattern = mappings[0].ebrigade_analytic_name_pattern
               console.log('[prestations POST]   ✓ Pattern matched:', matchedPattern, '→ activity_id:', mappings[0].activity_id)
             } else {
-              console.log('[prestations POST]   ✗ No pattern match for:', ebrigade_activity_name)
+              console.log('[prestations POST]   ✗ No exact pattern match for:', namePrefix)
             }
           }
           // Fallback: try old code-based mapping
