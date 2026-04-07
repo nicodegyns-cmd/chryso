@@ -23,7 +23,7 @@ export default function ResetPasswordPage() {
     console.log('[reset-password] Raw token from router.query:', tokenParam)
     console.log('[reset-password] Raw token length:', tokenParam?.length)
     
-    // Clean up token - remove URL encoding artifacts
+    // Clean up token - remove ALL email encoding artifacts
     if (tokenParam) {
       // Decode any URL encoding issues
       try {
@@ -35,24 +35,25 @@ export default function ResetPasswordPage() {
         console.log('[reset-password] decodeURIComponent error:', e.message)
       }
       
-      // Remove 3D= prefix if it exists (URL encoding artifact)
+      // Remove 3D= prefix if it exists (URL encoding artifact of "=")
       if (tokenParam.startsWith('3D')) {
         console.log('[reset-password] Found 3D prefix, removing')
         tokenParam = tokenParam.substring(2)
       }
       
-      // Remove = prefix if it exists
+      // Remove = prefix if it exists (MIME encoding artifact)
       if (tokenParam.startsWith('=')) {
         console.log('[reset-password] Found = prefix, removing')
         tokenParam = tokenParam.substring(1)
       }
       
-      // Remove any trailing =
-      const before = tokenParam
-      tokenParam = tokenParam.replace(/=+$/, '')
-      if (before !== tokenParam) {
-        console.log('[reset-password] Removed trailing = signs')
+      // Remove ALL = signs (MIME padding in email encoded tokens)
+      const beforeRemoveEquals = tokenParam
+      tokenParam = tokenParam.replace(/=/g, '')
+      if (beforeRemoveEquals !== tokenParam) {
+        console.log('[reset-password] Removed internal = signs')
       }
+      
       console.log('[reset-password] Final token:', tokenParam)
       console.log('[reset-password] Final token length:', tokenParam?.length)
     }
