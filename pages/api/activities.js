@@ -20,16 +20,20 @@ export default async function handler(req, res){
 
     const pool = getPool()
     
-    // Load mappings from database
+    // Load mappings from database (NAME-BASED matching)
     let mappings = []
     try {
       const mappingsResult = await pool.query(`
-        SELECT ebrigade_analytic_name, local_analytic_id, a.code, a.name
-        FROM ebrigade_analytics_mapping eam
-        LEFT JOIN analytics a ON eam.local_analytic_id = a.id
+        SELECT 
+          nam.ebrigade_analytic_name_pattern as ebrigade_analytic_name,
+          nam.activity_id as local_analytic_id,
+          a.id,
+          a.analytic_name as name
+        FROM activity_ebrigade_name_mappings nam
+        LEFT JOIN activities a ON nam.activity_id = a.id
       `)
       mappings = mappingsResult.rows || []
-      console.log('[activities] Loaded mappings:', mappings.length)
+      console.log('[activities] Loaded name-based mappings:', mappings.length, 'patterns:', mappings.map(m => m.ebrigade_analytic_name))
     } catch (mappingError) {
       console.warn('[activities] Could not load mappings:', mappingError.message)
       // Continue without mappings
