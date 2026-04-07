@@ -1,15 +1,4 @@
-import { Pool } from 'pg'
-
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-})
+import { getPool } from '../../../services/db'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -24,7 +13,7 @@ export default async function handler(req, res) {
 
   console.log('[user-prestations API] Searching for user_id:', user_id)
 
-  const client = await pool.connect()
+  const pool = getPool()
 
   try {
     const query = `
@@ -50,7 +39,7 @@ export default async function handler(req, res) {
       LIMIT 50
     `
 
-    const result = await client.query(query, [user_id])
+    const result = await pool.query(query, [user_id])
     console.log('[user-prestations API] Found', result.rows.length, 'prestations for user_id:', user_id)
 
     return res.status(200).json({
@@ -58,9 +47,7 @@ export default async function handler(req, res) {
       count: result.rows.length
     })
   } catch (err) {
-    console.error('Error fetching prestations:', err)
+    console.error('[user-prestations API] Error:', err)
     return res.status(500).json({ message: 'Erreur lors de la récupération des prestations', error: err.message })
-  } finally {
-    client.release()
   }
 }
