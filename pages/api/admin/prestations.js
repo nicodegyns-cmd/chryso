@@ -179,11 +179,13 @@ export default async function handler(req, res) {
                 id: activity.id,
                 pay_type: activity.pay_type,
                 analytic_id: activity.analytic_id,
-                remuneration_infi: activity.remuneration_infi
+                remuneration_infi: activity.remuneration_infi,
+                remuneration_med: activity.remuneration_med
               })
               // Store the local analytic_id
               if (activity.analytic_id && !resolvedAnalyticId) {
                 resolvedAnalyticId = activity.analytic_id
+                console.log('[prestations POST]   → Resolved analytic_id:', resolvedAnalyticId)
               }
               // Store DETAILED sortie rates if available
               calculatedRemuneSortieInfi = activity.remuneration_sortie_infi || null
