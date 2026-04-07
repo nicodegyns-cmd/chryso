@@ -99,6 +99,12 @@ export default async function handler(req, res) {
 
       if (ebrigade_activity_name || ebrigade_activity_code) {
         try {
+          // Log debugging info
+          console.log('[prestations POST] eBrigade lookup:')
+          console.log('  ebrigade_activity_name:', ebrigade_activity_name)
+          console.log('  ebrigade_activity_code:', ebrigade_activity_code)
+          console.log('  pay_type:', pay_type)
+          
           // 1. Find activity via eBrigade NAME mapping (EXACT pattern match on activity name)
           let mappings = []
           let matchedPattern = null
@@ -112,16 +118,21 @@ export default async function handler(req, res) {
             mappings = (mappingData && mappingData.rows) ? mappingData.rows : []
             if (mappings.length > 0) {
               matchedPattern = mappings[0].ebrigade_analytic_name_pattern
+              console.log('[prestations POST]   ✓ Pattern matched:', matchedPattern, '→ activity_id:', mappings[0].activity_id)
+            } else {
+              console.log('[prestations POST]   ✗ No pattern match for:', ebrigade_activity_name)
             }
           }
           // Fallback: try old code-based mapping
           if (mappings.length === 0 && ebrigade_activity_code) {
+            console.log('[prestations POST]   ⚠️ No name pattern match, trying fallback with code:', ebrigade_activity_code)
             const mappingData2 = await pool.query(
               `SELECT aem.activity_id FROM activity_ebrigade_mappings aem
                WHERE aem.ebrigade_analytic_name = $1 LIMIT 1`,
               [ebrigade_activity_code]
             )
             mappings = (mappingData2 && mappingData2.rows) ? mappingData2.rows : []
+            console.log('[prestations POST]   Fallback result:', mappings.length ? `activity_id: ${mappings[0].activity_id}` : 'No match')
           }
 
           if (mappings && mappings.length > 0) {
@@ -154,6 +165,12 @@ export default async function handler(req, res) {
 
             if (activities && activities.length > 0) {
               const activity = activities[0]
+              console.log('[prestations POST]   ✓ Selected activity:', {
+                id: activity.id,
+                pay_type: activity.pay_type,
+                analytic_id: activity.analytic_id,
+                remuneration_infi: activity.remuneration_infi
+              })
               // Store the local analytic_id
               if (activity.analytic_id && !resolvedAnalyticId) {
                 resolvedAnalyticId = activity.analytic_id
