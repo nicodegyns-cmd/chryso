@@ -21,13 +21,17 @@ export default function ResetPasswordPage() {
     let { token: tokenParam } = router.query
     
     console.log('[reset-password] Raw token from router.query:', tokenParam)
+    console.log('[reset-password] Raw token length:', tokenParam?.length)
+    console.log('[reset-password] Raw token bytes:', tokenParam?.split('').map((c, i) => `${c}(${c.charCodeAt(0)})`).substring(0, 50))
     
     // Clean up token - remove URL encoding artifacts
     if (tokenParam) {
       // Decode any URL encoding issues
       try {
+        const beforeDecode = tokenParam
         tokenParam = decodeURIComponent(tokenParam)
-        console.log('[reset-password] After decodeURIComponent:', tokenParam?.substring(0, 20))
+        console.log('[reset-password] After decodeURIComponent:', tokenParam)
+        console.log('[reset-password] Changed?', beforeDecode !== tokenParam)
       } catch (e) {
         console.log('[reset-password] decodeURIComponent error:', e.message)
       }
@@ -45,8 +49,13 @@ export default function ResetPasswordPage() {
       }
       
       // Remove any trailing =
+      const before = tokenParam
       tokenParam = tokenParam.replace(/=+$/, '')
-      console.log('[reset-password] After cleanup:', tokenParam?.substring(0, 20))
+      if (before !== tokenParam) {
+        console.log('[reset-password] Removed trailing = signs')
+      }
+      console.log('[reset-password] Final token:', tokenParam)
+      console.log('[reset-password] Final token length:', tokenParam?.length)
     }
     
     setToken(tokenParam || null)
@@ -55,7 +64,7 @@ export default function ResetPasswordPage() {
     if (!tokenParam) {
       setError('Token de réinitialisation manquant')
     } else {
-      console.log('[reset-password] Final token:', tokenParam.substring(0, 10) + '...')
+      console.log('[reset-password] Token set:', tokenParam.substring(0, 10) + '...')
     }
   }, [router.isReady, router.query])
 
@@ -84,7 +93,10 @@ export default function ResetPasswordPage() {
       return
     }
 
-    console.log('[reset-password] Submitting with token:', token.substring(0, 10) + '...')
+    console.log('[reset-password] Submitting with token:', token)
+    console.log('[reset-password] Token length:', token?.length)
+    console.log('[reset-password] Token first 30:', token?.substring(0, 30))
+    console.log('[reset-password] Token last 30:', token?.substring(token?.length - 30))
 
     try {
       const res = await fetch('/api/auth/reset', {
@@ -98,6 +110,7 @@ export default function ResetPasswordPage() {
       })
 
       const data = await res.json()
+      console.log('[reset-password] Response:', data)
 
       if (!res.ok) {
         setError(data.error || 'Erreur lors de la réinitialisation')

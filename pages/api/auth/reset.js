@@ -9,9 +9,11 @@ export default async function handler(req, res) {
 
   const { token, password, passwordConfirm } = req.body || {}
 
-  console.log('[reset.js] Raw req.body.token received:', token?.substring(0, 20) || 'NO TOKEN')
+  console.log('[reset.js] Raw req.body.token received:', token)
   console.log('[reset.js] Token type:', typeof token)
   console.log('[reset.js] Token length:', token?.length)
+  console.log('[reset.js] Token bytes (first 30):', token?.substring(0, 30))
+  console.log('[reset.js] Token bytes (last 30):', token?.substring(token?.length - 30))
 
   if (!token || !password || !passwordConfirm) {
     return res.status(400).json({ error: 'Token and passwords are required' })
