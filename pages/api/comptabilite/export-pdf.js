@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   try {
     const pool = getPool()
-    const { status } = req.query
+    const { status, analytic_id } = req.query
 
     let sql = `
       SELECT 
@@ -34,34 +34,34 @@ export default async function handler(req, res) {
     `
     const params = []
 
-    // Apply same filters as prestations API
+    // Filter by analytic_id
+    if (analytic_id) {
+      sql += ` AND p.analytic_id = $${params.length + 1}`
+      params.push(analytic_id)
+    }
+
+    // Apply status filter
     if (status) {
       if (status === 'sent_to_billing') {
-        sql += ` AND p.status = $1`
+        sql += ` AND p.status = $${params.length + 1}`
         params.push('Envoyé à la facturation')
       } else if (status === 'invoiced') {
-        sql += ` AND p.status = $1`
+        sql += ` AND p.status = $${params.length + 1}`
         params.push('Facturé')
       } else if (status === 'paid') {
-        sql += ` AND p.status = $1`
+        sql += ` AND p.status = $${params.length + 1}`
         params.push('Payé')
       }
     }
 
-    sql += ` ORDER BY COALESCE(a.name, aam.ebrigade_analytic_name) ASC, p.date DESC`
+    sql += ` ORDER BY p.date DESC`
 
     const result = await pool.query(sql, params)
     const prestations = result.rows || []
 
-    // Group by analytic
-    const groupedByAnalytic = {}
-    prestations.forEach(p => {
-      const analyticName = p.analytic_name || 'Non assigné'
-      if (!groupedByAnalytic[analyticName]) {
-        groupedByAnalytic[analyticName] = []
-      }
-      groupedByAnalytic[analyticName].push(p)
-    })
+    if (prestations.length === 0) {
+      return res.status(400).json({ error: 'Aucune prestation trouvée' })
+    }
 
     // Create PDF
     const pdfDoc = await PDFDocument.create()
@@ -76,8 +76,11 @@ export default async function handler(req, res) {
     const helvetica = await pdfDoc.embedFont('Helvetica')
     const helveticaBold = await pdfDoc.embedFont('Helvetica-Bold')
 
+    // Get analytic name
+    const analyticName = prestations[0]?.analytic_name || 'Non assigné'
+
     // Title
-    currentPage.drawText('Récapitulatif des Factures par Analytique', {
+    currentPage.drawText(`Factures - ${analyticName}`, {
       x: margin,
       y: yPosition,
       size: 18,
@@ -97,131 +100,88 @@ export default async function handler(req, res) {
     })
     yPosition -= 20
 
-    // Process each analytic group
-    Object.entries(groupedByAnalytic).forEach(([analyticName, items]) => {
-      // Check if we need a new page
-      if (yPosition < margin + 150) {
-        currentPage = pdfDoc.addPage([pageWidth, pageHeight])
-        yPosition = pageHeight - margin
-      }
+    // Column headers
+    const headers = ['Prestataire', 'Activité', 'Date', 'Montant', 'Statut']
+    const headerY = yPosition
 
-      // Analytic header
-      currentPage.drawText(analyticName, {
-        x: margin,
-        y: yPosition,
-        size: 14,
-        font: helveticaBold,
-        color: rgb(0, 50, 100)
-      })
-      yPosition -= 20
-
-      // Column headers
-      const headers = ['Prestataire', 'Activité', 'Date', 'Montant', 'Statut']
-      const headerY = yPosition
-
-      // Draw header background
-      currentPage.drawRectangle({
-        x: margin,
-        y: headerY - 14,
-        width: contentWidth,
-        height: 14,
-        color: rgb(0, 100, 150)
-      })
-
-      // Draw header text
-      headers.forEach((header, i) => {
-        currentPage.drawText(header, {
-          x: colX[i],
-          y: headerY - 11,
-          size: 9,
-          font: helveticaBold,
-          color: rgb(255, 255, 255)
-        })
-      })
-
-      yPosition -= 20
-
-      // Data rows
-      let subtotal = 0
-      items.forEach((item, idx) => {
-        if (yPosition < margin + 60) {
-          currentPage = pdfDoc.addPage([pageWidth, pageHeight])
-          yPosition = pageHeight - margin - 20
-        }
-
-        const userData = `${item.first_name || ''} ${item.last_name || ''}`.substring(0, 18).trim()
-        const activityType = (item.activity_type || '').substring(0, 16)
-        const dateStr = new Date(item.date).toLocaleDateString('fr-FR')
-        const amount = parseFloat(item.remuneration || 0).toFixed(2)
-        const statusLabel = (item.status || 'Inconnu').substring(0, 12)
-
-        // Alternate row background
-        if (idx % 2 === 0) {
-          currentPage.drawRectangle({
-            x: margin,
-            y: yPosition - 12,
-            width: contentWidth,
-            height: 12,
-            color: rgb(240, 245, 250)
-          })
-        }
-
-        // Draw row data
-        currentPage.drawText(userData, { x: colX[0], y: yPosition - 9, size: 8, font: helvetica })
-        currentPage.drawText(activityType, { x: colX[1], y: yPosition - 9, size: 8, font: helvetica })
-        currentPage.drawText(dateStr, { x: colX[2], y: yPosition - 9, size: 8, font: helvetica })
-        currentPage.drawText(`${amount} €`, { x: colX[3], y: yPosition - 9, size: 8, font: helvetica })
-        currentPage.drawText(statusLabel, { x: colX[4], y: yPosition - 9, size: 8, font: helvetica })
-
-        subtotal += parseFloat(amount)
-        yPosition -= 12
-      })
-
-      // Subtotal line
-      yPosition -= 6
-      currentPage.drawRectangle({
-        x: margin,
-        y: yPosition - 12,
-        width: contentWidth,
-        height: 12,
-        color: rgb(200, 220, 240)
-      })
-      currentPage.drawText(`Sous-total ${analyticName}:`, {
-        x: colX[1],
-        y: yPosition - 9,
-        size: 9,
-        font: helveticaBold
-      })
-      currentPage.drawText(`${subtotal.toFixed(2)} €`, {
-        x: colX[3],
-        y: yPosition - 9,
-        size: 9,
-        font: helveticaBold
-      })
-      yPosition -= 18
-    })
-
-    // Total
-    if (yPosition < margin + 50) {
-      currentPage = pdfDoc.addPage([pageWidth, pageHeight])
-      yPosition = pageHeight - margin
-    }
-
-    const grandTotal = prestations.reduce((sum, p) => sum + parseFloat(p.remuneration || 0), 0)
-    
+    // Draw header background
     currentPage.drawRectangle({
       x: margin,
-      y: yPosition - 16,
+      y: headerY - 14,
       width: contentWidth,
-      height: 16,
+      height: 14,
       color: rgb(0, 100, 150)
     })
-    currentPage.drawText(`TOTAL GENERAL: ${grandTotal.toFixed(2)} €`, {
-      x: colX[3] - 80,
+
+    // Draw header text
+    headers.forEach((header, i) => {
+      currentPage.drawText(header, {
+        x: colX[i],
+        y: headerY - 11,
+        size: 9,
+        font: helveticaBold,
+        color: rgb(255, 255, 255)
+      })
+    })
+
+    yPosition -= 20
+
+    // Data rows
+    let subtotal = 0
+    prestations.forEach((item, idx) => {
+      if (yPosition < margin + 60) {
+        currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+        yPosition = pageHeight - margin - 20
+      }
+
+      const userData = `${item.first_name || ''} ${item.last_name || ''}`.substring(0, 18).trim()
+      const activityType = (item.activity_type || '').substring(0, 16)
+      const dateStr = new Date(item.date).toLocaleDateString('fr-FR')
+      const amount = parseFloat(item.remuneration || 0).toFixed(2)
+      const statusLabel = (item.status || 'Inconnu').substring(0, 12)
+
+      // Alternate row background
+      if (idx % 2 === 0) {
+        currentPage.drawRectangle({
+          x: margin,
+          y: yPosition - 12,
+          width: contentWidth,
+          height: 12,
+          color: rgb(240, 245, 250)
+        })
+      }
+
+      // Draw row data
+      currentPage.drawText(userData, { x: colX[0], y: yPosition - 9, size: 8, font: helvetica })
+      currentPage.drawText(activityType, { x: colX[1], y: yPosition - 9, size: 8, font: helvetica })
+      currentPage.drawText(dateStr, { x: colX[2], y: yPosition - 9, size: 8, font: helvetica })
+      currentPage.drawText(`${amount} €`, { x: colX[3], y: yPosition - 9, size: 8, font: helvetica })
+      currentPage.drawText(statusLabel, { x: colX[4], y: yPosition - 9, size: 8, font: helvetica })
+
+      subtotal += parseFloat(amount)
+      yPosition -= 12
+    })
+
+    // Subtotal line
+    yPosition -= 6
+    currentPage.drawRectangle({
+      x: margin,
       y: yPosition - 12,
-      size: 11,
-      font: helveticaBold,
-      color: rgb(255, 255, 255)
+      width: contentWidth,
+      height: 12,
+      color: rgb(200, 220, 240)
+    })
+    currentPage.drawText(`Total ${analyticName}:`, {
+      x: colX[1],
+      y: yPosition - 9,
+      size: 9,
+      font: helveticaBold
+    })
+    currentPage.drawText(`${subtotal.toFixed(2)} €`, {
+      x: colX[3],
+      y: yPosition - 9,
+      size: 9,
+      font: helveticaBold
     })
 
     // Generate PDF buffer
@@ -229,7 +189,7 @@ export default async function handler(req, res) {
 
     // Send as download
     res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', 'attachment; filename="factures-par-analytique.pdf"')
+    res.setHeader('Content-Disposition', `attachment; filename="analytique-${analyticName.replace(/\s+/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf"`)
     res.send(Buffer.from(pdfBytes))
   } catch (err) {
     console.error('[export-pdf]', err)

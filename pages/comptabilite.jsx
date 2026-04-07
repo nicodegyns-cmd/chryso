@@ -214,15 +214,18 @@ export default function ComptabilitePage() {
     }
   }
 
-  async function exportPdf() {
-    if (safePrestations.length === 0) {
-      alert('❌ Aucune prestation à exporter')
+  async function exportPdfForAnalytic(analyticId, analyticName) {
+    const analyticPrestations = safePrestations.filter(p => p.analytic_id === analyticId)
+    
+    if (analyticPrestations.length === 0) {
+      alert('❌ Aucune prestation à exporter pour cette analytique')
       return
     }
 
     setExporting(true)
     try {
       const params = new URLSearchParams()
+      params.append('analytic_id', analyticId)
       if (filterStatus === 'sent_to_billing') {
         params.append('status', 'sent_to_billing')
       } else if (filterStatus === 'invoiced') {
@@ -231,6 +234,7 @@ export default function ComptabilitePage() {
         params.append('status', 'paid')
       }
 
+      // Download PDF
       const res = await fetch(`/api/comptabilite/export-pdf?${params.toString()}`)
       if (!res.ok) throw new Error('Erreur lors de l\'export')
 
@@ -238,11 +242,30 @@ export default function ComptabilitePage() {
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `factures-par-analytique-${new Date().toISOString().split('T')[0]}.pdf`
+      link.download = `analytique-${analyticName.replace(/\s+/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
+
+      // Mark prestations as exported
+      const prestationIds = analyticPrestations.map(p => p.id)
+      const markRes = await fetch('/api/comptabilite/mark-exported', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ analytic_id: analyticId, prestationIds })
+      })
+      
+      if (!markRes.ok) {
+        console.warn('Failed to mark prestations as exported')
+      } else {
+        const markData = await markRes.json()
+        console.log('[Export] Prestations marked:', markData.message)
+      }
+
+      // Refresh data
+      await new Promise(resolve => setTimeout(resolve, 500))
+      fetchPrestations()
     } catch (err) {
       console.error('Export failed:', err)
       alert('❌ Erreur lors de l\'export: ' + err.message)
@@ -372,136 +395,169 @@ export default function ComptabilitePage() {
         </div>
 
         {/* Export Button */}
-        <div style={{marginBottom: 24, display: 'flex', gap: 12}}>
-          <button
-            onClick={exportPdf}
-            disabled={exporting || safePrestations.length === 0}
-            style={{
-              padding: '10px 16px',
-              background: safePrestations.length === 0 ? '#d1d5db' : '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: 6,
-              cursor: safePrestations.length === 0 ? 'not-allowed' : 'pointer',
-              fontSize: 14,
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              opacity: exporting ? 0.7 : 1,
-              transition: 'all 0.3s'
-            }}
-          >
-            {exporting ? '⏳ Génération...' : '📄 Exporter en PDF'}
-          </button>
-          <span style={{fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center'}}>
-            {safePrestations.length} prestation{safePrestations.length > 1 ? 's' : ''} à exporter
-          </span>
-        </div>
+        {/* Removed - now each analytic has its own export button */}
 
-        {/* Prestations Table */}
-        <div style={{
-          background: 'white',
-          borderRadius: 8,
-          border: '1px solid #e5e7eb',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-          overflow: 'hidden'
-        }}>
-          {loading ? (
-            <div style={{padding: 40, textAlign: 'center', color: '#6b7280'}}>
-              <div style={{fontSize: 14}}>⏳ Chargement des prestations...</div>
-            </div>
-          ) : error ? (
-            <div style={{padding: 20, background: '#fee2e2', color: '#991b1b', borderRadius: 6, margin: 16}}>
-              <strong>❌ Erreur :</strong> {error}
-            </div>
-          ) : filteredPrestations.length === 0 ? (
-            <div style={{padding: 40, textAlign: 'center', color: '#6b7280'}}>
-              <div style={{fontSize: 32, marginBottom: 8}}>📭</div>
-              <div style={{fontSize: 14}}>Aucune prestation trouvée</div>
-            </div>
-          ) : (
-            <div style={{overflowX: 'auto'}}>
-              <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                <thead>
-                  <tr style={{background: '#f3f4f6', borderBottom: '2px solid #e5e7eb'}}>
-                    <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Collaborateur</th>
-                    <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Activité</th>
-                    <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Montant</th>
-                    <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Date</th>
-                    <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Statut</th>
-                    <th style={{padding: 12, textAlign: 'center', fontSize: 13, fontWeight: 600, color: '#374151'}}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPrestations.map((prestation, idx) => (
-                    <tr key={prestation.id || idx} style={{borderBottom: '1px solid #e5e7eb', transition: 'background 0.2s', _hover: {background: '#f9fafb'}}}>
-                      <td style={{padding: 12, fontSize: 13, fontWeight: 600, color: '#1f2937'}}>
-                        {prestation.user_name || `${prestation.first_name} ${prestation.last_name}`.trim()}
-                      </td>
-                      <td style={{padding: 12, fontSize: 13, color: '#374151'}}>
-                        {prestation.analytic_name || prestation.activity_type || '-'}
-                      </td>
-                      <td style={{padding: 12, fontSize: 13, fontWeight: 600, color: '#1f2937'}}>
-                        {parseFloat(prestation.remuneration || 0).toFixed(2)} €
-                      </td>
-                      <td style={{padding: 12, fontSize: 13, color: '#374151'}}>
-                        {new Date(prestation.date || prestation.created_at).toLocaleDateString('fr-FR')}
-                      </td>
-                      <td style={{padding: 12, fontSize: 13}}>
-                        <StatusBadge status={prestation.status} />
-                      </td>
-                      <td style={{padding: 12, textAlign: 'center'}}>
-                        <div style={{display: 'flex', gap: 6, justifyContent: 'center'}}>
-                          <button
-                            onClick={() => setSelectedPrestation(prestation)}
-                            title="Détails"
-                            style={{
-                              padding: '6px 10px',
-                              background: '#3b82f6',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: 4,
-                              cursor: 'pointer',
-                              fontSize: 11,
-                              fontWeight: 600,
-                              transition: 'background 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.target.style.background = '#2563eb'}
-                            onMouseLeave={(e) => e.target.style.background = '#3b82f6'}
-                          >
-                            👁️
-                          </button>
-                          {prestation.status === 'sent_to_billing' && (
-                            <button
-                              onClick={() => {}}
-                              title="Marquer comme facturé"
-                              style={{
-                                padding: '6px 10px',
-                                background: '#10b981',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: 4,
-                                cursor: 'pointer',
-                                fontSize: 11,
-                                fontWeight: 600,
-                                transition: 'background 0.2s'
-                              }}
-                              onMouseEnter={(e) => e.target.style.background = '#059669'}
-                              onMouseLeave={(e) => e.target.style.background = '#10b981'}
-                            >
-                              ✅
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        {/* Prestations by Analytic - Grouped View */}
+        {loading ? (
+          <div style={{padding: 40, textAlign: 'center', color: '#6b7280', background: 'white', borderRadius: 8}}>
+            <div style={{fontSize: 14}}>⏳ Chargement des prestations...</div>
+          </div>
+        ) : error ? (
+          <div style={{padding: 20, background: '#fee2e2', color: '#991b1b', borderRadius: 6}}>
+            <strong>❌ Erreur :</strong> {error}
+          </div>
+        ) : filteredPrestations.length === 0 ? (
+          <div style={{padding: 40, textAlign: 'center', color: '#6b7280', background: 'white', borderRadius: 8}}>
+            <div style={{fontSize: 32, marginBottom: 8}}>📭</div>
+            <div style={{fontSize: 14}}>Aucune prestation trouvée</div>
+          </div>
+        ) : (
+          <>
+            {Object.entries(
+              filteredPrestations.reduce((groups, p) => {
+                const analyticName = p.analytic_name || 'Non assigné'
+                if (!groups[analyticName]) {
+                  groups[analyticName] = []
+                }
+                groups[analyticName].push(p)
+                return groups
+              }, {})
+            ).map(([analyticName, analyticsItems]) => {
+              const analyticId = analyticsItems[0]?.analytic_id
+              const analyticTotal = analyticsItems.reduce((sum, p) => sum + parseFloat(p.remuneration || 0), 0)
+              
+              return (
+                <div key={analyticName} style={{marginBottom: 32}}>
+                  {/* Analytic Header with Export Button */}
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
+                    <div>
+                      <h2 style={{fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4}}>
+                        📊 {analyticName}
+                      </h2>
+                      <p style={{fontSize: 12, color: '#6b7280'}}>
+                        {analyticsItems.length} prestation{analyticsItems.length > 1 ? 's' : ''} • Montant total: {analyticTotal.toFixed(2)} €
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => exportPdfForAnalytic(analyticId, analyticName)}
+                      disabled={exporting || analyticsItems.length === 0}
+                      style={{
+                        padding: '10px 16px',
+                        background: analyticsItems.length === 0 ? '#d1d5db' : '#10b981',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: analyticsItems.length === 0 ? 'not-allowed' : 'pointer',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                        opacity: exporting ? 0.7 : 1,
+                        transition: 'all 0.3s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (analyticsItems.length > 0) e.target.style.background = '#059669'
+                      }}
+                      onMouseLeave={(e) => {
+                        if (analyticsItems.length > 0) e.target.style.background = '#10b981'
+                      }}
+                    >
+                      {exporting ? '⏳ Export en cours...' : '📄 Exporter'}
+                    </button>
+                  </div>
+
+                  {/* Analytic Table */}
+                  <div style={{
+                    background: 'white',
+                    borderRadius: 8,
+                    border: '1px solid #e5e7eb',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{overflowX: 'auto'}}>
+                      <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                        <thead>
+                          <tr style={{background: '#f3f4f6', borderBottom: '2px solid #e5e7eb'}}>
+                            <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Collaborateur</th>
+                            <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Activité</th>
+                            <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Montant</th>
+                            <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Date</th>
+                            <th style={{padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#374151'}}>Statut</th>
+                            <th style={{padding: 12, textAlign: 'center', fontSize: 13, fontWeight: 600, color: '#374151'}}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analyticsItems.map((prestation, idx) => (
+                            <tr key={prestation.id || idx} style={{borderBottom: '1px solid #e5e7eb'}}>
+                              <td style={{padding: 12, fontSize: 13, fontWeight: 600, color: '#1f2937'}}>
+                                {prestation.user_name || `${prestation.first_name} ${prestation.last_name}`.trim()}
+                              </td>
+                              <td style={{padding: 12, fontSize: 13, color: '#374151'}}>
+                                {prestation.activity_type || '-'}
+                              </td>
+                              <td style={{padding: 12, fontSize: 13, fontWeight: 600, color: '#1f2937'}}>
+                                {parseFloat(prestation.remuneration || 0).toFixed(2)} €
+                              </td>
+                              <td style={{padding: 12, fontSize: 13, color: '#374151'}}>
+                                {new Date(prestation.date || prestation.created_at).toLocaleDateString('fr-FR')}
+                              </td>
+                              <td style={{padding: 12, fontSize: 13}}>
+                                <StatusBadge status={prestation.status} />
+                              </td>
+                              <td style={{padding: 12, textAlign: 'center'}}>
+                                <div style={{display: 'flex', gap: 6, justifyContent: 'center'}}>
+                                  <button
+                                    onClick={() => setSelectedPrestation(prestation)}
+                                    title="Détails"
+                                    style={{
+                                      padding: '6px 10px',
+                                      background: '#3b82f6',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: 4,
+                                      cursor: 'pointer',
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      transition: 'background 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => e.target.style.background = '#2563eb'}
+                                    onMouseLeave={(e) => e.target.style.background = '#3b82f6'}
+                                  >
+                                    👁️
+                                  </button>
+                                  {prestation.status === 'sent_to_billing' && (
+                                    <button
+                                      onClick={() => {}}
+                                      title="Marquer comme facturé"
+                                      style={{
+                                        padding: '6px 10px',
+                                        background: '#10b981',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: 4,
+                                        cursor: 'pointer',
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        transition: 'background 0.2s'
+                                      }}
+                                      onMouseEnter={(e) => e.target.style.background = '#059669'}
+                                      onMouseLeave={(e) => e.target.style.background = '#10b981'}
+                                    >
+                                      ✅
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </>
+        )}
       </main>
       {/* Prestation detail panel (admin-styled) */}
       {selectedPrestation && (
