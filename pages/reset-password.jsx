@@ -22,7 +22,6 @@ export default function ResetPasswordPage() {
     
     console.log('[reset-password] Raw token from router.query:', tokenParam)
     console.log('[reset-password] Raw token length:', tokenParam?.length)
-    console.log('[reset-password] Raw token bytes:', tokenParam?.split('').map((c, i) => `${c}(${c.charCodeAt(0)})`).substring(0, 50))
     
     // Clean up token - remove URL encoding artifacts
     if (tokenParam) {
