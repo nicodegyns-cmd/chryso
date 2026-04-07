@@ -48,6 +48,11 @@ export default async function handler(req, res) {
 
     // Send password reset email
     const resetLink = `${process.env.APP_URL || 'https://fenix.nexio7.be'}/reset-password?token=${resetToken}`
+    console.log('[forgot.js] Reset link:', resetLink)
+    console.log('[forgot.js] Token in link:', resetToken)
+    console.log('[forgot.js] Token length:', resetToken.length)
+    console.log('[forgot.js] Token contains "=":', resetToken.includes('='))
+    
     await sendPasswordResetEmail({
       to: user.email,
       userName: user.first_name || user.email,
