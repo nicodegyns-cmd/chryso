@@ -131,15 +131,16 @@ export default async function handler(req, res){
         startTime: p.EH_DEBUT,
         endTime: p.EH_FIN,
         duration: p.EP_DUREE,
-        analytic_code: mapping?.code || p.E_CODE,
-        analytic_name: mapping?.name || p.E_LIBELLE,
-        analytic_id: mapping?.local_analytic_id || null,
+        analytic_code: p.E_CODE,  // Always eBrigade code
+        analytic_name: p.E_LIBELLE,  // Always display full eBrigade name to user
+        analytic_id: mapping?.local_analytic_id || null,  // THIS is what matters - which local activity to use
         activity: p.E_LIBELLE,
         pay_type: p.TE_LIBELLE || 'Garde',
         status: 'À saisir',
         isActivity: true,
-        ebrigade_analytic_name: p.E_LIBELLE,  // Keep original eBrigade name for reference
-        _mapping: mapping  // Keep mapping for DB filtering
+        ebrigade_analytic_name: p.E_LIBELLE,
+        _mapping: mapping,  // Keep mapping for DB filtering and tariff lookup
+        _mapped_activity_id: mapping?.local_analytic_id  // Explicit mapping for clarity
       }
     })
 
