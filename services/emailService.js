@@ -357,8 +357,126 @@ async function send(options) {
   }
 }
 
+/**
+ * Send password reset email
+ * @param {Object} options - Email options
+ * @param {string} options.to - Recipient email
+ * @param {string} options.userName - User name
+ * @param {string} options.resetLink - Password reset link
+ * @returns {Promise<{sent: boolean, messageId?: string, error?: string}>}
+ */
+async function sendPasswordResetEmail(options) {
+  try {
+    const mailer = getTransporter()
+    const appName = process.env.APP_NAME || 'Fénix'
+    const appUrl = process.env.APP_URL || 'https://fenix.nexio7.be'
+
+    const { to, userName, resetLink } = options
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Réinitialiser votre mot de passe</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f9f9f9;">
+  <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    
+    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0066cc; padding-bottom: 20px;">
+      <h1 style="color: #0066cc; margin: 0; font-size: 28px;">Réinitialiser votre mot de passe</h1>
+    </div>
+    
+    <p style="margin-top: 0;">Bonjour ${userName},</p>
+    
+    <p>Vous avez demandé une réinitialisation de mot de passe pour votre compte ${appName}.</p>
+    
+    <p>Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe :</p>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${resetLink}" style="display: inline-block; background-color: #0066cc; color: white; padding: 14px 30px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px;">
+        Réinitialiser mon mot de passe
+      </a>
+    </div>
+    
+    <p style="color: #666; font-size: 13px;">Ou copiez ce lien dans votre navigateur :</p>
+    <p style="word-break: break-all; background-color: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; color: #666;">
+      ${resetLink}
+    </p>
+    
+    <div style="background-color: #fff3cd; border-left: 4px solid #ff9800; padding: 16px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; color: #333;"><strong>⚠️ Sécurité :</strong> Ce lien expire dans 24 heures. Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
+    </div>
+    
+    <p style="color: #666; font-size: 13px; margin-top: 30px;">
+      Si le bouton ne fonctionne pas, copiez et collez le lien ci-dessus directement dans votre navigateur.
+    </p>
+    
+    <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #999; font-size: 12px;">
+      <p style="margin: 4px 0;">© ${new Date().getFullYear()} ${appName}. Tous droits réservés.</p>
+      <p style="margin: 4px 0;">Cet email a été envoyé automatiquement. Veuillez ne pas y répondre.</p>
+    </div>
+    
+  </div>
+</body>
+</html>
+    `.trim()
+
+    const textContent = `
+Réinitialiser votre mot de passe
+
+Bonjour ${userName},
+
+Vous avez demandé une réinitialisation de mot de passe pour votre compte ${appName}.
+
+Cliquez sur ce lien pour réinitialiser votre mot de passe:
+${resetLink}
+
+Ce lien expire dans 24 heures.
+
+Si vous n'avez pas demandé cette réinitialisation, ignorez simplement cet email.
+
+Cordialement,
+L'équipe ${appName}
+    `.trim()
+
+    if (!mailer) {
+      // Log email to console if SMTP not configured
+      console.log('[EmailService] Password reset email would be sent:')
+      console.log('To:', to)
+      console.log('Subject: Réinitialiser votre mot de passe')
+      console.log('Body:', textContent)
+      console.log('---')
+      return { sent: false, error: 'SMTP not configured - logged to console only' }
+    }
+
+    const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'no-reply@sirona-consult.be'
+
+    const info = await mailer.sendMail({
+      from: {
+        name: appName,
+        address: fromEmail
+      },
+      to,
+      subject: `Réinitialiser votre mot de passe ${appName}`,
+      html: htmlContent,
+      text: textContent,
+      replyTo: fromEmail,
+      headers: getEmailHeaders(fromEmail)
+    })
+
+    console.log('[EmailService] Password reset email sent:', { to, messageId: info.messageId })
+    return { sent: true, messageId: info.messageId }
+  } catch (err) {
+    console.error('[EmailService] Error sending password reset email:', err.message)
+    return { sent: false, error: err.message }
+  }
+}
+
 module.exports = {
   send,
   sendUserCreationEmail,
   sendPasswordChangeEmail,
+  sendPasswordResetEmail,
 }
