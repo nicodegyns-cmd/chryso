@@ -27,14 +27,24 @@ export default async function handler(req, res) {
     const resetToken = crypto.randomBytes(32).toString('hex')
     const sentAt = new Date()
 
+    console.log('[forgot.js] Generating reset token for user:', user.id, user.email)
+    console.log('[forgot.js] Token:', resetToken.substring(0, 10) + '...')
+    console.log('[forgot.js] SentAt:', sentAt)
+
     // Save token to database
     const updateQuery = `
       UPDATE users 
       SET password_reset_token = $1, password_reset_sent_at = $2
       WHERE id = $3
-      RETURNING id, email, first_name, last_name
+      RETURNING id, email, password_reset_token, password_reset_sent_at
     `
-    await pool.query(updateQuery, [resetToken, sentAt, user.id])
+    const updateResult = await pool.query(updateQuery, [resetToken, sentAt, user.id])
+    console.log('[forgot.js] Update result rows:', updateResult.rows.length)
+    if (updateResult.rows.length > 0) {
+      const updatedUser = updateResult.rows[0]
+      console.log('[forgot.js] Token saved for user:', updatedUser.id)
+      console.log('[forgot.js] Saved token matches:', updatedUser.password_reset_token === resetToken)
+    }
 
     // Send password reset email
     const resetLink = `${process.env.APP_URL || 'https://fenix.nexio7.be'}/reset-password?token=${resetToken}`

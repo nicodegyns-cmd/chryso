@@ -24,6 +24,8 @@ export default function ResetPasswordPage() {
 
     if (!tokenParam) {
       setError('Token de réinitialisation manquant')
+    } else {
+      console.log('[reset-password] Token received:', tokenParam.substring(0, 10) + '...')
     }
   }, [router.isReady, router.query])
 
@@ -51,6 +53,8 @@ export default function ResetPasswordPage() {
       setLoading(false)
       return
     }
+
+    console.log('[reset-password] Submitting with token:', token.substring(0, 10) + '...')
 
     try {
       const res = await fetch('/api/auth/reset', {

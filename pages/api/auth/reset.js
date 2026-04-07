@@ -24,6 +24,8 @@ export default async function handler(req, res) {
   const pool = getPool()
 
   try {
+    console.log('[reset.js] Attempting password reset with token:', token.substring(0, 10) + '...')
+    
     // Find user by reset token
     const userQuery = `
       SELECT id, email, first_name, password_reset_token, password_reset_sent_at 
@@ -31,8 +33,10 @@ export default async function handler(req, res) {
       WHERE password_reset_token = $1
     `
     const userResult = await pool.query(userQuery, [token])
+    console.log('[reset.js] Found users with token:', userResult.rows.length)
 
     if (userResult.rows.length === 0) {
+      console.log('[reset.js] No user found with token:', token.substring(0, 10) + '...')
       return res.status(404).json({ error: 'Token de réinitialisation invalide ou expiré' })
     }
 
