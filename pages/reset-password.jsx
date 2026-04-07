@@ -5,19 +5,27 @@ import styles from './forgot-password.jsx'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
-  const { token } = router.query
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [token, setToken] = useState(null)
+  const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
-    if (!token) {
+    // Wait for router to be ready to access query parameters
+    if (!router.isReady) return
+
+    const { token: tokenParam } = router.query
+    setToken(tokenParam || null)
+    setIsReady(true)
+
+    if (!tokenParam) {
       setError('Token de réinitialisation manquant')
     }
-  }, [token])
+  }, [router.isReady, router.query])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -76,6 +84,21 @@ export default function ResetPasswordPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!isReady) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <p>Chargement...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!token) {
