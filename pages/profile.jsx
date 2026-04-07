@@ -61,8 +61,9 @@ export default function ProfilePage(){
           })
           
           // Priority 1: If account requires completion, start onboarding flow (step 1: profile completion)
-          // This takes priority over is_active check
-          if (me.must_complete_profile) {
+          // This takes priority over is_active check (only for INFI/MED roles)
+          const mustCompleteRoles = ['INFI', 'MED', 'infirmier', 'medecin']
+          if (me.must_complete_profile && mustCompleteRoles.some(r => me.role?.includes(r))) {
             setOnboardingStep('profile')
           }
           // Priority 2: If user is not active and onboarding is complete, redirect to pending page

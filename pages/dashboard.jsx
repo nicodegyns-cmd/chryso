@@ -30,8 +30,9 @@ export default function DashboardPage() {
         
         if (!me) return
         
-        // Priority 1: If onboarding not complete, go to profile to complete it
-        if (me.must_complete_profile) {
+        // Priority 1: If onboarding not complete, go to profile (only for INFI/MED roles)
+        const mustCompleteRoles = ['INFI', 'MED', 'infirmier', 'medecin']
+        if (me.must_complete_profile && mustCompleteRoles.some(r => me.role?.includes(r))) {
           router.push('/profile')
         }
         // Priority 2: If onboarding complete but not active, show pending validation

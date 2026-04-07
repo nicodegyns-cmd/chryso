@@ -50,8 +50,9 @@ export default function LoginForm() {
       const r = localStorage.getItem('role')
       console.log('[LoginForm] redirecting to role page:', r)
       
-      // If user must complete profile (first login with temp password), redirect to profile page
-      if (data.must_complete_profile) {
+      // If user must complete profile (first login), redirect only for INFI/MED roles
+      const mustCompleteRoles = ['INFI', 'MED']
+      if (data.must_complete_profile && mustCompleteRoles.includes(active)) {
         setTimeout(() => router.push('/profile?must_complete=1'), 200)
         return
       }
