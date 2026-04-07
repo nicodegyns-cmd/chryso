@@ -24,6 +24,7 @@ export default function ComptabilitePage() {
   const [selectedPrestation, setSelectedPrestation] = useState(null)
   const [confirmPaymentOpen, setConfirmPaymentOpen] = useState(false)
   const [confirmPaymentItem, setConfirmPaymentItem] = useState(null)
+  const [exporting, setExporting] = useState(false)
 
   const userRole = useLocalStorage('role', null)
   const userEmail = useLocalStorage('email', '')
@@ -213,6 +214,43 @@ export default function ComptabilitePage() {
     }
   }
 
+  async function exportPdf() {
+    if (safePrestations.length === 0) {
+      alert('❌ Aucune prestation à exporter')
+      return
+    }
+
+    setExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (filterStatus === 'sent_to_billing') {
+        params.append('status', 'sent_to_billing')
+      } else if (filterStatus === 'invoiced') {
+        params.append('status', 'invoiced')
+      } else if (filterStatus === 'paid') {
+        params.append('status', 'paid')
+      }
+
+      const res = await fetch(`/api/comptabilite/export-pdf?${params.toString()}`)
+      if (!res.ok) throw new Error('Erreur lors de l\'export')
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `factures-par-analytique-${new Date().toISOString().split('T')[0]}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export failed:', err)
+      alert('❌ Erreur lors de l\'export: ' + err.message)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   // Guard against null entries returned by APIs
   const safePrestations = (prestations || []).filter(Boolean)
 
@@ -331,6 +369,34 @@ export default function ComptabilitePage() {
               </select>
             </div>
           </div>
+        </div>
+
+        {/* Export Button */}
+        <div style={{marginBottom: 24, display: 'flex', gap: 12}}>
+          <button
+            onClick={exportPdf}
+            disabled={exporting || safePrestations.length === 0}
+            style={{
+              padding: '10px 16px',
+              background: safePrestations.length === 0 ? '#d1d5db' : '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              cursor: safePrestations.length === 0 ? 'not-allowed' : 'pointer',
+              fontSize: 14,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              opacity: exporting ? 0.7 : 1,
+              transition: 'all 0.3s'
+            }}
+          >
+            {exporting ? '⏳ Génération...' : '📄 Exporter en PDF'}
+          </button>
+          <span style={{fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center'}}>
+            {safePrestations.length} prestation{safePrestations.length > 1 ? 's' : ''} à exporter
+          </span>
         </div>
 
         {/* Prestations Table */}

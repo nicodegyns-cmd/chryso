@@ -1,0 +1,239 @@
+// pages/api/comptabilite/export-pdf.js
+import { getPool } from '../../../services/db'
+import { PDFDocument, rgb } from 'pdf-lib'
+
+export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  try {
+    const pool = getPool()
+    const { status } = req.query
+
+    let sql = `
+      SELECT 
+        p.id,
+        p.user_id,
+        p.analytic_id,
+        COALESCE(a.name, aam.ebrigade_analytic_name) AS analytic_name,
+        COALESCE(a.code, '') AS analytic_code,
+        act.pay_type AS activity_type,
+        COALESCE(p.remuneration_infi, p.remuneration_med) AS remuneration,
+        p.date,
+        p.status,
+        u.first_name,
+        u.last_name,
+        u.email
+      FROM prestations p
+      LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN analytics a ON p.analytic_id = a.id
+      LEFT JOIN activities act ON p.activity_id = act.id
+      LEFT JOIN activity_ebrigade_mappings aam ON p.ebrigade_activity_code = aam.ebrigade_analytic_name
+      WHERE 1=1
+    `
+    const params = []
+
+    // Apply same filters as prestations API
+    if (status) {
+      if (status === 'sent_to_billing') {
+        sql += ` AND p.status = $1`
+        params.push('Envoyé à la facturation')
+      } else if (status === 'invoiced') {
+        sql += ` AND p.status = $1`
+        params.push('Facturé')
+      } else if (status === 'paid') {
+        sql += ` AND p.status = $1`
+        params.push('Payé')
+      }
+    }
+
+    sql += ` ORDER BY COALESCE(a.name, aam.ebrigade_analytic_name) ASC, p.date DESC`
+
+    const result = await pool.query(sql, params)
+    const prestations = result.rows || []
+
+    // Group by analytic
+    const groupedByAnalytic = {}
+    prestations.forEach(p => {
+      const analyticName = p.analytic_name || 'Non assigné'
+      if (!groupedByAnalytic[analyticName]) {
+        groupedByAnalytic[analyticName] = []
+      }
+      groupedByAnalytic[analyticName].push(p)
+    })
+
+    // Create PDF
+    const pdfDoc = await PDFDocument.create()
+    const pageWidth = 595 // A4 width in points
+    const pageHeight = 842 // A4 height in points
+    const margin = 40
+    const contentWidth = pageWidth - 2 * margin
+    const colX = [margin, margin + 100, margin + 220, margin + 330, margin + 450]
+
+    let currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+    let yPosition = pageHeight - margin
+    const helvetica = await pdfDoc.embedFont('Helvetica')
+    const helveticaBold = await pdfDoc.embedFont('Helvetica-Bold')
+
+    // Title
+    currentPage.drawText('Récapitulatif des Factures par Analytique', {
+      x: margin,
+      y: yPosition,
+      size: 18,
+      font: helveticaBold,
+      color: rgb(0, 0, 0)
+    })
+    yPosition -= 30
+
+    // Date
+    const now = new Date().toLocaleDateString('fr-FR')
+    currentPage.drawText(`Généré le: ${now}`, {
+      x: margin,
+      y: yPosition,
+      size: 10,
+      font: helvetica,
+      color: rgb(100, 100, 100)
+    })
+    yPosition -= 20
+
+    // Process each analytic group
+    Object.entries(groupedByAnalytic).forEach(([analyticName, items]) => {
+      // Check if we need a new page
+      if (yPosition < margin + 150) {
+        currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+        yPosition = pageHeight - margin
+      }
+
+      // Analytic header
+      currentPage.drawText(analyticName, {
+        x: margin,
+        y: yPosition,
+        size: 14,
+        font: helveticaBold,
+        color: rgb(0, 50, 100)
+      })
+      yPosition -= 20
+
+      // Column headers
+      const headers = ['Prestataire', 'Activité', 'Date', 'Montant', 'Statut']
+      const headerY = yPosition
+
+      // Draw header background
+      currentPage.drawRectangle({
+        x: margin,
+        y: headerY - 14,
+        width: contentWidth,
+        height: 14,
+        color: rgb(0, 100, 150)
+      })
+
+      // Draw header text
+      headers.forEach((header, i) => {
+        currentPage.drawText(header, {
+          x: colX[i],
+          y: headerY - 11,
+          size: 9,
+          font: helveticaBold,
+          color: rgb(255, 255, 255)
+        })
+      })
+
+      yPosition -= 20
+
+      // Data rows
+      let subtotal = 0
+      items.forEach((item, idx) => {
+        if (yPosition < margin + 60) {
+          currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+          yPosition = pageHeight - margin - 20
+        }
+
+        const userData = `${item.first_name || ''} ${item.last_name || ''}`.substring(0, 18).trim()
+        const activityType = (item.activity_type || '').substring(0, 16)
+        const dateStr = new Date(item.date).toLocaleDateString('fr-FR')
+        const amount = parseFloat(item.remuneration || 0).toFixed(2)
+        const statusLabel = (item.status || 'Inconnu').substring(0, 12)
+
+        // Alternate row background
+        if (idx % 2 === 0) {
+          currentPage.drawRectangle({
+            x: margin,
+            y: yPosition - 12,
+            width: contentWidth,
+            height: 12,
+            color: rgb(240, 245, 250)
+          })
+        }
+
+        // Draw row data
+        currentPage.drawText(userData, { x: colX[0], y: yPosition - 9, size: 8, font: helvetica })
+        currentPage.drawText(activityType, { x: colX[1], y: yPosition - 9, size: 8, font: helvetica })
+        currentPage.drawText(dateStr, { x: colX[2], y: yPosition - 9, size: 8, font: helvetica })
+        currentPage.drawText(`${amount} €`, { x: colX[3], y: yPosition - 9, size: 8, font: helvetica })
+        currentPage.drawText(statusLabel, { x: colX[4], y: yPosition - 9, size: 8, font: helvetica })
+
+        subtotal += parseFloat(amount)
+        yPosition -= 12
+      })
+
+      // Subtotal line
+      yPosition -= 6
+      currentPage.drawRectangle({
+        x: margin,
+        y: yPosition - 12,
+        width: contentWidth,
+        height: 12,
+        color: rgb(200, 220, 240)
+      })
+      currentPage.drawText(`Sous-total ${analyticName}:`, {
+        x: colX[1],
+        y: yPosition - 9,
+        size: 9,
+        font: helveticaBold
+      })
+      currentPage.drawText(`${subtotal.toFixed(2)} €`, {
+        x: colX[3],
+        y: yPosition - 9,
+        size: 9,
+        font: helveticaBold
+      })
+      yPosition -= 18
+    })
+
+    // Total
+    if (yPosition < margin + 50) {
+      currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+      yPosition = pageHeight - margin
+    }
+
+    const grandTotal = prestations.reduce((sum, p) => sum + parseFloat(p.remuneration || 0), 0)
+    
+    currentPage.drawRectangle({
+      x: margin,
+      y: yPosition - 16,
+      width: contentWidth,
+      height: 16,
+      color: rgb(0, 100, 150)
+    })
+    currentPage.drawText(`TOTAL GENERAL: ${grandTotal.toFixed(2)} €`, {
+      x: colX[3] - 80,
+      y: yPosition - 12,
+      size: 11,
+      font: helveticaBold,
+      color: rgb(255, 255, 255)
+    })
+
+    // Generate PDF buffer
+    const pdfBytes = await pdfDoc.save()
+
+    // Send as download
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', 'attachment; filename="factures-par-analytique.pdf"')
+    res.send(Buffer.from(pdfBytes))
+  } catch (err) {
+    console.error('[export-pdf]', err)
+    res.status(500).json({ error: err.message })
+  }
+}
+
