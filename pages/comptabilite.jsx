@@ -215,7 +215,10 @@ export default function ComptabilitePage() {
   }
 
   async function exportPdfForAnalytic(analyticId, analyticName) {
-    const analyticPrestations = safePrestations.filter(p => p.analytic_id === analyticId)
+    const analyticPrestations = safePrestations.filter(p => {
+      const pAnalyticId = p.analytic_id || p.ebrigade_analytic_id || 'unassigned'
+      return pAnalyticId === (analyticId === 'unassigned' ? 'unassigned' : analyticId)
+    })
     
     if (analyticPrestations.length === 0) {
       alert('❌ Aucune prestation à exporter pour cette analytique')
@@ -224,18 +227,18 @@ export default function ComptabilitePage() {
 
     setExporting(true)
     try {
-      const params = new URLSearchParams()
-      params.append('analytic_id', analyticId)
-      if (filterStatus === 'sent_to_billing') {
-        params.append('status', 'sent_to_billing')
-      } else if (filterStatus === 'invoiced') {
-        params.append('status', 'invoiced')
-      } else if (filterStatus === 'paid') {
-        params.append('status', 'paid')
-      }
+      const prestationIds = analyticPrestations.map(p => p.id)
 
-      // Download PDF
-      const res = await fetch(`/api/comptabilite/export-pdf?${params.toString()}`)
+      // Send POST request with prestation IDs
+      const res = await fetch('/api/comptabilite/export-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prestationIds,
+          analytic_id: analyticId !== 'unassigned' ? analyticId : null
+        })
+      })
+
       if (!res.ok) throw new Error('Erreur lors de l\'export')
 
       const blob = await res.blob()
@@ -249,11 +252,13 @@ export default function ComptabilitePage() {
       window.URL.revokeObjectURL(url)
 
       // Mark prestations as exported
-      const prestationIds = analyticPrestations.map(p => p.id)
       const markRes = await fetch('/api/comptabilite/mark-exported', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analytic_id: analyticId, prestationIds })
+        body: JSON.stringify({ 
+          analytic_id: analyticId !== 'unassigned' ? analyticId : null, 
+          prestationIds 
+        })
       })
       
       if (!markRes.ok) {
@@ -415,19 +420,27 @@ export default function ComptabilitePage() {
           <>
             {Object.entries(
               filteredPrestations.reduce((groups, p) => {
+                // Create unique key from analytic_id or fallback to name
+                const analyticId = p.analytic_id || p.ebrigade_analytic_id || 'unassigned'
                 const analyticName = p.analytic_name || 'Non assigné'
-                if (!groups[analyticName]) {
-                  groups[analyticName] = []
+                const groupKey = `${analyticId}|${analyticName}`
+                
+                if (!groups[groupKey]) {
+                  groups[groupKey] = {
+                    items: [],
+                    analyticId,
+                    analyticName
+                  }
                 }
-                groups[analyticName].push(p)
+                groups[groupKey].items.push(p)
                 return groups
               }, {})
-            ).map(([analyticName, analyticsItems]) => {
-              const analyticId = analyticsItems[0]?.analytic_id
+            ).map(([groupKey, analyticGroup]) => {
+              const { items: analyticsItems, analyticId, analyticName } = analyticGroup
               const analyticTotal = analyticsItems.reduce((sum, p) => sum + parseFloat(p.remuneration || 0), 0)
               
               return (
-                <div key={analyticName} style={{marginBottom: 32}}>
+                <div key={groupKey} style={{marginBottom: 32}}>
                   {/* Analytic Header with Export Button */}
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
                     <div>
