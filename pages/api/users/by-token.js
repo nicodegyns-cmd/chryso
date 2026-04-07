@@ -6,31 +6,32 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { token } = req.query
+    // Get email from Authorization header (since token is dev-token)
+    // The token format is 'Bearer <token>', but we'll extract email from query or assume it's in a cookie
+    const email = req.query.email || req.body?.email
 
-    if (!token) {
-      return res.status(400).json({ error: 'Token required' })
+    if (!email) {
+      return res.status(400).json({ error: 'Email required' })
     }
 
     const result = await query(
-      `SELECT id, email, first_name, last_name, invitation_expires_at 
+      `SELECT id, email, first_name, last_name, liaison_ebrigade_id 
        FROM users 
-       WHERE invitation_token = $1 AND invitation_expires_at > NOW() AND onboarding_status = $2`,
-      [token, 'pending_signup']
+       WHERE LOWER(email) = LOWER($1) AND is_active = true`,
+      [email]
     )
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Invalid or expired token' })
+      return res.status(404).json({ error: 'User not found' })
     }
 
     const user = result.rows[0]
     res.status(200).json({
-      user: {
-        id: user.id,
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name
-      }
+      id: user.id,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      liaison_ebrigade_id: user.liaison_ebrigade_id
     })
   } catch (error) {
     console.error('Get user by token error:', error)

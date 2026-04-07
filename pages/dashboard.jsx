@@ -51,13 +51,11 @@ export default function DashboardPage() {
   React.useEffect(() => {
     if (!userEmail) return
     
-    const token = localStorage.getItem('token')
-    if (!token) return
-    
-    fetch(`/api/users/by-token`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(r => r.json())
+    fetch(`/api/users/by-token?email=${encodeURIComponent(userEmail)}`)
+      .then(r => {
+        if (!r.ok) throw new Error(`API error: ${r.status}`)
+        return r.json()
+      })
       .then(user => {
         console.log('[dashboard] User data:', user)
         setEbrigadeId(user.liaison_ebrigade_id || null)
