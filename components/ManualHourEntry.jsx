@@ -9,6 +9,7 @@ export default function ManualHourEntry() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [editingPrestation, setEditingPrestation] = useState(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -82,8 +83,39 @@ export default function ManualHourEntry() {
 
   const handleUserSelect = (user) => {
     setSelectedUser(user)
+    setEditingPrestation(null)
     setError('')
     setSuccess('')
+  }
+
+  const handleEditPrestation = (prestation) => {
+    setEditingPrestation(prestation)
+    setFormData({
+      date: prestation.date || new Date().toISOString().split('T')[0],
+      hours_actual: prestation.hours_actual ? String(prestation.hours_actual) : '',
+      garde_hours: prestation.garde_hours ? String(prestation.garde_hours) : '',
+      sortie_hours: prestation.sortie_hours ? String(prestation.sortie_hours) : '',
+      overtime_hours: prestation.overtime_hours ? String(prestation.overtime_hours) : '',
+      activity_id: prestation.activity_id ? String(prestation.activity_id) : '',
+      comments: prestation.comments || '',
+      pay_type: prestation.pay_type || 'Normal'
+    })
+    setError('')
+    setSuccess('')
+  }
+
+  const cancelEdit = () => {
+    setEditingPrestation(null)
+    setFormData({
+      date: new Date().toISOString().split('T')[0],
+      hours_actual: '',
+      garde_hours: '',
+      sortie_hours: '',
+      overtime_hours: '',
+      activity_id: '',
+      comments: '',
+      pay_type: 'Normal'
+    })
   }
 
   const handleFormChange = (e) => {
@@ -116,8 +148,13 @@ export default function ManualHourEntry() {
         activity_id: formData.activity_id ? parseInt(formData.activity_id) : null
       }
 
-      const res = await fetch('/api/admin/manual-hours', {
-        method: 'POST',
+      const method = editingPrestation ? 'PUT' : 'POST'
+      const url = editingPrestation 
+        ? `/api/admin/manual-hours?id=${editingPrestation.id}` 
+        : '/api/admin/manual-hours'
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
@@ -128,19 +165,10 @@ export default function ManualHourEntry() {
       }
 
       const result = await res.json()
-      setSuccess('✅ Heures enregistrées avec succès!')
+      setSuccess(editingPrestation ? '✅ Heures modifiées avec succès!' : '✅ Heures enregistrées avec succès!')
 
       // Reset form
-      setFormData({
-        date: new Date().toISOString().split('T')[0],
-        hours_actual: '',
-        garde_hours: '',
-        sortie_hours: '',
-        overtime_hours: '',
-        activity_id: '',
-        comments: '',
-        pay_type: 'Normal'
-      })
+      cancelEdit()
 
       // Reload prestations
       const prestRes = await fetch(`/api/admin/user-prestations?user_id=${selectedUser.id}`)
@@ -193,7 +221,12 @@ export default function ManualHourEntry() {
               ) : userPrestations.length > 0 ? (
                 <div className={styles.cardsList}>
                   {userPrestations.map(prestation => (
-                    <div key={prestation.id} className={styles.card}>
+                    <div 
+                      key={prestation.id} 
+                      className={`${styles.card} ${editingPrestation?.id === prestation.id ? styles.activeCard : ''}`}
+                      onClick={() => handleEditPrestation(prestation)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <div className={styles.cardHeader}>
                         <span className={`${styles.status} ${styles[`status-${prestation.status?.toLowerCase().replace(' ', '-')}`]}`}>
                           {prestation.status || 'En attente'}
@@ -232,6 +265,11 @@ export default function ManualHourEntry() {
                           </div>
                         )}
                       </div>
+                      {editingPrestation?.id === prestation.id && (
+                        <div className={styles.cardFooter}>
+                          ✏️ En édition
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -361,13 +399,25 @@ export default function ManualHourEntry() {
                 {error && <div className={styles.error}>{error}</div>}
                 {success && <div className={styles.success}>{success}</div>}
 
-                <button
-                  type="submit"
-                  disabled={loading || !selectedUser}
-                  className={styles.submitBtn}
-                >
-                  {loading ? 'Enregistrement...' : '✓ Enregistrer les heures'}
-                </button>
+                <div className={styles.buttonGroup}>
+                  <button
+                    type="submit"
+                    disabled={loading || !selectedUser}
+                    className={styles.submitBtn}
+                  >
+                    {loading ? 'Enregistrement...' : editingPrestation ? '✏️ Modifier les heures' : '✓ Enregistrer les heures'}
+                  </button>
+                  {editingPrestation && (
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      disabled={loading}
+                      className={styles.cancelBtn}
+                    >
+                      ✕ Annuler
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
           </>

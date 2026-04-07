@@ -317,6 +317,56 @@
   transform: translateY(0);
 }
 
+/* Card Editing */
+.activeCard {
+  border: 2px solid #007bff;
+  background: #f0f8ff;
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.25);
+}
+
+.cardFooter {
+  background: #e7f3ff;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0056b3;
+  border-top: 1px solid #bee5eb;
+}
+
+/* Button Group */
+.buttonGroup {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.cancelBtn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 0 1 auto;
+  min-height: 44px;
+  min-width: 120px;
+}
+
+.cancelBtn:hover:not(:disabled) {
+  background: #5a6268;
+  box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+  transform: translateY(-1px);
+}
+
+.cancelBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .container {
