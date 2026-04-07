@@ -19,6 +19,7 @@ export default async function handler(req, res) {
         p.id,
         p.user_id,
         p.analytic_id,
+        p.ebrigade_activity_name,
         COALESCE(a.name, 'Non assigné') AS analytic_name,
         COALESCE(a.code, '') AS analytic_code,
         act.pay_type AS activity_type,
@@ -77,117 +78,143 @@ export default async function handler(req, res) {
     const contentWidth = pageWidth - 2 * margin
     const colX = [margin, margin + 100, margin + 220, margin + 330, margin + 450]
 
-    let currentPage = pdfDoc.addPage([pageWidth, pageHeight])
-    let yPosition = pageHeight - margin
     const helvetica = await pdfDoc.embedFont('Helvetica')
     const helveticaBold = await pdfDoc.embedFont('Helvetica-Bold')
 
-    // Get analytic name
-    const analyticName = prestations[0]?.analytic_name || 'Non assigné'
+    // Helper: Extract prefix from eBrigade activity name (before ' - ' or ' | ')
+    const extractAnalyticsPrefix = (ebrigadeActivityName) => {
+      if (!ebrigadeActivityName) return 'Non assigné'
+      const match = ebrigadeActivityName.match(/^([^-|]+?)(?:\s*[-|])/)
+      return match ? match[1].trim() : ebrigadeActivityName
+    }
 
-    // Title
-    currentPage.drawText(`Factures - ${analyticName}`, {
-      x: margin,
-      y: yPosition,
-      size: 18,
-      font: helveticaBold,
-      color: rgb(0, 0, 0)
-    })
-    yPosition -= 30
-
-    // Date
-    const now = new Date().toLocaleDateString('fr-FR')
-    currentPage.drawText(`Généré le: ${now}`, {
-      x: margin,
-      y: yPosition,
-      size: 10,
-      font: helvetica,
-      color: rgb(100, 100, 100)
-    })
-    yPosition -= 20
-
-    // Column headers
-    const headers = ['Prestataire', 'Activité', 'Date', 'Montant', 'Statut']
-    const headerY = yPosition
-
-    // Draw header background
-    currentPage.drawRectangle({
-      x: margin,
-      y: headerY - 14,
-      width: contentWidth,
-      height: 14,
-      color: rgb(0, 100, 150)
+    // Group prestations by their analytics prefix (APS, RMP, etc.)
+    const groupedByAnalytics = {}
+    prestations.forEach(p => {
+      const prefix = extractAnalyticsPrefix(p.ebrigade_activity_name)
+      if (!groupedByAnalytics[prefix]) {
+        groupedByAnalytics[prefix] = []
+      }
+      groupedByAnalytics[prefix].push(p)
     })
 
-    // Draw header text
-    headers.forEach((header, i) => {
-      currentPage.drawText(header, {
-        x: colX[i],
-        y: headerY - 11,
-        size: 9,
-        font: helveticaBold,
-        color: rgb(255, 255, 255)
-      })
-    })
+    let currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+    let yPosition = pageHeight - margin
 
-    yPosition -= 20
-
-    // Data rows
-    let subtotal = 0
-    prestations.forEach((item, idx) => {
-      if (yPosition < margin + 60) {
+    // Process each analytics group
+    Object.entries(groupedByAnalytics).forEach(([analyticsPrefix, groupPrestations]) => {
+      // Add new page if needed
+      if (yPosition < pageHeight - margin + 100) {  // Check if we need more space
         currentPage = pdfDoc.addPage([pageWidth, pageHeight])
-        yPosition = pageHeight - margin - 20
+        yPosition = pageHeight - margin
       }
 
-      const userData = `${item.first_name || ''} ${item.last_name || ''}`.substring(0, 18).trim()
-      const activityType = (item.activity_type || '').substring(0, 16)
-      const dateStr = new Date(item.date).toLocaleDateString('fr-FR')
-      const amount = parseFloat(item.remuneration || 0).toFixed(2)
-      const statusLabel = (item.status || 'Inconnu').substring(0, 12)
+      // Title for this analytics section
+      currentPage.drawText(`Factures - ${analyticsPrefix}`, {
+        x: margin,
+        y: yPosition,
+        size: 18,
+        font: helveticaBold,
+        color: rgb(0, 0, 0)
+      })
+      yPosition -= 30
 
-      // Alternate row background
-      if (idx % 2 === 0) {
-        currentPage.drawRectangle({
-          x: margin,
-          y: yPosition - 12,
-          width: contentWidth,
-          height: 12,
-          color: rgb(240, 245, 250)
+      // Date
+      const now = new Date().toLocaleDateString('fr-FR')
+      currentPage.drawText(`Généré le: ${now}`, {
+        x: margin,
+        y: yPosition,
+        size: 10,
+        font: helvetica,
+        color: rgb(100, 100, 100)
+      })
+      yPosition -= 20
+
+      // Column headers
+      const headers = ['Prestataire', 'Activité', 'Date', 'Montant', 'Statut']
+      const headerY = yPosition
+
+      // Draw header background
+      currentPage.drawRectangle({
+        x: margin,
+        y: headerY - 14,
+        width: contentWidth,
+        height: 14,
+        color: rgb(0, 100, 150)
+      })
+
+      // Draw header text
+      headers.forEach((header, i) => {
+        currentPage.drawText(header, {
+          x: colX[i],
+          y: headerY - 11,
+          size: 9,
+          font: helveticaBold,
+          color: rgb(255, 255, 255)
         })
-      }
+      })
 
-      // Draw row data
-      currentPage.drawText(userData, { x: colX[0], y: yPosition - 9, size: 8, font: helvetica })
-      currentPage.drawText(activityType, { x: colX[1], y: yPosition - 9, size: 8, font: helvetica })
-      currentPage.drawText(dateStr, { x: colX[2], y: yPosition - 9, size: 8, font: helvetica })
-      currentPage.drawText(`${amount} €`, { x: colX[3], y: yPosition - 9, size: 8, font: helvetica })
-      currentPage.drawText(statusLabel, { x: colX[4], y: yPosition - 9, size: 8, font: helvetica })
+      yPosition -= 20
 
-      subtotal += parseFloat(amount)
-      yPosition -= 12
-    })
+      // Data rows for this group
+      let subtotal = 0
+      groupPrestations.forEach((item, idx) => {
+        if (yPosition < margin + 60) {
+          currentPage = pdfDoc.addPage([pageWidth, pageHeight])
+          yPosition = pageHeight - margin - 20
+        }
 
-    // Subtotal line
-    yPosition -= 6
-    currentPage.drawRectangle({
-      x: margin,
-      y: yPosition - 12,
-      width: contentWidth,
-      height: 12,
-      color: rgb(200, 220, 240)
-    })
-    currentPage.drawText(`Total ${analyticName}:`, {
-      x: colX[1],
-      y: yPosition - 9,
-      size: 9,
-      font: helveticaBold
-    })
-    currentPage.drawText(`${subtotal.toFixed(2)} €`, {
-      x: colX[3],
-      y: yPosition - 9,
-      size: 9,
-      font: helveticaBold
+        const userData = `${item.first_name || ''} ${item.last_name || ''}`.substring(0, 18).trim()
+        const activityType = (item.activity_type || '').substring(0, 16)
+        const dateStr = new Date(item.date).toLocaleDateString('fr-FR')
+        const amount = parseFloat(item.remuneration || 0).toFixed(2)
+        const statusLabel = (item.status || 'Inconnu').substring(0, 12)
+
+        // Alternate row background
+        if (idx % 2 === 0) {
+          currentPage.drawRectangle({
+            x: margin,
+            y: yPosition - 12,
+            width: contentWidth,
+            height: 12,
+            color: rgb(240, 245, 250)
+          })
+        }
+
+        // Draw row data
+        currentPage.drawText(userData, { x: colX[0], y: yPosition - 9, size: 8, font: helvetica })
+        currentPage.drawText(activityType, { x: colX[1], y: yPosition - 9, size: 8, font: helvetica })
+        currentPage.drawText(dateStr, { x: colX[2], y: yPosition - 9, size: 8, font: helvetica })
+        currentPage.drawText(`${amount} €`, { x: colX[3], y: yPosition - 9, size: 8, font: helvetica })
+        currentPage.drawText(statusLabel, { x: colX[4], y: yPosition - 9, size: 8, font: helvetica })
+
+        subtotal += parseFloat(amount)
+        yPosition -= 12
+      })
+
+      // Subtotal line for this group
+      yPosition -= 6
+      currentPage.drawRectangle({
+        x: margin,
+        y: yPosition - 12,
+        width: contentWidth,
+        height: 12,
+        color: rgb(200, 220, 240)
+      })
+      currentPage.drawText(`Total ${analyticsPrefix}:`, {
+        x: colX[1],
+        y: yPosition - 9,
+        size: 9,
+        font: helveticaBold
+      })
+      currentPage.drawText(`${subtotal.toFixed(2)} €`, {
+        x: colX[3],
+        y: yPosition - 9,
+        size: 9,
+        font: helveticaBold
+      })
+
+      yPosition -= 20  // Space between sections
     })
 
     // Generate PDF buffer

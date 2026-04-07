@@ -16,6 +16,7 @@ export default async function handler(req, res) {
         p.user_id,
         p.analytic_id,
         p.ebrigade_activity_code,
+        p.ebrigade_activity_name,
         COALESCE(a.name, 'Non assigné') AS analytic_name,
         COALESCE(a.code, '') AS analytic_code,
         act.pay_type AS activity_type,
