@@ -216,7 +216,7 @@ export default function ComptabilitePage() {
 
   async function exportPdfForAnalytic(analyticId, analyticName) {
     const analyticPrestations = safePrestations.filter(p => {
-      const pAnalyticId = p.analytic_id || p.ebrigade_analytic_id || 'unassigned'
+      const pAnalyticId = p.analytic_id || 'unassigned'
       return pAnalyticId === (analyticId === 'unassigned' ? 'unassigned' : analyticId)
     })
     
@@ -420,8 +420,8 @@ export default function ComptabilitePage() {
           <>
             {Object.entries(
               filteredPrestations.reduce((groups, p) => {
-                // Create unique key from analytic_id or fallback to name
-                const analyticId = p.analytic_id || p.ebrigade_analytic_id || 'unassigned'
+                // Create unique key from analytic_id or name
+                const analyticId = p.analytic_id || 'unassigned'
                 const analyticName = p.analytic_name || 'Non assigné'
                 const groupKey = `${analyticId}|${analyticName}`
                 

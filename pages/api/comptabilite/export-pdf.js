@@ -19,8 +19,7 @@ export default async function handler(req, res) {
         p.id,
         p.user_id,
         p.analytic_id,
-        p.ebrigade_analytic_id,
-        COALESCE(a.name, eba.name, aam.ebrigade_analytic_name, p.ebrigade_activity_code, 'Non assigné') AS analytic_name,
+        COALESCE(a.name, aam.ebrigade_analytic_name, 'Non assigné') AS analytic_name,
         COALESCE(a.code, '') AS analytic_code,
         act.pay_type AS activity_type,
         COALESCE(p.remuneration_infi, p.remuneration_med) AS remuneration,
@@ -32,7 +31,6 @@ export default async function handler(req, res) {
       FROM prestations p
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN analytics a ON p.analytic_id = a.id
-      LEFT JOIN ebrigade_analytics eba ON p.ebrigade_analytic_id = eba.id
       LEFT JOIN activities act ON p.activity_id = act.id
       LEFT JOIN activity_ebrigade_mappings aam ON p.ebrigade_activity_code = aam.ebrigade_code
       WHERE 1=1
