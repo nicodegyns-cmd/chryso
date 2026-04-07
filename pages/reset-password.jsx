@@ -20,14 +20,33 @@ export default function ResetPasswordPage() {
 
     let { token: tokenParam } = router.query
     
+    console.log('[reset-password] Raw token from router.query:', tokenParam)
+    
     // Clean up token - remove URL encoding artifacts
     if (tokenParam) {
       // Decode any URL encoding issues
-      tokenParam = decodeURIComponent(tokenParam)
+      try {
+        tokenParam = decodeURIComponent(tokenParam)
+        console.log('[reset-password] After decodeURIComponent:', tokenParam?.substring(0, 20))
+      } catch (e) {
+        console.log('[reset-password] decodeURIComponent error:', e.message)
+      }
+      
       // Remove 3D= prefix if it exists (URL encoding artifact)
       if (tokenParam.startsWith('3D')) {
+        console.log('[reset-password] Found 3D prefix, removing')
         tokenParam = tokenParam.substring(2)
       }
+      
+      // Remove = prefix if it exists
+      if (tokenParam.startsWith('=')) {
+        console.log('[reset-password] Found = prefix, removing')
+        tokenParam = tokenParam.substring(1)
+      }
+      
+      // Remove any trailing =
+      tokenParam = tokenParam.replace(/=+$/, '')
+      console.log('[reset-password] After cleanup:', tokenParam?.substring(0, 20))
     }
     
     setToken(tokenParam || null)
@@ -36,7 +55,7 @@ export default function ResetPasswordPage() {
     if (!tokenParam) {
       setError('Token de réinitialisation manquant')
     } else {
-      console.log('[reset-password] Token received:', tokenParam.substring(0, 10) + '...')
+      console.log('[reset-password] Final token:', tokenParam.substring(0, 10) + '...')
     }
   }, [router.isReady, router.query])
 
