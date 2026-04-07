@@ -139,6 +139,8 @@ export default async function handler(req, res){
         status: 'À saisir',
         isActivity: true,
         ebrigade_analytic_name: p.E_LIBELLE,
+        ebrigade_activity_name: p.E_LIBELLE,  // IMPORTANT: composant PrestationsTable cherche ce champ!
+        ebrigade_activity_code: p.E_CODE,  // Send code too for fallback
         _mapping: mapping,  // Keep mapping for DB filtering and tariff lookup
         _mapped_activity_id: mapping?.local_analytic_id  // Explicit mapping for clarity
       }
