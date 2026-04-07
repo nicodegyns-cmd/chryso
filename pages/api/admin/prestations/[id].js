@@ -39,25 +39,36 @@ export default async function handler(req, res){
     )
     if (!updatedRow) return res.status(404).json({ error: 'not found' })
 
-    // FALLBACK: If local analytic not found, try to fetch via eBrigade name mappings
-    if (!updatedRow.analytic_name && updatedRow.ebrigade_activity_name) {
+    // ALWAYS resolve analytic from eBrigade activity name when available
+    // This ensures the correct local analytics is used regardless of what analytic_id is stored
+    if (updatedRow.ebrigade_activity_name) {
       try {
-        const [[fallbackAnalytic]] = await pool.query(
+        // Extract prefix: "APS - Coupe du Monde" → "APS"
+        const extractPrefix = (name) => {
+          if (!name) return null
+          const match = name.match(/^([^-|]+?)(?:\s*[-|])/)
+          return match ? match[1].trim() : name.trim()
+        }
+        const ebrigadePrefix = extractPrefix(updatedRow.ebrigade_activity_name)
+        
+        const [mappingRows] = await pool.query(
           `SELECT an.name AS analytic_name, an.code AS analytic_code, an.entite AS analytic_entite, an.analytic_type AS analytic_identifier
            FROM activity_ebrigade_name_mappings nm
            JOIN activities act ON nm.activity_id = act.id
            LEFT JOIN analytics an ON act.analytic_id = an.id
-           WHERE $1 ILIKE '%' || nm.ebrigade_analytic_name_pattern || '%'
-           ORDER BY LENGTH(nm.ebrigade_analytic_name_pattern) DESC LIMIT 1`, 
-          [updatedRow.ebrigade_activity_name]
+           WHERE nm.ebrigade_analytic_name_pattern = $1
+           LIMIT 1`, 
+          [ebrigadePrefix]
         )
-        if (fallbackAnalytic && fallbackAnalytic.analytic_name) {
-          updatedRow.analytic_name = fallbackAnalytic.analytic_name
-          updatedRow.analytic_code = fallbackAnalytic.analytic_code
-          updatedRow.analytic_entite = fallbackAnalytic.analytic_entite
-          updatedRow.analytic_identifier = fallbackAnalytic.analytic_identifier
+        const correctAnalytic = mappingRows && mappingRows[0]
+        if (correctAnalytic && correctAnalytic.analytic_name) {
+          console.log(`[invoice] Overriding analytic from eBrigade prefix "${ebrigadePrefix}": ${updatedRow.analytic_name} → ${correctAnalytic.analytic_name}`)
+          updatedRow.analytic_name = correctAnalytic.analytic_name
+          updatedRow.analytic_code = correctAnalytic.analytic_code
+          updatedRow.analytic_entite = correctAnalytic.analytic_entite
+          updatedRow.analytic_identifier = correctAnalytic.analytic_identifier
         }
-      } catch(e) { /* ignore fallback failure */ }
+      } catch(e) { console.warn('[invoice] eBrigade analytic lookup failed:', e.message) }
     }
 
     // If status moved to 'En attente d'envoie' or 'Envoyé à la facturation', ensure invoice_number and generate PDF if missing
@@ -148,15 +159,20 @@ export default async function handler(req, res){
           let rateGarde = 0, rateSortie = 0
           try {
             let ratesRow = null
-            // Try via ebrigade NAME mapping first (pattern match on activity name)
+            // Try via ebrigade NAME mapping first (exact prefix match)
             if (updatedRow.ebrigade_activity_name) {
+              const extractPrefix = (name) => {
+                if (!name) return null
+                const match = name.match(/^([^-|]+?)(?:\s*[-|])/)
+                return match ? match[1].trim() : name.trim()
+              }
               const ratesQ = await pool.query(
                 `SELECT act.remuneration_infi, act.remuneration_med, act.remuneration_sortie_infi, act.remuneration_sortie_med
                  FROM activity_ebrigade_name_mappings nm
                  JOIN activities act ON nm.activity_id = act.id
-                 WHERE $1 ILIKE '%' || nm.ebrigade_analytic_name_pattern || '%'
-                 ORDER BY LENGTH(nm.ebrigade_analytic_name_pattern) DESC LIMIT 1`,
-                [updatedRow.ebrigade_activity_name]
+                 WHERE nm.ebrigade_analytic_name_pattern = $1
+                 LIMIT 1`,
+                [extractPrefix(updatedRow.ebrigade_activity_name)]
               )
               const ratesRows = (ratesQ && ratesQ.rows) ? ratesQ.rows : (Array.isArray(ratesQ) && Array.isArray(ratesQ[0]) ? ratesQ[0] : [])
               if (ratesRows.length > 0) ratesRow = ratesRows[0]
