@@ -99,16 +99,20 @@ export default async function handler(req, res) {
 
       if (ebrigade_activity_name || ebrigade_activity_code) {
         try {
-          // 1. Find activity via eBrigade NAME mapping (pattern match on activity name)
+          // 1. Find activity via eBrigade NAME mapping (EXACT pattern match on activity name)
           let mappings = []
+          let matchedPattern = null
           if (ebrigade_activity_name) {
             const mappingData = await pool.query(
-              `SELECT nm.activity_id FROM activity_ebrigade_name_mappings nm
+              `SELECT nm.activity_id, nm.ebrigade_analytic_name_pattern FROM activity_ebrigade_name_mappings nm
                WHERE $1 ILIKE '%' || nm.ebrigade_analytic_name_pattern || '%'
                ORDER BY LENGTH(nm.ebrigade_analytic_name_pattern) DESC LIMIT 1`,
               [ebrigade_activity_name]
             )
             mappings = (mappingData && mappingData.rows) ? mappingData.rows : []
+            if (mappings.length > 0) {
+              matchedPattern = mappings[0].ebrigade_analytic_name_pattern
+            }
           }
           // Fallback: try old code-based mapping
           if (mappings.length === 0 && ebrigade_activity_code) {
@@ -123,14 +127,29 @@ export default async function handler(req, res) {
           if (mappings && mappings.length > 0) {
             const activityId = mappings[0].activity_id
             
-            // 2. Fetch activity + analytic info + detailed tariffs
-            const activityData = await pool.query(
-              `SELECT act.id, act.remuneration_infi, act.remuneration_med, act.remuneration_sortie_infi, act.remuneration_sortie_med, act.pay_type, act.analytic_id
-               FROM activities act
-               WHERE act.id = $1 AND LOWER(act.pay_type) LIKE LOWER($2)
-               ORDER BY act.date DESC LIMIT 1`,
-              [activityId, `%${pay_type || ''}%`]
-            )
+            // 2. Fetch activity + analytic info + detailed tariffs using EXACT PATTERN MATCH
+            // This ensures we get the correct activity when multiple exist with same activity_id
+            let activityData
+            if (matchedPattern) {
+              // Use the exact matched pattern for precise lookup
+              activityData = await pool.query(
+                `SELECT act.id, act.remuneration_infi, act.remuneration_med, act.remuneration_sortie_infi, act.remuneration_sortie_med, act.pay_type, act.analytic_id
+                 FROM activities act
+                 INNER JOIN activity_ebrigade_name_mappings nm ON act.id = nm.activity_id
+                 WHERE nm.activity_id = $1 AND nm.ebrigade_analytic_name_pattern = $2
+                 ORDER BY act.date DESC LIMIT 1`,
+                [activityId, matchedPattern]
+              )
+            } else {
+              // Fallback to pay_type matching if pattern not available
+              activityData = await pool.query(
+                `SELECT act.id, act.remuneration_infi, act.remuneration_med, act.remuneration_sortie_infi, act.remuneration_sortie_med, act.pay_type, act.analytic_id
+                 FROM activities act
+                 WHERE act.id = $1 AND LOWER(act.pay_type) LIKE LOWER($2)
+                 ORDER BY act.date DESC LIMIT 1`,
+                [activityId, `%${pay_type || ''}%`]
+              )
+            }
             const activities = (activityData && activityData.rows) ? activityData.rows : []
 
             if (activities && activities.length > 0) {
