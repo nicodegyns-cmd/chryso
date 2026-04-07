@@ -18,7 +18,18 @@ export default function ResetPasswordPage() {
     // Wait for router to be ready to access query parameters
     if (!router.isReady) return
 
-    const { token: tokenParam } = router.query
+    let { token: tokenParam } = router.query
+    
+    // Clean up token - remove URL encoding artifacts
+    if (tokenParam) {
+      // Decode any URL encoding issues
+      tokenParam = decodeURIComponent(tokenParam)
+      // Remove 3D= prefix if it exists (URL encoding artifact)
+      if (tokenParam.startsWith('3D')) {
+        tokenParam = tokenParam.substring(2)
+      }
+    }
+    
     setToken(tokenParam || null)
     setIsReady(true)
 
