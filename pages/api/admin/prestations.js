@@ -91,7 +91,10 @@ export default async function handler(req, res) {
       } catch(e) {}
 
       // Find local analytique_id and calculate tariffs from eBrigade mappings
+      // IMPORTANT: Use analytic_id from request if provided (it comes from /api/activities with correct mapping)
       let resolvedAnalyticId = analytic_id || null
+      console.log('[prestations POST] Initial resolvedAnalyticId from request:', resolvedAnalyticId)
+      
       let calculatedRemuneInfi = remuneration_infi || null
       let calculatedRemuneMed = remuneration_med || null
       let calculatedRemuneSortieInfi = null
@@ -182,10 +185,13 @@ export default async function handler(req, res) {
                 remuneration_infi: activity.remuneration_infi,
                 remuneration_med: activity.remuneration_med
               })
-              // Store the local analytic_id
-              if (activity.analytic_id && !resolvedAnalyticId) {
+              // IMPORTANT: Only use activity.analytic_id as FALLBACK if not already provided in request
+              // The analytic_id from API response is the source of truth for the correct local analytics
+              if (!resolvedAnalyticId && activity.analytic_id) {
                 resolvedAnalyticId = activity.analytic_id
-                console.log('[prestations POST]   → Resolved analytic_id:', resolvedAnalyticId)
+                console.log('[prestations POST]   → Using fallback analytic_id from activity:', resolvedAnalyticId)
+              } else if (resolvedAnalyticId && activity.analytic_id && resolvedAnalyticId !== activity.analytic_id) {
+                console.log('[prestations POST]   ⚠️ NOTE: Request has analytic_id=' + resolvedAnalyticId + ', activity query returned=' + activity.analytic_id + ' → KEEPING request value')
               }
               // Store DETAILED sortie rates if available
               calculatedRemuneSortieInfi = activity.remuneration_sortie_infi || null
