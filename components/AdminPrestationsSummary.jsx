@@ -228,7 +228,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
               onMouseEnter={(e)=>e.currentTarget.style.background='#eff6ff'}
               onMouseLeave={(e)=>e.currentTarget.style.background=(idx % 2 === 0 ? '#fff' : '#f9fafb')}
               >
-                <td style={{padding:12,fontSize:14,color:'#1f2937'}}><strong>{it.analytic_code || it.request_ref || it.invoice_number || `#${it.id}`}</strong></td>
+                <td style={{padding:12,fontSize:14,color:'#1f2937'}}><strong>{it.request_ref || it.invoice_number || `#${it.id}`}</strong></td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>
                   <div style={{fontWeight:500}}>{it.user_firstname && it.user_lastname ? `${it.user_firstname} ${it.user_lastname}` : (it.user_email || '-')}</div>
                 </td>
@@ -308,7 +308,7 @@ export default function AdminPrestationsSummary({ limit = 8 }){
           <div style={{width:'100%',maxWidth:800,background:'#fff',borderRadius:12,boxShadow:'0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',overflow:'auto',maxHeight:'90vh'}}>
             <div style={{padding:24,borderBottom:'1px solid #e5e7eb'}}>
               <h3 style={{margin:0,fontSize:20,fontWeight:700,color:'#1f2937'}}>
-                📋 {viewing.ebrigade_activity_name || viewing.analytic_name ? `${viewing.ebrigade_activity_name || viewing.analytic_name} - ` : ''}Détails demande {viewing.analytic_code || viewing.request_ref || viewing.invoice_number || `#${viewing.id}`}
+                📋 {viewing.ebrigade_activity_name || viewing.analytic_name ? `${viewing.ebrigade_activity_name || viewing.analytic_name} - ` : ''}Détails demande {viewing.request_ref || viewing.invoice_number || `#${viewing.id}`}
               </h3>
             </div>
 
