@@ -126,7 +126,7 @@ export default async function handler(req, res) {
         y: yPosition,
         size: 10,
         font: helvetica,
-        color: rgb(100, 100, 100)
+        color: rgb(0.39, 0.39, 0.39)
       })
       yPosition -= 20
 
@@ -140,7 +140,7 @@ export default async function handler(req, res) {
         y: headerY - 14,
         width: contentWidth,
         height: 14,
-        color: rgb(0, 100, 150)
+        color: rgb(0, 0.39, 0.59)
       })
 
       // Draw header text
@@ -150,7 +150,7 @@ export default async function handler(req, res) {
           y: headerY - 11,
           size: 9,
           font: helveticaBold,
-          color: rgb(255, 255, 255)
+          color: rgb(1, 1, 1)
         })
       })
 
@@ -177,7 +177,7 @@ export default async function handler(req, res) {
             y: yPosition - 12,
             width: contentWidth,
             height: 12,
-            color: rgb(240, 245, 250)
+            color: rgb(0.94, 0.96, 0.98)
           })
         }
 
@@ -199,7 +199,7 @@ export default async function handler(req, res) {
         y: yPosition - 12,
         width: contentWidth,
         height: 12,
-        color: rgb(200, 220, 240)
+        color: rgb(0.78, 0.86, 0.94)
       })
       currentPage.drawText(`Total ${analyticsPrefix}:`, {
         x: colX[1],
