@@ -741,7 +741,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   <div>
                     <div style={{fontSize:11,color:'#9ca3af',fontWeight:600,letterSpacing:'0.5px'}}>ID</div>
                     <div style={{fontSize:13,fontWeight:700,color:'#6b7280',fontFamily:'monospace'}}>
-                      {p.request_ref || p.invoice_number || `#${p.id}`}
+                      #{p.id}
                     </div>
                   </div>
                   <div>
