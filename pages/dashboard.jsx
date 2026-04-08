@@ -156,7 +156,6 @@ export default function DashboardPage() {
 
             <div style={{display:'grid',gridTemplateColumns:'1fr',gap:12}}>
               <RIBUploadBanner email={userEmail} />
-              <RIBUploadBanner email={userEmail} />
 
               {/* EBrigadePrestationsDisplay removed: users should use 'Mes prestations' below */}
               <PrestationsStats email={userEmail} />
