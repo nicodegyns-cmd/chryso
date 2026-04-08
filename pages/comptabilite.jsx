@@ -225,11 +225,22 @@ export default function ComptabilitePage() {
       return
     }
 
+    // Seules les prestations avec un PDF généré peuvent être fusionnées
+    const withPdf = analyticPrestations.filter(p => p.pdf_url)
+    if (withPdf.length === 0) {
+      alert('❌ Aucune facture PDF générée pour cette analytique.\nLes PDFs doivent être générés avant l\'export.')
+      return
+    }
+    if (withPdf.length < analyticPrestations.length) {
+      const missing = analyticPrestations.length - withPdf.length
+      const ok = confirm(`⚠️ ${missing} prestation(s) sans PDF seront ignorées.\nExporter les ${withPdf.length} factures disponibles ?`)
+      if (!ok) return
+    }
+
     setExportingIds(prev => ({ ...prev, [analyticId]: true }))
     try {
-      const prestationIds = analyticPrestations.map(p => p.id)
+      const prestationIds = withPdf.map(p => p.id)
 
-      // Send POST request with prestation IDs
       const res = await fetch('/api/comptabilite/export-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -240,13 +251,16 @@ export default function ComptabilitePage() {
         })
       })
 
-      if (!res.ok) throw new Error('Erreur lors de l\'export')
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Erreur lors de l\'export')
+      }
 
       const blob = await res.blob()
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `analytique-${analyticName.replace(/\s+/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`
+      link.download = `Factures_${analyticName.replace(/[^a-zA-Z0-9_-]/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -261,15 +275,10 @@ export default function ComptabilitePage() {
           prestationIds 
         })
       })
-      
       if (!markRes.ok) {
         console.warn('Failed to mark prestations as exported')
-      } else {
-        const markData = await markRes.json()
-        console.log('[Export] Prestations marked:', markData.message)
       }
 
-      // Refresh data
       await new Promise(resolve => setTimeout(resolve, 500))
       fetchPrestations()
     } catch (err) {
