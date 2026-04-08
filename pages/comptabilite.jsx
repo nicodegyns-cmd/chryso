@@ -235,7 +235,8 @@ export default function ComptabilitePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prestationIds,
-          analytic_id: analyticId !== 'unassigned' ? analyticId : null
+          analytic_id: analyticId !== 'unassigned' ? analyticId : null,
+          analyticName
         })
       })
 

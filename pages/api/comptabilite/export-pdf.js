@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     
     // Support both GET and POST for flexibility
     const query = req.method === 'GET' ? req.query : req.body
-    const { analytic_id, prestationIds } = query
+    const { analytic_id, prestationIds, analyticName } = query
 
     let sql = `
       SELECT 
@@ -222,7 +222,8 @@ export default async function handler(req, res) {
 
     // Send as download
     res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `attachment; filename="analytique-${analyticName.replace(/\s+/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf"`)
+    const safeName = (analyticName || analytic_id || 'export').toString().replace(/\s+/g, '_')
+    res.setHeader('Content-Disposition', `attachment; filename="analytique-${safeName}-${new Date().toISOString().split('T')[0]}.pdf"`)
     res.send(Buffer.from(pdfBytes))
   } catch (err) {
     console.error('[export-pdf]', err)
