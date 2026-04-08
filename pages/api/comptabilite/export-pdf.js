@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     
     // Support both GET and POST for flexibility
     const query = req.method === 'GET' ? req.query : req.body
-    const { analytic_id, prestationIds, analyticName } = query
+    const { analytic_id, prestationIds, analyticName, status } = query
 
     let sql = `
       SELECT 

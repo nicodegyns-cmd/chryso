@@ -24,7 +24,7 @@ export default function ComptabilitePage() {
   const [selectedPrestation, setSelectedPrestation] = useState(null)
   const [confirmPaymentOpen, setConfirmPaymentOpen] = useState(false)
   const [confirmPaymentItem, setConfirmPaymentItem] = useState(null)
-  const [exporting, setExporting] = useState(false)
+  const [exportingIds, setExportingIds] = useState({})
 
   const userRole = useLocalStorage('role', null)
   const userEmail = useLocalStorage('email', '')
@@ -225,7 +225,7 @@ export default function ComptabilitePage() {
       return
     }
 
-    setExporting(true)
+    setExportingIds(prev => ({ ...prev, [analyticId]: true }))
     try {
       const prestationIds = analyticPrestations.map(p => p.id)
 
@@ -276,7 +276,7 @@ export default function ComptabilitePage() {
       console.error('Export failed:', err)
       alert('❌ Erreur lors de l\'export: ' + err.message)
     } finally {
-      setExporting(false)
+      setExportingIds(prev => { const n = { ...prev }; delete n[analyticId]; return n })
     }
   }
 
@@ -454,7 +454,7 @@ export default function ComptabilitePage() {
                     </div>
                     <button
                       onClick={() => exportPdfForAnalytic(analyticId, analyticName)}
-                      disabled={exporting || analyticsItems.length === 0}
+                      disabled={exportingIds[analyticId] || analyticsItems.length === 0}
                       style={{
                         padding: '10px 16px',
                         background: analyticsItems.length === 0 ? '#d1d5db' : '#10b981',
@@ -465,7 +465,7 @@ export default function ComptabilitePage() {
                         fontSize: 13,
                         fontWeight: 600,
                         whiteSpace: 'nowrap',
-                        opacity: exporting ? 0.7 : 1,
+                        opacity: exportingIds[analyticId] ? 0.7 : 1,
                         transition: 'all 0.3s'
                       }}
                       onMouseEnter={(e) => {
@@ -475,7 +475,7 @@ export default function ComptabilitePage() {
                         if (analyticsItems.length > 0) e.target.style.background = '#10b981'
                       }}
                     >
-                      {exporting ? '⏳ Export en cours...' : '📄 Exporter'}
+                      {exportingIds[analyticId] ? '⏳ Export en cours...' : '📄 Exporter'}
                     </button>
                   </div>
 
