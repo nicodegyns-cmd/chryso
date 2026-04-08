@@ -35,8 +35,8 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   // Fetch analytics list once on mount
   useEffect(() => {
     fetch('/api/analytics')
-      .then(r => r.ok ? r.json() : { analytics: [] })
-      .then(d => setAnalyticsList(d.analytics || []))
+      .then(r => r.ok ? r.json() : { items: [] })
+      .then(d => setAnalyticsList(d.items || d.analytics || []))
       .catch(() => {})
   }, [])
 
