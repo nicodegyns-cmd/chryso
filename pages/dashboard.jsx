@@ -2,7 +2,7 @@ import React from 'react'
 import { useRouter } from 'next/router'
 import AdminHeader from '../components/AdminHeader'
 import UserSidebar from '../components/UserSidebar'
-import ActivitiesCards from '../components/ActivitiesCards'
+// ActivitiesCards removed from dashboard to avoid duplicate "Activités disponibles" panel
 import PrestationsTable from '../components/PrestationsTable'
 import PrestationsStats from '../components/PrestationsStats'
 import EBrigadePrestationsDisplay from '../components/eBrigadePrestationsDisplay'
@@ -161,7 +161,7 @@ export default function DashboardPage() {
               
               <RIBUploadBanner email={userEmail} />
               
-              <ActivitiesCards key={`${userEmail}-${ebrigadeId}`} email={userEmail} ebrigade_id={ebrigadeId} onEditActivity={handleEditActivity} />
+              {/* ActivitiesCards removed: use 'Mes prestations' below for declarations */}
               
               <EBrigadePrestationsDisplay email={userEmail} onSelectPrestation={handleSelectEBrigadePrestation} />\n              <PrestationsStats email={userEmail} />
               <PrestationsTable ref={prestationsTableRef} email={userEmail} />
