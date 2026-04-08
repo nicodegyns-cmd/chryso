@@ -104,26 +104,21 @@ export default function InvoicesPage() {
           expense_amount: p.expense_amount || 0
         }))
 
-        // fetch estimates in parallel to show a total (lightweight)
-        const withTotals = await Promise.all(rows.map(async rRow => {
-          try{
-            const resp = await fetch('/api/prestations/estimate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({
-              garde_hours: rRow.garde_hours,
-              sortie_hours: rRow.sortie_hours,
-              overtime_hours: rRow.overtime_hours,
-              hours_actual: rRow.hours_actual,
-              pay_type: rRow.pay_type,
-              analytic_id: rRow.analytic_id,
-              expense_amount: rRow.expense_amount,
-              user_email: email
-            })})
-            if (resp.ok){
-              const d = await resp.json()
-              return {...rRow, total: d.estimated_total || 0, rates: d.rates}
-            }
-          }catch(e){ /* ignore */ }
-          return {...rRow, total: null}
-        }))
+        // Use saved remuneration from DB (remuneration_infi/med) as the total amount
+        // This ensures the list shows the same amount as the generated PDF invoice
+        const withTotals = rows.map(rRow => {
+          // Determine role from localStorage to select correct remuneration column
+          const userRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null
+          const roleLow = (userRole || '').toLowerCase()
+          const isMed = roleLow.includes('med') || roleLow.includes('médec') || roleLow.includes('doctor')
+          const savedAmount = isMed 
+            ? (rRow.remuneration_med != null ? Number(rRow.remuneration_med) : null)
+            : (rRow.remuneration_infi != null ? Number(rRow.remuneration_infi) : null)
+          
+          // Use saved amount if available, otherwise fallback to 0 (no estimate call needed)
+          const total = savedAmount != null ? savedAmount : 0
+          return {...rRow, total}
+        })
         setInvoices(withTotals)
       }catch(e){ console.error(e); setInvoices([]) }
       finally{ setLoading(false) }
