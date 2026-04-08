@@ -5,7 +5,7 @@ import UserSidebar from '../components/UserSidebar'
 // ActivitiesCards removed from dashboard to avoid duplicate "Activités disponibles" panel
 import PrestationsTable from '../components/PrestationsTable'
 import PrestationsStats from '../components/PrestationsStats'
-import EBrigadePrestationsDisplay from '../components/eBrigadePrestationsDisplay'
+// EBrigadePrestationsDisplay removed from dashboard to avoid duplicate panels
 import RIBUploadBanner from '../components/RIBUploadBanner'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 
@@ -155,15 +155,11 @@ export default function DashboardPage() {
             </div>
 
             <div style={{display:'grid',gridTemplateColumns:'1fr',gap:12}}>
-              <div className="admin-card card">
-                <p>Bienvenue — ci-dessous la liste de vos prestations et activités disponibles.</p>
-              </div>
-              
               <RIBUploadBanner email={userEmail} />
-              
-              {/* ActivitiesCards removed: use 'Mes prestations' below for declarations */}
-              
-              <EBrigadePrestationsDisplay email={userEmail} onSelectPrestation={handleSelectEBrigadePrestation} />\n              <PrestationsStats email={userEmail} />
+              <RIBUploadBanner email={userEmail} />
+
+              {/* EBrigadePrestationsDisplay removed: users should use 'Mes prestations' below */}
+              <PrestationsStats email={userEmail} />
               <PrestationsTable ref={prestationsTableRef} email={userEmail} />
             </div>
           </>
