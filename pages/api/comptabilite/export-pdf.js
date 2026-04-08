@@ -36,7 +36,13 @@ export default async function handler(req, res) {
     let loaded = 0
 
     for (const row of rows) {
-      const filePath = path.join(basePath, row.pdf_url.replace(/^\/+/, ''))
+      // pdf_url peut être '/exports/foo.pdf' ou '/api/exports/download?file=foo.pdf'
+      let relativePath = row.pdf_url
+      const fileParam = relativePath.match(/[?&]file=([^&]+)/)
+      if (fileParam) {
+        relativePath = '/exports/' + fileParam[1]
+      }
+      const filePath = path.join(basePath, relativePath.replace(/^\/+/, ''))
       if (!fs.existsSync(filePath)) {
         console.warn(`[export-pdf] Fichier manquant: ${filePath}`)
         continue
