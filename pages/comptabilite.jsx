@@ -596,6 +596,10 @@ export default function ComptabilitePage() {
                 <span>{selectedPrestation.analytic_name || selectedPrestation.activity_type || '-'}</span>
               </div>
               <div className={adminStyles['info-row']}>
+                <span className={adminStyles.label}>ID Ebrigade:</span>
+                <span>{selectedPrestation.ebrigade_activity_code || '-'}</span>
+              </div>
+              <div className={adminStyles['info-row']}>
                 <span className={adminStyles.label}>Montant:</span>
                 <span>{(parseFloat(selectedPrestation.remuneration || 0) || 0).toFixed(2)} €</span>
               </div>

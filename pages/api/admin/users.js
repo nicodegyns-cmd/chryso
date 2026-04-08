@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const q = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status FROM users ORDER BY id DESC')
+      const q = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status, moderator_analytic_ids FROM users ORDER BY id DESC')
       const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
       // return rows as-is; `role` may contain comma-separated canonical codes
       return res.status(200).json({ users: rows })
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     const body = req.body || {}
-    const { email, role, firstName, lastName, ninami, telephone, adresse, niss, bce, societe, compte, fonction, liaisonId } = body
+    const { email, role, firstName, lastName, ninami, telephone, adresse, niss, bce, societe, compte, fonction, liaisonId, moderatorAnalyticIds } = body
     if (!email) return res.status(400).json({ error: 'missing email' })
 
     // normalize role(s) to canonical codes and store as comma-separated list
@@ -55,8 +55,8 @@ export default async function handler(req, res) {
 
     try {
       const q = await pool.query(
-        `INSERT INTO users (email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, password_hash, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
+        `INSERT INTO users (email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, password_hash, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status, moderator_analytic_ids)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`,
         [
           (email || '').toLowerCase(),
           roleValue,
@@ -76,7 +76,8 @@ export default async function handler(req, res) {
           false, // accepted_cgu
           false, // accepted_privacy
           0, // is_active = 0 (pending validation) - SMALLINT not boolean
-          'pending_validation' // onboarding_status
+          'pending_validation', // onboarding_status
+          moderatorAnalyticIds || null
         ]
       )
 
@@ -84,7 +85,7 @@ export default async function handler(req, res) {
       const insertedId = result && result[0] ? result[0].id : null
       if (!insertedId) throw new Error('Failed to get inserted user ID')
       
-      const q2 = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status FROM users WHERE id = $1', [insertedId])
+      const q2 = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status, moderator_analytic_ids FROM users WHERE id = $1', [insertedId])
       const rows = (q2 && q2.rows) ? q2.rows : Array.isArray(q2) ? q2[0] : []
       const user = rows && rows[0] ? rows[0] : null
 

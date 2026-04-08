@@ -9,6 +9,7 @@ export default function ModeratorPage() {
   const [checking, setChecking] = useState(true)
   const [userEmail, setUserEmail] = useLocalStorage('email', '')
   const role = useLocalStorage('role', null)
+  const [filterAnalyticIds, setFilterAnalyticIds] = useState(null)
 
   useEffect(() => {
     // Wait for role to be initialized
@@ -50,6 +51,14 @@ export default function ModeratorPage() {
         else if (!me.is_active) {
           router.replace('/account-pending')
         }
+
+        // Load analytic filter from moderator's profile
+        if (me.moderator_analytic_ids) {
+          const ids = typeof me.moderator_analytic_ids === 'string'
+            ? me.moderator_analytic_ids.split(',').map(s => s.trim()).filter(Boolean)
+            : me.moderator_analytic_ids
+          setFilterAnalyticIds(ids.length > 0 ? ids : null)
+        }
       } catch (err) {
         console.error('Failed to check user status', err)
       }
@@ -69,7 +78,7 @@ export default function ModeratorPage() {
       </header>
 
       <main style={{marginTop:16}}>
-        <AdminPrestationsSummary />
+        <AdminPrestationsSummary filterAnalyticIds={filterAnalyticIds} />
       </main>
     </div>
   )

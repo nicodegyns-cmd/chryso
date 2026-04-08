@@ -24,7 +24,7 @@ export default async function handler(req, res) {
 
   if (method === 'PUT' || method === 'PATCH') {
     const body = req.body || {}
-    const { email, role, firstName, lastName, ninami, telephone, adresse, niss, bce, societe, compte, fonction, liaisonId, acceptedCgu, acceptedPrivacy } = body
+    const { email, role, firstName, lastName, ninami, telephone, adresse, niss, bce, societe, compte, fonction, liaisonId, acceptedCgu, acceptedPrivacy, moderatorAnalyticIds } = body
     try {
       const normalizeRoles = (r) => {
         const items = Array.isArray(r) ? r.map(String) : (r ? String(r).split(',') : [])
@@ -98,6 +98,10 @@ export default async function handler(req, res) {
         setClauses.push(`liaison_ebrigade_id = $${paramIdx++}`)
         params.push(liaisonId || null)
       }
+      if (typeof moderatorAnalyticIds !== 'undefined') {
+        setClauses.push(`moderator_analytic_ids = $${paramIdx++}`)
+        params.push(moderatorAnalyticIds || null)
+      }
       
       // Always update timestamp
       setClauses.push(`updated_at = NOW()`)
@@ -126,7 +130,7 @@ export default async function handler(req, res) {
       const sql = `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramIdx}`
       await pool.query(sql, params)
       
-      const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy FROM users WHERE id = $1', [id])
+      const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids FROM users WHERE id = $1', [id])
       const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
       const updatedUser = rows[0]
 
@@ -155,7 +159,9 @@ export default async function handler(req, res) {
           }
         }
 
-      return res.status(200).json({ user: rows[0] })
+      const finalQ = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids FROM users WHERE id = $1', [id])
+      const finalRows = (finalQ && finalQ.rows) ? finalQ.rows : Array.isArray(finalQ) ? finalQ[0] : []
+      return res.status(200).json({ user: finalRows[0] })
     } catch (err) {
       console.error('[api/admin/users/[id]] PUT error', err)
       return res.status(500).json({ error: 'db_error', detail: err.message })

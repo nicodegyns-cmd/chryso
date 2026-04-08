@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react'
 
-export default function AdminPrestationsSummary({ limit = 8 }){
+export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds = null }){
   const formatDate = (dateStr) => {
     if (!dateStr) return '-'
     const d = new Date(dateStr)
@@ -142,6 +142,11 @@ export default function AdminPrestationsSummary({ limit = 8 }){
 
   const filtered = useMemo(() => {
     return items.filter(it => {
+      // analytic filter for moderators
+      if (filterAnalyticIds && filterAnalyticIds.length > 0) {
+        const aid = String(it.analytic_id || '')
+        if (!filterAnalyticIds.includes(aid)) return false
+      }
       // user filter (search by firstName, lastName, email)
       if (userFilter) {
         const fullName = ((it.user_firstName || '') + ' ' + (it.user_lastName || '')).toLowerCase().trim()
@@ -333,6 +338,10 @@ export default function AdminPrestationsSummary({ limit = 8 }){
                     <div style={{fontSize:15,color:'#1f2937'}}>
                       {viewing.ebrigade_activity_name || viewing.ebrigade_activity_type || viewing.analytic_name || viewing.analytic_code || '-'}
                     </div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>ID EBRIGADE</div>
+                    <div style={{fontSize:15,color:'#1f2937'}}>{viewing.ebrigade_activity_code || '-'}</div>
                   </div>
                   <div>
                     <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>STATUT</div>

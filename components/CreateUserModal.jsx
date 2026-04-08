@@ -21,6 +21,9 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   const [hasLoadedOnOpen, setHasLoadedOnOpen] = useState(false)
   const [fonction, setFonction] = useState('')
 
+  const [moderatorAnalyticIds, setModeratorAnalyticIds] = useState([])
+  const [analyticsList, setAnalyticsList] = useState([])
+
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState(null)
@@ -28,6 +31,14 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   const [emailSent, setEmailSent] = useState(false)
   const [linkingEbrigade, setLinkingEbrigade] = useState(false)
   const [ebrigadeLinked, setEbrigadeLinked] = useState(false)
+
+  // Fetch analytics list once on mount
+  useEffect(() => {
+    fetch('/api/analytics')
+      .then(r => r.ok ? r.json() : { analytics: [] })
+      .then(d => setAnalyticsList(d.analytics || []))
+      .catch(() => {})
+  }, [])
 
   // fetch suggestions when liaisonQuery changes (debounced)
   useEffect(() => {
@@ -135,6 +146,12 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       setCompte(initial.account || initial.compte || '')
       setLiaisonId(initial.liaison_ebrigade_id || initial.liaisonId || 'none')
       setFonction(initial.fonction || initial.fonction || '')
+      const ids = initial.moderator_analytic_ids
+      if (ids) {
+        setModeratorAnalyticIds(typeof ids === 'string' ? ids.split(',').map(s => s.trim()).filter(Boolean) : ids)
+      } else {
+        setModeratorAnalyticIds([])
+      }
     } else {
       // reset when creating new
       setEmail('')
@@ -150,6 +167,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       setCompte('')
       setLiaisonId('none')
       setFonction('')
+      setModeratorAnalyticIds([])
     }
   }, [initial])
 
@@ -160,6 +178,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
     setLoading(true)
     setError(null)
 
+    const isModerator = Array.isArray(role) ? role.includes('moderator') : role === 'moderator'
     const payload = {
       email,
       role,
@@ -174,6 +193,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       compte,
       fonction,
       liaisonId: liaisonId === 'none' ? null : liaisonId,
+      moderatorAnalyticIds: isModerator && moderatorAnalyticIds.length > 0 ? moderatorAnalyticIds.join(',') : null,
     }
 
     // `onCreate` should return a Promise from the parent
@@ -485,6 +505,47 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
                 ))}
               </div>
             </div>
+
+            {/* Section: Analytiques modérateur (visible seulement si rôle moderator coché) */}
+            {(Array.isArray(role) ? role.includes('moderator') : role === 'moderator') && (
+              <div style={{borderLeft:'3px solid #0ea5e9',paddingLeft:16}}>
+                <strong style={{display:'block',marginBottom:8,color:'#1f2937',fontSize:14}}>📊 Analytiques assignées au modérateur</strong>
+                <small style={{display:'block',marginBottom:10,color:'#6b7280',fontSize:12}}>
+                  Sélectionnez les analytiques locales dont ce modérateur gérera les demandes. Si aucune n'est sélectionnée, il verra toutes les demandes.
+                </small>
+                {analyticsList.length === 0 ? (
+                  <div style={{fontSize:12,color:'#9ca3af'}}>Chargement des analytiques…</div>
+                ) : (
+                  <div style={{display:'flex',flexDirection:'column',gap:6,maxHeight:200,overflowY:'auto',padding:'4px 0'}}>
+                    {analyticsList.map((a) => {
+                      const sid = String(a.id)
+                      const checked = moderatorAnalyticIds.includes(sid)
+                      return (
+                        <label key={a.id} style={{display:'inline-flex',alignItems:'center',gap:8,cursor:'pointer',padding:'6px 8px',borderRadius:6,background: checked ? '#e0f2fe' : 'transparent',border: checked ? '1px solid #7dd3fc' : '1px solid transparent',transition:'all 0.15s'}}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              setModeratorAnalyticIds(prev => e.target.checked ? [...prev, sid] : prev.filter(x => x !== sid))
+                            }}
+                            style={{width:16,height:16,cursor:'pointer'}}
+                          />
+                          <span style={{fontSize:13,color:'#1f2937',fontWeight: checked ? 600 : 400}}>
+                            {a.name}{a.code ? <span style={{color:'#6b7280',fontWeight:400}}> ({a.code})</span> : ''}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+                {moderatorAnalyticIds.length > 0 && (
+                  <div style={{marginTop:8,fontSize:12,color:'#0369a1'}}>
+                    ✅ {moderatorAnalyticIds.length} analytique(s) sélectionnée(s)
+                    <button type="button" onClick={() => setModeratorAnalyticIds([])} style={{marginLeft:8,fontSize:11,color:'#dc2626',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>Tout effacer</button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {error && (
               <div style={{padding:12,background:'#fee2e2',border:'1px solid #fecaca',color:'#991b1b',borderRadius:6,fontSize:13}}>
