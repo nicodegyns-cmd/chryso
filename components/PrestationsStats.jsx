@@ -6,8 +6,6 @@ export default function PrestationsStats({ email }){
   const [error, setError] = useState(null)
   const [month, setMonth] = useState('all')
   const [invoiceTotal, setInvoiceTotal] = useState(0)
-  const [invoiceLoading, setInvoiceLoading] = useState(false)
-  const [invoiceError, setInvoiceError] = useState(null)
 
   useEffect(()=>{
     if (!email){ setItems([]); setLoading(false); return }
@@ -42,61 +40,17 @@ export default function PrestationsStats({ email }){
     return {infi, med, expenses, overall: infi + med + expenses}
   },[filtered])
 
-  // Aggregate invoice amounts by calling the server estimate for each prestation
+  // Compute invoice total directly from stored remuneration values (same values used on the actual PDF invoice)
   useEffect(()=>{
-    let cancelled = false
-    async function computeInvoiceTotal(){
-      setInvoiceError(null)
-      const invoices = (filtered || []).filter(p => p && p.invoice_number)
-      if (!email || invoices.length === 0){ setInvoiceTotal(0); return }
-      setInvoiceLoading(true)
-      try{
-        // Run estimates sequentially to avoid overloading the server / DB pool
-        const results = []
-        for (const p of invoices){
-          if (cancelled) break
-          const body = {
-            garde_hours: p.garde_hours || 0,
-            sortie_hours: p.sortie_hours || 0,
-            overtime_hours: p.overtime_hours || 0,
-            hours_actual: p.hours_actual || 0,
-            pay_type: p.pay_type || '',
-            analytic_id: p.analytic_id || null,
-            expense_amount: p.expense_amount || 0,
-            user_email: email
-          }
-          // retry a couple times on transient failures
-          let attempts = 0
-          let value = 0
-          while(attempts < 3){
-            attempts++
-            try{
-              const resp = await fetch('/api/prestations/estimate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-              })
-              if (!resp.ok) throw new Error('Estimate failed')
-              const j = await resp.json()
-              value = Number(j.estimated_total || 0)
-              break
-            }catch(e){
-              // small backoff
-              await new Promise(r => setTimeout(r, 150 * attempts))
-            }
-          }
-          results.push(value)
-        }
-        if (!cancelled){
-          const sum = results.reduce((a,b)=>a+Number(b||0),0)
-          setInvoiceTotal(Math.round((sum + Number.EPSILON) * 100) / 100)
-        }
-      }catch(err){ if (!cancelled) setInvoiceError('Erreur de calcul') }
-      finally{ if (!cancelled) setInvoiceLoading(false) }
-    }
-    computeInvoiceTotal()
-    return ()=>{ cancelled = true }
-  },[filtered, email])
+    const invoices = (filtered || []).filter(p => p && p.invoice_number)
+    const sum = invoices.reduce((acc, p) => {
+      return acc
+        + (Number(p.remuneration_infi) || 0)
+        + (Number(p.remuneration_med) || 0)
+        + (Number(p.expense_amount) || 0)
+    }, 0)
+    setInvoiceTotal(Math.round((sum + Number.EPSILON) * 100) / 100)
+  },[filtered])
 
   return (
     <div className="card" style={{display:'flex',flexDirection:'column',gap:8}}>
@@ -122,13 +76,7 @@ export default function PrestationsStats({ email }){
         <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
           <div style={{flex:'1 1 320px',background:'#fff',padding:16,borderRadius:8,border:'1px solid #eef2f7'}}>
             <div className="small-muted">Total facturé</div>
-            {invoiceLoading ? (
-              <div className="small-muted">Calcul en cours…</div>
-            ) : invoiceError ? (
-              <div className="small-muted">Erreur: {invoiceError}</div>
-            ) : (
               <div style={{fontSize:26,fontWeight:800,color:'#111'}}>{(invoiceTotal || 0).toFixed(2)} EUR</div>
-            )}
           </div>
         </div>
       )}
