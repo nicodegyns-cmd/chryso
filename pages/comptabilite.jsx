@@ -19,6 +19,8 @@ export default function ComptabilitePage() {
   const [ribDocuments, setRibDocuments] = useState([])
   const [ficheModalOpen, setFicheModalOpen] = useState(false)
   const [ficheUsers, setFicheUsers] = useState([])
+  const [ficheViewerOpen, setFicheViewerOpen] = useState(false)
+  const [selectedFiche, setSelectedFiche] = useState(null)
   const [confirmEncodeOpen, setConfirmEncodeOpen] = useState(false)
   const [confirmDoc, setConfirmDoc] = useState(null)
   const [selectedPrestation, setSelectedPrestation] = useState(null)
@@ -743,18 +745,85 @@ export default function ComptabilitePage() {
 
                   <div className={adminStyles['user-info']}>
                     <h3>{(u.first_name || '') + ' ' + (u.last_name || '')}</h3>
-                    <p className={adminStyles.email}>📧 {u.email}</p>
-                    {u.telephone && <p className={adminStyles.phone}>📱 {u.telephone}</p>}
                     {u.company && <p className={adminStyles.company}>🏢 {u.company}</p>}
                     {u.address && <p className={adminStyles.city}>📍 {u.address}</p>}
                   </div>
 
                   <div style={{marginTop:12, display:'flex', gap:8}}>
-                    <a href={`/profile?id=${u.id}`} target="_blank" rel="noreferrer" className={adminStyles['view-document-btn']}>Voir</a>
+                    <button onClick={() => { setSelectedFiche(u); setFicheViewerOpen(true); }} className={adminStyles['view-document-btn']}>Voir</button>
                     <button onClick={() => validateUser(u.id)} style={{padding:'8px 12px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Valider</button>
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Fiche Viewer Modal - Detailed view without sensitive info */}
+      {ficheViewerOpen && selectedFiche && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1300}} onClick={() => setFicheViewerOpen(false)}>
+          <div style={{background:'#fff',borderRadius:10,width:'95%',maxWidth:600,maxHeight:'90vh',overflow:'auto',padding:40,boxShadow:'0 10px 40px rgba(0,0,0,0.3)'}} onClick={(e)=>e.stopPropagation()}>
+            {/* Header */}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:30}}>
+              <div>
+                <h1 style={{margin:'0 0 8px 0',fontSize:28,fontWeight:700,color:'#111827'}}>
+                  {(selectedFiche.first_name || '') + ' ' + (selectedFiche.last_name || '')}
+                </h1>
+                <p style={{margin:0,fontSize:14,color:'#6b7280'}}>Fiche renseignement</p>
+              </div>
+              <button onClick={() => setFicheViewerOpen(false)} style={{border:'none',background:'transparent',fontSize:24,cursor:'pointer',padding:0,color:'#6b7280'}}>✕</button>
+            </div>
+
+            {/* Content - Only show non-sensitive info */}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+              {selectedFiche.company && (
+                <div>
+                  <label style={{display:'block',fontSize:12,fontWeight:600,color:'#6b7280',textTransform:'uppercase',marginBottom:6}}>Entreprise</label>
+                  <p style={{margin:0,fontSize:15,color:'#111827'}}>{selectedFiche.company}</p>
+                </div>
+              )}
+              {selectedFiche.address && (
+                <div>
+                  <label style={{display:'block',fontSize:12,fontWeight:600,color:'#6b7280',textTransform:'uppercase',marginBottom:6}}>Adresse</label>
+                  <p style={{margin:0,fontSize:15,color:'#111827'}}>{selectedFiche.address}</p>
+                </div>
+              )}
+              {selectedFiche.city && (
+                <div>
+                  <label style={{display:'block',fontSize:12,fontWeight:600,color:'#6b7280',textTransform:'uppercase',marginBottom:6}}>Ville</label>
+                  <p style={{margin:0,fontSize:15,color:'#111827'}}>{selectedFiche.city}</p>
+                </div>
+              )}
+              {selectedFiche.postal_code && (
+                <div>
+                  <label style={{display:'block',fontSize:12,fontWeight:600,color:'#6b7280',textTransform:'uppercase',marginBottom:6}}>Code Postal</label>
+                  <p style={{margin:0,fontSize:15,color:'#111827'}}>{selectedFiche.postal_code}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Roles */}
+            {selectedFiche.role && (
+              <div style={{marginTop:20,paddingTop:20,borderTop:'1px solid #e5e7eb'}}>
+                <label style={{display:'block',fontSize:12,fontWeight:600,color:'#6b7280',textTransform:'uppercase',marginBottom:8}}>Rôles</label>
+                <div style={{display:'flex',gap:6}}>
+                  {(selectedFiche.role || '').split(',').map((r,i) => (
+                    <span key={i} style={{background:'#e0e7ff',color:'#3730a3',padding:'4px 10px',borderRadius:4,fontSize:13}}>
+                      {r.trim()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Footer - Actions */}
+            <div style={{marginTop:30,display:'flex',justifyContent:'space-between',gap:12,paddingTop:20,borderTop:'1px solid #e5e7eb'}}>
+              <button onClick={() => setFicheViewerOpen(false)} style={{flex:1,padding:'10px 16px',background:'#f3f4f6',color:'#374151',border:'none',borderRadius:6,cursor:'pointer',fontWeight:600}}>
+                Fermer
+              </button>
+              <button onClick={() => { setFicheViewerOpen(false); validateUser(selectedFiche.id); }} style={{flex:1,padding:'10px 16px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:600}}>
+                ✓ Valider la fiche
+              </button>
             </div>
           </div>
         </div>
