@@ -182,6 +182,7 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
 
   return (
     <div className="card">
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <h2 style={{marginTop:0}}>Demandes de prestations</h2>
       <div style={{display:'flex',gap:12,alignItems:'center',marginBottom:12,flexWrap:'wrap'}}>
         <label style={{display:'flex',alignItems:'center',gap:6}}>
@@ -226,12 +227,14 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
             {displayed.length === 0 && <tr><td colSpan={7} style={{padding:12,color:'#666',textAlign:'center',background:'#f9fafb',borderBottom:'1px solid #e5e7eb'}}>Aucune demande</td></tr>}
             {displayed.map((it, idx) => (
               <tr key={it.id} style={{
-                background: idx % 2 === 0 ? '#fff' : '#f9fafb',
+                background: savingIds[it.id] ? '#fef9c3' : (idx % 2 === 0 ? '#fff' : '#f9fafb'),
                 borderBottom:'1px solid #e5e7eb',
-                transition:'background-color 0.2s',
+                transition:'background-color 0.3s',
+                opacity: savingIds[it.id] ? 0.75 : 1,
+                pointerEvents: savingIds[it.id] ? 'none' : 'auto',
               }}
-              onMouseEnter={(e)=>e.currentTarget.style.background='#eff6ff'}
-              onMouseLeave={(e)=>e.currentTarget.style.background=(idx % 2 === 0 ? '#fff' : '#f9fafb')}
+              onMouseEnter={(e)=>{ if (!savingIds[it.id]) e.currentTarget.style.background='#eff6ff' }}
+              onMouseLeave={(e)=>{ if (!savingIds[it.id]) e.currentTarget.style.background=(idx % 2 === 0 ? '#fff' : '#f9fafb') }}
               >
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}><strong>{it.request_ref || it.invoice_number || `#${it.id}`}</strong></td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>
@@ -274,8 +277,19 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                     {it.pdf_url && <a href={it.pdf_url.replace(/^\/exports\//, '/api/exports/download?file=')} download style={{padding:'6px 12px',borderRadius:6,border:'1px solid #c7d2fe',background:'#e0e7ff',color:'#3730a3',cursor:'pointer',fontWeight:600,fontSize:13,textDecoration:'none',display:'inline-block',transition:'all 0.2s'}}>📄 Facture</a>}
                     {it.status === "En attente d'approbation" && (
                       <>
-                        <button disabled={!!savingIds[it.id]} onClick={()=>updateStatus(it.id, "Envoyé à la facturation")} style={{padding:'6px 12px',borderRadius:6,border:'1px solid #fcd34d',background:'#fef3c7',color:'#92400e',cursor:'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}>✓ Valider</button>
-                        <button disabled={!!savingIds[it.id]} onClick={()=>setRefusingId(it.id)} style={{padding:'6px 12px',borderRadius:6,border:'1px solid #fca5a5',background:'#fee2e2',color:'#991b1b',cursor:'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}>✕ Refuser</button>
+                        <button
+                          disabled={!!savingIds[it.id]}
+                          onClick={()=>updateStatus(it.id, "Envoyé à la facturation")}
+                          style={{padding:'6px 12px',borderRadius:6,border:'1px solid #fcd34d',background: savingIds[it.id] ? '#fde68a' : '#fef3c7',color:'#92400e',cursor: savingIds[it.id] ? 'not-allowed' : 'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s',display:'flex',alignItems:'center',gap:6,minWidth:100,justifyContent:'center'}}
+                        >
+                          {savingIds[it.id] ? (
+                            <>
+                              <span style={{display:'inline-block',width:13,height:13,border:'2px solid #92400e',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.7s linear infinite',flexShrink:0}} />
+                              Génération…
+                            </>
+                          ) : '✓ Valider'}
+                        </button>
+                        <button disabled={!!savingIds[it.id]} onClick={()=>setRefusingId(it.id)} style={{padding:'6px 12px',borderRadius:6,border:'1px solid #fca5a5',background:'#fee2e2',color:'#991b1b',cursor: savingIds[it.id] ? 'not-allowed' : 'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s',opacity: savingIds[it.id] ? 0.5 : 1}}>✕ Refuser</button>
                       </>
                     )}
                   </div>
