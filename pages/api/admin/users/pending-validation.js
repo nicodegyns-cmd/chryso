@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     // - Not active yet (is_active = 0)
     // - AND either haven't completed signup yet (pending_signup) OR completed signup but not validated (pending_validation)
     const result = await query(
-      `SELECT id, email, first_name, last_name, telephone, address, fonction, company, role, city, postal_code, liaison_ebrigade_id, niss, bce, account, is_active, must_complete_profile, accepted_cgu, accepted_privacy, onboarding_status
+      `SELECT id, email, first_name, last_name, telephone, address, fonction, company, role, liaison_ebrigade_id, niss, bce, account, is_active, onboarding_status
        FROM users
        WHERE is_active = 0
          AND onboarding_status IN ('pending_signup', 'pending_validation')
@@ -28,8 +28,6 @@ export default async function handler(req, res) {
         last_name: row.last_name,
         telephone: row.telephone,
         address: row.address,
-        city: row.city,
-        postal_code: row.postal_code,
         fonction: row.fonction,
         company: row.company,
         role: row.role,
