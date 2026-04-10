@@ -18,6 +18,7 @@ export default async function handler(req, res) {
     )
     
     const rows = result.rows || result[0] || []
+    console.log('[API] pending-validation: fetched', rows.length, 'users')
 
     return res.status(200).json({
       items: (rows || []).map(row => ({
@@ -36,11 +37,11 @@ export default async function handler(req, res) {
         niss: row.niss,
         bce: row.bce,
         account: row.account,
-        onboarding_status: 'pending_validation'
+        onboarding_status: row.onboarding_status
       }))
     })
   } catch (error) {
-    console.error('Get pending users error:', error)
-    return res.status(500).json({ error: 'Failed to fetch pending users' })
+    console.error('[API] Get pending users error:', error.message)
+    return res.status(500).json({ error: 'Failed to fetch pending users', details: error.message })
   }
 }
