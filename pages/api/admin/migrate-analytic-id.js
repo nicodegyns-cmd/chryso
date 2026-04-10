@@ -1,4 +1,4 @@
-import { getPool } from '../../services/db'
+import { getPool } from '../../../services/db'
 
 export default async function handler(req, res) {
   // Security: Only allow in development or with a migration token
