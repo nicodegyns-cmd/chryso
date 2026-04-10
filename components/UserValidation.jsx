@@ -88,7 +88,7 @@ export default function UserValidation() {
     }
   }
 
-  const pending = useMemo(() => users.filter(u => u.onboarding_status === 'pending_validation'), [users])
+  const pending = useMemo(() => users.filter(u => u.onboarding_status === 'pending_signup' || u.onboarding_status === 'pending_validation'), [users])
 
   if (loading) {
     return <div style={{ padding: 24, color: '#6b7280' }}>Chargement…</div>
@@ -120,12 +120,17 @@ export default function UserValidation() {
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>{user.first_name} {user.last_name}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>{user.first_name} {user.last_name}</div>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 4, background: user.onboarding_status === 'pending_signup' ? '#fef3c7' : '#dbeafe', color: user.onboarding_status === 'pending_signup' ? '#92400e' : '#1e40af' }}>
+                      {user.onboarding_status === 'pending_signup' ? '📧 Attente inscription' : '✓ Profil complété'}
+                    </span>
+                  </div>
                   <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>{user.email}</div>
                   <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Rôle: <strong>{user.role || 'Non défini'}</strong></div>
                 </div>
-                <div style={{ fontSize: 11, color: '#9ca3af' }}>Cliquez pour compléter →</div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>Cliquez →</div>
               </div>
             </div>
           ))}
@@ -136,7 +141,18 @@ export default function UserValidation() {
       {viewing && (
         <div style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 12, maxWidth: 600, maxHeight: '90vh', overflow: 'auto', padding: 24, boxShadow: '0 20px 25px rgba(0,0,0,0.15)' }}>
-            <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 700, color: '#1f2937' }}>✅ Valider: {viewing.first_name} {viewing.last_name}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1f2937' }}>✅ Valider: {viewing.first_name} {viewing.last_name}</h2>
+              <span style={{ fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 4, background: viewing.onboarding_status === 'pending_signup' ? '#fef3c7' : '#d1fae5', color: viewing.onboarding_status === 'pending_signup' ? '#92400e' : '#065f46' }}>
+                {viewing.onboarding_status === 'pending_signup' ? '📧 Invitation envoyée' : '✓ Profil complété'}
+              </span>
+            </div>
+
+            {viewing.onboarding_status === 'pending_signup' && (
+              <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 12, color: '#92400e' }}>
+                ⏳ Cet utilisateur n'a pas encore complété son profil. Son invitation est en attente.
+              </div>
+            )}
 
             <div style={{ display: 'grid', gap: 16, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #e5e7eb' }}>
               <div>

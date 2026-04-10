@@ -8,12 +8,12 @@ export default async function handler(req, res) {
   try {
     // Fetch users that are pending validation:
     // - Not active yet (is_active = 0)
-    // - AND completed onboarding (onboarding_status = 'pending_validation')
+    // - AND either haven't completed signup yet (pending_signup) OR completed signup but not validated (pending_validation)
     const result = await query(
       `SELECT id, email, first_name, last_name, telephone, address, fonction, company, role, city, postal_code, liaison_ebrigade_id, niss, bce, account, is_active, must_complete_profile, accepted_cgu, accepted_privacy, onboarding_status
        FROM users
        WHERE is_active = 0
-         AND onboarding_status = 'pending_validation'
+         AND onboarding_status IN ('pending_signup', 'pending_validation')
        ORDER BY created_at DESC`
     )
     
