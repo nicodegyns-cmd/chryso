@@ -252,12 +252,6 @@ export default function ManualHourEntry() {
                             <strong>{prestation.sortie_hours}h</strong>
                           </div>
                         )}
-                        {prestation.overtime_hours && (
-                          <div className={styles.cardRow}>
-                            <span>Heures sup:</span>
-                            <strong>{prestation.overtime_hours}h</strong>
-                          </div>
-                        )}
                         {prestation.comments && (
                           <div className={styles.cardRow}>
                             <span>Commentaires:</span>
@@ -306,7 +300,6 @@ export default function ManualHourEntry() {
                       <option value="Normal">Normal</option>
                       <option value="Garde">Garde</option>
                       <option value="Sortie">Sortie</option>
-                      <option value="Overtime">Heures sup</option>
                     </select>
                   </div>
 
@@ -346,20 +339,6 @@ export default function ManualHourEntry() {
                       step="0.25"
                       name="sortie_hours"
                       value={formData.sortie_hours}
-                      onChange={handleFormChange}
-                      placeholder="0"
-                      min="0"
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label htmlFor="overtime_hours">Heures supplémentaires:</label>
-                    <input
-                      id="overtime_hours"
-                      type="number"
-                      step="0.25"
-                      name="overtime_hours"
-                      value={formData.overtime_hours}
                       onChange={handleFormChange}
                       placeholder="0"
                       min="0"

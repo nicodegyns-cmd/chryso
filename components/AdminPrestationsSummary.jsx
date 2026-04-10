@@ -372,12 +372,6 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                       <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{viewing.sortie_hours}</div>
                     </div>
                   )}
-                  {viewing.overtime_hours !== null && viewing.overtime_hours !== undefined && (
-                    <div>
-                      <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SUPPLÉMENTAIRES</div>
-                      <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{viewing.overtime_hours}</div>
-                    </div>
-                  )}
                 </div>
               </div>
 

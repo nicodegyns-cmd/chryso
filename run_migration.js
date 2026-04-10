@@ -1,0 +1,5 @@
+const { getPool } = require('./services/db')
+const pool = getPool()
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS moderator_analytic_ids TEXT DEFAULT NULL')
+  .then(() => { console.log('Migration OK'); process.exit(0) })
+  .catch(e => { console.error('Migration FAILED:', e.message); process.exit(1) })

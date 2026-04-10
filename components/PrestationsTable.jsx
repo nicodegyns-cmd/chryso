@@ -879,12 +879,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                         <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{editing.sortie_hours}</div>
                       </div>
                     )}
-                    {editing.overtime_hours !== null && editing.overtime_hours !== undefined && (
-                      <div>
-                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SUPPLÉMENTAIRES</div>
-                        <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{editing.overtime_hours}</div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -979,12 +973,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                         <div style={{fontSize:11,color:'#10b981',marginTop:6,fontWeight:600}}>💰 {ratePreview && ratePreview.rates && ratePreview.rates.detailed ? (ratePreview.rates.detailed.sortie_infi ? ratePreview.rates.detailed.sortie_infi+' €/h (infi) • '+ratePreview.rates.detailed.sortie_med+' €/h (med)' : ratePreview.rates.infi+' €/h • '+ratePreview.rates.med+' €/h') : '—'}</div>
                       </label>
                       
-                      <label style={{display:'flex',flexDirection:'column'}}>
-                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SUPPLÉMENTAIRES</div>
-                        <input type="number" value={editing.overtime_hours ?? ''} onChange={e=>{ setEditing({...editing, overtime_hours: e.target.value ? Number(e.target.value) : null}); }} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
-                        <div style={{fontSize:11,color:'#10b981',marginTop:6,fontWeight:600}}>💰 {ratePreview && ratePreview.rates ? (ratePreview.rates.detailed && ratePreview.rates.detailed.sortie_med ? ratePreview.rates.detailed.sortie_med+' €/h (med) • '+ratePreview.rates.detailed.sortie_infi+' €/h (infi)' : ratePreview.rates.med+' €/h • '+ratePreview.rates.infi+' €/h') : '—'}</div>
-                      </label>
-                      
                       {/* Auto-calculated garde hours */}
                       {editing.ebrigade_duration_hours && editing.sortie_hours && (
                         <div style={{padding:10,background:'#f0fdf4',borderRadius:6,border:'1px solid #bbf7d0'}}>
@@ -1010,11 +998,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                           <input type="number" value={editing.garde_hours ?? ''} onChange={e=>setEditing({...editing, garde_hours: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
                         </label>
                       )}
-                      <label style={{display:'flex',flexDirection:'column'}}>
-                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SUPPLÉMENTAIRES</div>
-                        <input type="number" value={editing.overtime_hours ?? ''} onChange={e=>{ setEditing({...editing, overtime_hours: e.target.value ? Number(e.target.value) : null}); }} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
-                        <div style={{fontSize:11,color:'#10b981',marginTop:6,fontWeight:600}}>💰 {ratePreview && ratePreview.rates ? (ratePreview.rates.detailed && ratePreview.rates.detailed.sortie_med ? ratePreview.rates.detailed.sortie_med+' €/h (med) • '+ratePreview.rates.detailed.sortie_infi+' €/h (infi)' : ratePreview.rates.med+' €/h • '+ratePreview.rates.infi+' €/h') : '—'}</div>
-                      </label>
                     </div>
                   )}
                 </div>
