@@ -158,7 +158,7 @@ export default function DashboardPage() {
               <RIBUploadBanner email={userEmail} />
 
               {/* EBrigadePrestationsDisplay removed: users should use 'Mes prestations' below */}
-              <PrestationsStats email={userEmail} />
+              <PrestationsStats email={userEmail} role={userRole} />
               <PrestationsTable ref={prestationsTableRef} email={userEmail} />
             </div>
           </>

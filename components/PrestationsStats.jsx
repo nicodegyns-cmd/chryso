@@ -1,6 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react'
 
-export default function PrestationsStats({ email }){
+export default function PrestationsStats({ email, role }){
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -42,15 +42,19 @@ export default function PrestationsStats({ email }){
 
   // Compute invoice total directly from stored remuneration values (same values used on the actual PDF invoice)
   useEffect(()=>{
+    const roleLow = (role || '').toLowerCase()
+    const isMed = roleLow.includes('med') || roleLow.includes('médec') || roleLow.includes('doctor')
+    const isInfi = roleLow.includes('infi') || roleLow.includes('infir') || roleLow.includes('nurs')
     const invoices = (filtered || []).filter(p => p && p.invoice_number)
     const sum = invoices.reduce((acc, p) => {
-      return acc
-        + (Number(p.remuneration_infi) || 0)
-        + (Number(p.remuneration_med) || 0)
-        + (Number(p.expense_amount) || 0)
+      let remu = 0
+      if (isMed) remu = Number(p.remuneration_med) || 0
+      else if (isInfi) remu = Number(p.remuneration_infi) || 0
+      else remu = (Number(p.remuneration_infi) || 0) + (Number(p.remuneration_med) || 0)
+      return acc + remu + (Number(p.expense_amount) || 0)
     }, 0)
     setInvoiceTotal(Math.round((sum + Number.EPSILON) * 100) / 100)
-  },[filtered])
+  },[filtered, role])
 
   return (
     <div className="card" style={{display:'flex',flexDirection:'column',gap:8}}>
