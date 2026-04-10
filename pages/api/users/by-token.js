@@ -1,6 +1,7 @@
-const { query } = require('../../../services/db')
+import { getPool } from '../../../services/db'
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
+  const pool = getPool()
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -14,7 +15,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Email required' })
     }
 
-    const result = await query(
+    const result = await pool.query(
       `SELECT id, email, first_name, last_name, liaison_ebrigade_id 
        FROM users 
        WHERE LOWER(email) = LOWER($1) AND is_active = true`,
