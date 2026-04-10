@@ -94,7 +94,8 @@ export default function SignupPage() {
       }
 
       setSuccess(true)
-      setTimeout(() => router.push('/login'), 2000)
+      localStorage.setItem('email', form.email)
+      setTimeout(() => router.push('/account-pending'), 2000)
     } catch (e) {
       setError(e.message)
     } finally {

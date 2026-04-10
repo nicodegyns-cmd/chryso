@@ -34,6 +34,11 @@ export default function AccountPendingPage() {
     }
 
     load()
+
+    // Auto-refresh every 5 seconds to check if account is validated
+    const interval = setInterval(load, 5000)
+    
+    return () => clearInterval(interval)
   }, [])
 
   function handleLogout() {
