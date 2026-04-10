@@ -26,9 +26,9 @@ export default async function handler(req, res){
       const mappingsResult = await pool.query(`
         SELECT 
           nam.ebrigade_analytic_name_pattern as ebrigade_analytic_name,
-          nam.activity_id as local_analytic_id,
+          nam.activity_id as local_activity_id,
           a.id,
-          a.analytic_name as name
+          a.analytic_id as activity_analytic_id
         FROM activity_ebrigade_name_mappings nam
         LEFT JOIN activities a ON nam.activity_id = a.id
       `)
@@ -133,7 +133,7 @@ export default async function handler(req, res){
         duration: p.EP_DUREE,
         analytic_code: p.E_CODE,  // Always eBrigade code
         analytic_name: p.E_LIBELLE,  // Always display full eBrigade name to user
-        analytic_id: mapping?.local_analytic_id || null,  // THIS is what matters - which local activity to use
+        analytic_id: mapping?.activity_analytic_id || null,  // ID from analytics table (3,4,5,6,7) - NOT activity id
         activity: p.E_LIBELLE,
         pay_type: p.TE_LIBELLE || 'Garde',
         status: 'À saisir',
@@ -142,7 +142,7 @@ export default async function handler(req, res){
         ebrigade_activity_name: p.E_LIBELLE,  // IMPORTANT: composant PrestationsTable cherche ce champ!
         ebrigade_activity_code: p.E_CODE,  // Send code too for fallback
         _mapping: mapping,  // Keep mapping for DB filtering and tariff lookup
-        _mapped_activity_id: mapping?.local_analytic_id  // Explicit mapping for clarity
+        _mapped_activity_id: mapping?.local_activity_id  // Local activity id for tariff lookup
       }
     })
 
