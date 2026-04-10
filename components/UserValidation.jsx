@@ -90,6 +90,15 @@ export default function UserValidation() {
 
   const pending = useMemo(() => users.filter(u => u.onboarding_status === 'pending_signup' || u.onboarding_status === 'pending_validation'), [users])
 
+  function getMissingFields(user) {
+    const missing = []
+    if (!user.first_name || !user.last_name) missing.push('Prénom/Nom')
+    if (!user.telephone) missing.push('Téléphone')
+    if (!user.niss && !user.bce) missing.push('NISS ou BCE')
+    if (!user.account) missing.push('Compte bancaire')
+    return missing
+  }
+
   if (loading) {
     return <div style={{ padding: 24, color: '#6b7280' }}>Chargement…</div>
   }
@@ -123,9 +132,13 @@ export default function UserValidation() {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>{user.first_name} {user.last_name}</div>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 4, background: user.onboarding_status === 'pending_signup' ? '#fef3c7' : '#dbeafe', color: user.onboarding_status === 'pending_signup' ? '#92400e' : '#1e40af' }}>
-                      {user.onboarding_status === 'pending_signup' ? '📧 Attente inscription' : '✓ Profil complété'}
-                    </span>
+                    {(() => {
+                      if (user.onboarding_status === 'pending_signup') return <span style={{ fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 4, background: '#fef3c7', color: '#92400e' }}>📧 Attente inscription</span>
+                      const missing = getMissingFields(user)
+                      return missing.length === 0
+                        ? <span style={{ fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 4, background: '#dbeafe', color: '#1e40af' }}>✓ Profil complété</span>
+                        : <span style={{ fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 4, background: '#fef3c7', color: '#b45309' }}>⚠️ Infos manquantes</span>
+                    })()}
                   </div>
                   <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>{user.email}</div>
                   <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Rôle: <strong>{user.role || 'Non défini'}</strong></div>
@@ -143,14 +156,23 @@ export default function UserValidation() {
           <div style={{ background: '#fff', borderRadius: 12, maxWidth: 600, maxHeight: '90vh', overflow: 'auto', padding: 24, boxShadow: '0 20px 25px rgba(0,0,0,0.15)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1f2937' }}>✅ Valider: {viewing.first_name} {viewing.last_name}</h2>
-              <span style={{ fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 4, background: viewing.onboarding_status === 'pending_signup' ? '#fef3c7' : '#d1fae5', color: viewing.onboarding_status === 'pending_signup' ? '#92400e' : '#065f46' }}>
-                {viewing.onboarding_status === 'pending_signup' ? '📧 Invitation envoyée' : '✓ Profil complété'}
-              </span>
+              {(() => {
+                if (viewing.onboarding_status === 'pending_signup') return <span style={{ fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 4, background: '#fef3c7', color: '#92400e' }}>📧 Invitation envoyée</span>
+                const missing = getMissingFields(viewing)
+                return missing.length === 0
+                  ? <span style={{ fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 4, background: '#d1fae5', color: '#065f46' }}>✓ Profil complété</span>
+                  : <span style={{ fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 4, background: '#fef3c7', color: '#b45309' }}>⚠️ {missing.join(', ')} manquant(s)</span>
+              })()}
             </div>
 
             {viewing.onboarding_status === 'pending_signup' && (
               <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 12, color: '#92400e' }}>
                 ⏳ Cet utilisateur n'a pas encore complété son profil. Son invitation est en attente.
+              </div>
+            )}
+            {viewing.onboarding_status === 'pending_validation' && getMissingFields(viewing).length > 0 && (
+              <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 12, color: '#c2410c' }}>
+                ⚠️ <strong>Infos manquantes à renseigner avant validation :</strong> {getMissingFields(viewing).join(', ')}
               </div>
             )}
 
