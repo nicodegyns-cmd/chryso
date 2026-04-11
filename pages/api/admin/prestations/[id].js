@@ -286,7 +286,7 @@ export default async function handler(req, res){
           ${ logoDataUri ? `<img src="${logoDataUri}" alt="logo"/>` : `<img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='76' height='76'><circle cx='38' cy='38' r='36' fill='%23fff' stroke='%23e33' stroke-width='6'/><text x='50%' y='52%' font-size='28' text-anchor='middle' fill='%23e33' font-family='Arial' dy='.3em'>+</text></svg>" alt="logo" />` }
         </div>
         <div class="provider">
-          <div class="name">${(((updatedRow.user_first_name || updatedRow.first_name || '') + ' ' + (updatedRow.user_last_name || updatedRow.last_name || '')).trim()) || (updatedRow.company_name || 'Fournisseur')}</div>
+          <div class="name">${updatedRow.company_name ? updatedRow.company_name : (((updatedRow.user_first_name || updatedRow.first_name || '') + ' ' + (updatedRow.user_last_name || updatedRow.last_name || '')).trim() || 'Fournisseur')}</div>
           <div class="meta">${(updatedRow.user_address || updatedRow.address || '')}</div>
           <div class="meta">${(updatedRow.user_bce || updatedRow.bce || '')}</div>
         </div>
