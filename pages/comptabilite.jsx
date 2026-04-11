@@ -144,49 +144,32 @@ export default function ComptabilitePage() {
   async function openFicheModal() {
     setFicheModalOpen(true)
     try {
-      const res = await fetch('/api/admin/users/pending-validation')
+      const res = await fetch('/api/admin/users/active')
       if (!res.ok) throw new Error('Erreur récupération fiches')
       const data = await res.json()
       const items = data.items || []
       setFicheUsers(items)
+      setFichePendingCount(items.length)
     } catch (e) {
       console.error('Failed loading fiches', e.message)
       setFicheUsers([])
     }
   }
 
-  async function validateUser(userId) {
-    try {
-      const res = await fetch(`/api/admin/users/${userId}/validate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'prestataire' })
-      })
-      if (!res.ok) throw new Error('Failed to validate user')
-      // remove from list
-      setFicheUsers(prev => prev.filter(u => u.id !== userId))
-      setFichePendingCount(c => Math.max(0, c - 1))
-    } catch (e) {
-      console.error('Validate failed', e.message)
-      alert('Erreur lors de la validation')
-    }
-  }
-
-  // Fetch pending 'fiches de renseignement' (onboarding pending)
+  // Fetch active validated users count (INFI/MED) for fiche counter
   useEffect(() => {
     let mounted = true
-    async function fetchPendingFiches() {
+    async function fetchActiveCount() {
       try {
-        const res = await fetch('/api/admin/users/pending-validation')
-        if (!res.ok) throw new Error('Erreur récupération fiches')
+        const res = await fetch('/api/admin/users/active')
+        if (!res.ok) return
         const data = await res.json()
-        const items = data.items || []
-        if (mounted) setFichePendingCount(items.length)
+        if (mounted) setFichePendingCount((data.items || []).length)
       } catch (err) {
-        console.warn('Failed loading pending fiches', err.message)
+        console.warn('Failed loading active users count', err.message)
       }
     }
-    fetchPendingFiches()
+    fetchActiveCount()
     return () => { mounted = false }
   }, [])
 
@@ -349,9 +332,9 @@ export default function ComptabilitePage() {
             <div style={{fontSize: 12, color: '#6b7280', marginTop: 8}}>Documents RIB soumis par les utilisateurs</div>
           </div>
             <div style={{background: 'white', borderRadius: 8, padding: 16, border: '1px solid #e5e7eb', boxShadow: '0 1px 2px rgba(0,0,0,0.03)'}}>
-              <div style={{fontSize: 12, color: '#6b7280', marginBottom: 6, fontWeight: 700}}>📋 Fiches renseignement à encoder</div>
+              <div style={{fontSize: 12, color: '#6b7280', marginBottom: 6, fontWeight: 700}}>📋 Fiches renseignement</div>
                 <div style={{fontSize: 22, fontWeight: 800, color: '#111827', cursor: 'pointer'}} onClick={openFicheModal}>{fichePendingCount}</div>
-              <div style={{fontSize: 12, color: '#6b7280', marginTop: 8}}>Utilisateurs avec onboarding en attente</div>
+              <div style={{fontSize: 12, color: '#6b7280', marginTop: 8}}>Prestataires validés (INFI / MED)</div>
             </div>
         </div>
 
@@ -730,12 +713,12 @@ export default function ComptabilitePage() {
         <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1200}} onClick={() => setFicheModalOpen(false)}>
           <div style={{background:'#fff',borderRadius:8,width:'95%',maxWidth:1100,maxHeight:'90vh',overflow:'auto',padding:20}} onClick={(e)=>e.stopPropagation()}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-              <h2 style={{margin:0}}>📋 Fiches en attente ({ficheUsers.length})</h2>
+              <h2 style={{margin:0}}>Fiches de renseignement ({ficheUsers.length})</h2>
               <button onClick={() => setFicheModalOpen(false)} style={{border:'none',background:'transparent',fontSize:18,cursor:'pointer'}}>✕</button>
             </div>
             <div className={adminStyles['documents-grid']}>
               {ficheUsers.length === 0 ? (
-                <div style={{padding:20,color:'#6b7280'}}>Aucune fiche en attente</div>
+                <div style={{padding:20,color:'#6b7280'}}>Aucune fiche disponible</div>
               ) : ficheUsers.map(u => (
                 <div key={u.id} className={adminStyles['document-card']} onClick={() => {}}>
                   <div className={adminStyles['doc-header']}>
@@ -749,9 +732,8 @@ export default function ComptabilitePage() {
                     {u.address && <p className={adminStyles.city}>📍 {u.address}</p>}
                   </div>
 
-                  <div style={{marginTop:12, display:'flex', gap:8}}>
+                  <div style={{marginTop:12}}>
                     <button onClick={() => { setSelectedFiche(u); setFicheViewerOpen(true); }} className={adminStyles['view-document-btn']}>Voir</button>
-                    <button onClick={() => validateUser(u.id)} style={{padding:'8px 12px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Valider</button>
                   </div>
                 </div>
               ))}
