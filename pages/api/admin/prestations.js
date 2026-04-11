@@ -12,9 +12,7 @@ export default async function handler(req, res) {
            FROM prestations p
            LEFT JOIN users u ON p.user_id = u.id
            LEFT JOIN analytics an ON p.analytic_id = an.id
-           WHERE p.status IN ($1, $2, $3)
-           ORDER BY p.date DESC, p.id DESC`,
-          ["À saisir", "En attente d'approbation", "En attente d'envoie"]
+           ORDER BY p.date DESC, p.id DESC`
         )
         const rows = (q && q.rows) ? q.rows : []
         return res.status(200).json({ items: rows })
