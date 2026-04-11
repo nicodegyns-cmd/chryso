@@ -766,6 +766,12 @@ export default function ComptabilitePage() {
                     <p style={{margin:0,fontSize:15,color:'#111827'}}>{selectedFiche.address}</p>
                   </div>
                 )}
+                {selectedFiche.ninami && (
+                  <div>
+                    <label style={{display:'block',fontSize:12,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',marginBottom:4}}>N'INAMI</label>
+                    <p style={{margin:0,fontSize:15,color:'#111827',fontFamily:'monospace'}}>{selectedFiche.ninami}</p>
+                  </div>
+                )}
               </div>
             </div>
 

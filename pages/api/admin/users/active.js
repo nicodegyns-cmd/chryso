@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   try {
     const result = await query(
-      `SELECT id, email, first_name, last_name, telephone, address, fonction, company, role, niss, bce, account
+      `SELECT id, email, first_name, last_name, address, fonction, company, role, ninami, niss, bce, account
        FROM users
        WHERE is_active = 1
          AND onboarding_status = 'active'
@@ -28,6 +28,7 @@ export default async function handler(req, res) {
         fonction: row.fonction,
         company: row.company,
         role: row.role,
+        ninami: row.ninami,
         niss: row.niss,
         bce: row.bce,
         account: row.account,
