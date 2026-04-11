@@ -257,16 +257,8 @@ export default function ProfilePage(){
                         <input value={form.lastName} onChange={(e) => setForm({...form, lastName: e.target.value})} />
                       </label>
                       <label className="form-row">
-                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>TÉLÉPHONE</div>
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>T\u00c9L\u00c9PHONE</div>
                         <input value={form.telephone} onChange={(e) => setForm({...form, telephone: e.target.value})} />
-                      </label>
-                      <label className="form-row">
-                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>FONCTION</div>
-                        <select value={form.fonction} onChange={(e) => setForm({...form, fonction: e.target.value})}>
-                          <option value="">— Choisir —</option>
-                          <option value="INFI">INFI</option>
-                          <option value="MED">MED</option>
-                        </select>
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>N'INAMI</div>
@@ -278,15 +270,15 @@ export default function ProfilePage(){
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE</div>
-                        <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} placeholder="Optionnel" />
-                        <div style={{fontSize:12,color:'#fff',fontWeight:600,marginTop:6,padding:8,background:'#f97316',borderRadius:4,lineHeight:1.4}}>⚠️ Ne remplir uniquement si vous êtes en société (personne morale)</div>
+                        <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} />
                       </label>
                       <label className="form-row">
-                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>SOCIÉTÉ</div>
-                        <input value={form.societe} onChange={(e) => setForm({...form, societe: e.target.value})} />
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>SOCI\u00c9T\u00c9 (optionnel)</div>
+                        <input value={form.societe} onChange={(e) => setForm({...form, societe: e.target.value})} placeholder="Optionnel" />
+                        <div style={{fontSize:12,color:'#fff',fontWeight:600,marginTop:6,padding:8,background:'#f97316',borderRadius:4,lineHeight:1.4}}>\u26a0\ufe0f Ne remplir uniquement si vous \u00eates en soci\u00e9t\u00e9 (personne morale)</div>
                       </label>
                       <label className="form-row">
-                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE</div>
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE BANCAIRE</div>
                         <input value={form.compte} onChange={(e) => setForm({...form, compte: e.target.value})} />
                       </label>
                       <label className="form-row">
@@ -331,16 +323,8 @@ export default function ProfilePage(){
                     <input value={form.lastName} onChange={(e) => setForm({...form, lastName: e.target.value})} />
                   </label>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>TÉLÉPHONE</div>
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>T\u00c9L\u00c9PHONE</div>
                     <input value={form.telephone} onChange={(e) => setForm({...form, telephone: e.target.value})} />
-                  </label>
-                  <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>FONCTION</div>
-                    <select value={form.fonction} onChange={(e) => setForm({...form, fonction: e.target.value})}>
-                      <option value="">— Choisir —</option>
-                      <option value="INFI">INFI</option>
-                      <option value="MED">MED</option>
-                    </select>
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>N'INAMI</div>
@@ -352,15 +336,15 @@ export default function ProfilePage(){
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE</div>
-                    <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} placeholder="Optionnel" />
-                    <div style={{fontSize:12,color:'#fff',fontWeight:600,marginTop:6,padding:8,background:'#f97316',borderRadius:4,lineHeight:1.4}}>⚠️ Ne remplir uniquement si vous êtes en société (personne morale)</div>
+                    <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} />
                   </label>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>SOCIÉTÉ</div>
-                    <input value={form.societe} onChange={(e) => setForm({...form, societe: e.target.value})} />
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>SOCI\u00c9T\u00c9 (optionnel)</div>
+                    <input value={form.societe} onChange={(e) => setForm({...form, societe: e.target.value})} placeholder="Optionnel" />
+                    <div style={{fontSize:12,color:'#fff',fontWeight:600,marginTop:6,padding:8,background:'#f97316',borderRadius:4,lineHeight:1.4}}>\u26a0\ufe0f Ne remplir uniquement si vous \u00eates en soci\u00e9t\u00e9 (personne morale)</div>
                   </label>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE</div>
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE BANCAIRE</div>
                     <input value={form.compte} onChange={(e) => setForm({...form, compte: e.target.value})} />
                   </label>
                   <label className="form-row" style={{gridColumn:'1 / -1'}}>
