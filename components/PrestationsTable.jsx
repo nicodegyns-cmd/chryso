@@ -203,9 +203,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           const checkData = await checkResp.json()
           console.log('[openEdit] API check result:', checkData)
           
-          // Look for non-finalized prestation
+          // Look for non-finalized prestation matching this analytic
           const existingFromApi = checkData.prestations?.find(prest => 
-            prest.status !== "Envoyé à la facturation"
+            prest.status !== "Envoyé à la facturation" &&
+            (prest.analytic_code === p.analytic_code || prest.analytic_id === p.analytic_id)
           )
           
           if (existingFromApi && existingFromApi.id) {
@@ -237,26 +238,20 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         prest.status !== "Envoyé à la facturation"
       )
       
-      // Alternative: search by date + pay_type
-      if (!existingPrestation) {
+      // Alternative: search by date + pay_type (only if analytic_code is also matching)
+      if (!existingPrestation && p.analytic_code) {
         existingPrestation = items.find(prest => 
           !prest.isActivity &&
           !prest.id?.toString().startsWith('act_') &&
           prest.date === p.date &&
           prest.pay_type === p.pay_type &&
+          prest.analytic_code === p.analytic_code &&
           prest.status !== "Envoyé à la facturation"
         )
       }
       
-      // Alternative: just find ANY non-finalized prestation for this date
-      if (!existingPrestation) {
-        existingPrestation = items.find(prest => 
-          !prest.isActivity &&
-          !prest.id?.toString().startsWith('act_') &&
-          prest.date === p.date &&
-          prest.status !== "Envoyé à la facturation"
-        )
-      }
+      // NOTE: intentionally NOT falling back to date-only search, as that would cause
+      // a prestation from a different activity on the same day to be wrongly matched
       
       if (existingPrestation && existingPrestation.id) {
         console.log('[openEdit] ✅ FOUND existing prestation in items (id=' + existingPrestation.id + ')')
