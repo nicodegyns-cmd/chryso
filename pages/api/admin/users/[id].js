@@ -115,9 +115,16 @@ export default async function handler(req, res) {
         params.push(acceptedPrivacy ? 1 : 0) // Use 1/0 for SMALLINT, not boolean
       }
       
-      // If both accepted flags set true, clear must_complete_profile and set onboarding_status to pending_validation
-      // Also ensure is_active = false until admin validates
+      // If both accepted flags set true AND user is not already active, set to pending_validation
+      // Do NOT downgrade already-active accounts when they edit their profile
+      let alreadyActive = false
       if (acceptedCgu && acceptedPrivacy) {
+        const currentQ = await pool.query('SELECT onboarding_status, is_active FROM users WHERE id = $1', [id])
+        const currentRows = (currentQ && currentQ.rows) ? currentQ.rows : Array.isArray(currentQ) ? currentQ[0] : []
+        const current = currentRows[0]
+        alreadyActive = current && (current.onboarding_status === 'active' || current.is_active == 1)
+      }
+      if (acceptedCgu && acceptedPrivacy && !alreadyActive) {
         setClauses.push(`must_complete_profile = $${paramIdx++}`)
         params.push(0) // false -> 0 for SMALLINT
         setClauses.push(`onboarding_status = $${paramIdx++}`)
@@ -134,8 +141,8 @@ export default async function handler(req, res) {
       const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
       const updatedUser = rows[0]
 
-        // If the user just set acceptedCgu + acceptedPrivacy -> notify user that account is pending validation
-        if (acceptedCgu && acceptedPrivacy) {
+        // If the user just set acceptedCgu + acceptedPrivacy for the first time -> notify user that account is pending validation
+        if (acceptedCgu && acceptedPrivacy && !alreadyActive) {
           try {
             const { send } = require('../../../../services/emailService')
             const appName = process.env.APP_NAME || 'Fenix'
