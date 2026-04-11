@@ -16,9 +16,6 @@ function getEmailHeaders(fromEmail) {
     'X-Priority': '3 (Normal)',
     'Importance': 'normal',
     'X-MSMail-Priority': 'Normal',
-    'MIME-Version': '1.0',
-    'Content-Type': 'text/html; charset=UTF-8',
-    'Content-Transfer-Encoding': '7bit',
     'Reply-To': fromEmail,
     
     // CRITICAL: Tell Outlook/Gmail this is NOT a mailing list, it's transactional
