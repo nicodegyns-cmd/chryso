@@ -122,6 +122,10 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
       if (status === "Envoyé à la facturation") {
         alert(`✅ Prestation envoyée à la comptabilité!\nFacture: ${updated.invoice_number || 'N/A'}\nLa comptabilité peut maintenant traiter le dossier.`)
       }
+      // If current filter hides the updated item, switch to "all" to avoid surprising empty list
+      if (statusFilter && status !== statusFilter) {
+        setStatusFilter('')
+      }
     }catch(e){ console.error('update status failed', e); alert('Erreur lors de la mise à jour') }
     finally{ setSavingIds(prev => { const c = {...prev}; delete c[id]; return c }) }
   }
@@ -136,6 +140,9 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
       setItems(prev => prev.map(p => p.id === updated.id ? updated : p))
       setRefusingId(null)
       setRefusalReason('')
+      if (statusFilter && 'Annulé' !== statusFilter) {
+        setStatusFilter('')
+      }
     }catch(e){ console.error('refuse prestation failed', e); alert('Erreur lors du refus') }
     finally{ setSavingIds(prev => { const c = {...prev}; delete c[id]; return c }) }
   }
@@ -224,7 +231,23 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
             </tr>
           </thead>
           <tbody>
-            {displayed.length === 0 && <tr><td colSpan={7} style={{padding:12,color:'#666',textAlign:'center',background:'#f9fafb',borderBottom:'1px solid #e5e7eb'}}>Aucune demande</td></tr>}
+            {displayed.length === 0 && (
+              <tr><td colSpan={7} style={{padding:24,textAlign:'center',background:'#f9fafb',borderBottom:'1px solid #e5e7eb'}}>
+                <div style={{color:'#6b7280',marginBottom:10}}>
+                  {statusFilter || dateFrom || dateTo || userFilter
+                    ? `Aucune demande pour le filtre actuel.`
+                    : 'Aucune demande'}
+                </div>
+                {(statusFilter || dateFrom || dateTo || userFilter) && (
+                  <button
+                    onClick={() => { setDateFrom(''); setDateTo(''); setStatusFilter(''); setUserFilter('') }}
+                    style={{padding:'6px 14px',borderRadius:6,border:'1px solid #6366f1',background:'#eef2ff',color:'#4338ca',cursor:'pointer',fontWeight:600,fontSize:13}}
+                  >
+                    Voir toutes les demandes
+                  </button>
+                )}
+              </td></tr>
+            )}
             {displayed.map((it, idx) => (
               <tr key={it.id} style={{
                 background: savingIds[it.id] ? '#fef9c3' : (idx % 2 === 0 ? '#fff' : '#f9fafb'),
