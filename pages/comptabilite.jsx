@@ -756,55 +756,68 @@ export default function ComptabilitePage() {
               <button onClick={() => setFicheViewerOpen(false)} style={{border:'none',background:'transparent',fontSize:24,cursor:'pointer',padding:0,color:'#6b7280'}}>✕</button>
             </div>
 
-            {/* Content - Only show non-sensitive info */}
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
-              {selectedFiche.company && (
-                <div>
-                  <label style={{display:'block',fontSize:12,fontWeight:600,color:'#6b7280',textTransform:'uppercase',marginBottom:6}}>Entreprise</label>
-                  <p style={{margin:0,fontSize:15,color:'#111827'}}>{selectedFiche.company}</p>
-                </div>
-              )}
-              {selectedFiche.address && (
-                <div>
-                  <label style={{display:'block',fontSize:12,fontWeight:600,color:'#6b7280',textTransform:'uppercase',marginBottom:6}}>Adresse</label>
-                  <p style={{margin:0,fontSize:15,color:'#111827'}}>{selectedFiche.address}</p>
-                </div>
-              )}
-              {selectedFiche.city && (
-                <div>
-                  <label style={{display:'block',fontSize:12,fontWeight:600,color:'#6b7280',textTransform:'uppercase',marginBottom:6}}>Ville</label>
-                  <p style={{margin:0,fontSize:15,color:'#111827'}}>{selectedFiche.city}</p>
-                </div>
-              )}
-              {selectedFiche.postal_code && (
-                <div>
-                  <label style={{display:'block',fontSize:12,fontWeight:600,color:'#6b7280',textTransform:'uppercase',marginBottom:6}}>Code Postal</label>
-                  <p style={{margin:0,fontSize:15,color:'#111827'}}>{selectedFiche.postal_code}</p>
-                </div>
-              )}
+            {/* Informations personnelles */}
+            <div style={{marginBottom:24}}>
+              <h3 style={{margin:'0 0 12px 0',fontSize:13,fontWeight:700,color:'#6b7280',textTransform:'uppercase',letterSpacing:'0.05em'}}>Informations personnelles</h3>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+                {selectedFiche.address && (
+                  <div style={{gridColumn:'1/-1'}}>
+                    <label style={{display:'block',fontSize:12,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',marginBottom:4}}>Adresse</label>
+                    <p style={{margin:0,fontSize:15,color:'#111827'}}>{selectedFiche.address}</p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Roles */}
-            {selectedFiche.role && (
-              <div style={{marginTop:20,paddingTop:20,borderTop:'1px solid #e5e7eb'}}>
-                <label style={{display:'block',fontSize:12,fontWeight:600,color:'#6b7280',textTransform:'uppercase',marginBottom:8}}>Rôles</label>
-                <div style={{display:'flex',gap:6}}>
-                  {(selectedFiche.role || '').split(',').map((r,i) => (
-                    <span key={i} style={{background:'#e0e7ff',color:'#3730a3',padding:'4px 10px',borderRadius:4,fontSize:13}}>
-                      {r.trim()}
+            {/* Informations professionnelles */}
+            <div style={{paddingTop:20,borderTop:'1px solid #e5e7eb'}}>
+              <h3 style={{margin:'0 0 12px 0',fontSize:13,fontWeight:700,color:'#6b7280',textTransform:'uppercase',letterSpacing:'0.05em'}}>Informations professionnelles</h3>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+                {selectedFiche.role && (
+                  <div>
+                    <label style={{display:'block',fontSize:12,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',marginBottom:4}}>R\u00f4le</label>
+                    <span style={{background:'#e0e7ff',color:'#3730a3',padding:'4px 10px',borderRadius:4,fontSize:13,fontWeight:600}}>
+                      {selectedFiche.role}
                     </span>
-                  ))}
-                </div>
+                  </div>
+                )}
+                {selectedFiche.fonction && (
+                  <div>
+                    <label style={{display:'block',fontSize:12,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',marginBottom:4}}>Fonction</label>
+                    <p style={{margin:0,fontSize:15,color:'#111827'}}>{selectedFiche.fonction}</p>
+                  </div>
+                )}
+                {selectedFiche.company && (
+                  <div>
+                    <label style={{display:'block',fontSize:12,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',marginBottom:4}}>Entreprise</label>
+                    <p style={{margin:0,fontSize:15,color:'#111827'}}>{selectedFiche.company}</p>
+                  </div>
+                )}
+                {selectedFiche.niss && (
+                  <div>
+                    <label style={{display:'block',fontSize:12,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',marginBottom:4}}>NISS</label>
+                    <p style={{margin:0,fontSize:15,color:'#111827',fontFamily:'monospace'}}>{selectedFiche.niss}</p>
+                  </div>
+                )}
+                {selectedFiche.bce && (
+                  <div>
+                    <label style={{display:'block',fontSize:12,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',marginBottom:4}}>BCE</label>
+                    <p style={{margin:0,fontSize:15,color:'#111827',fontFamily:'monospace'}}>{selectedFiche.bce}</p>
+                  </div>
+                )}
+                {selectedFiche.account && (
+                  <div style={{gridColumn:'1/-1'}}>
+                    <label style={{display:'block',fontSize:12,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',marginBottom:4}}>Compte bancaire</label>
+                    <p style={{margin:0,fontSize:15,color:'#111827',fontFamily:'monospace'}}>{selectedFiche.account}</p>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
-            {/* Footer - Actions */}
-            <div style={{marginTop:30,display:'flex',justifyContent:'space-between',gap:12,paddingTop:20,borderTop:'1px solid #e5e7eb'}}>
-              <button onClick={() => setFicheViewerOpen(false)} style={{flex:1,padding:'10px 16px',background:'#f3f4f6',color:'#374151',border:'none',borderRadius:6,cursor:'pointer',fontWeight:600}}>
+            {/* Footer */}
+            <div style={{marginTop:30,paddingTop:20,borderTop:'1px solid #e5e7eb'}}>
+              <button onClick={() => setFicheViewerOpen(false)} style={{width:'100%',padding:'10px 16px',background:'#f3f4f6',color:'#374151',border:'none',borderRadius:6,cursor:'pointer',fontWeight:600}}>
                 Fermer
-              </button>
-              <button onClick={() => { setFicheViewerOpen(false); validateUser(selectedFiche.id); }} style={{flex:1,padding:'10px 16px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:600}}>
-                ✓ Valider la fiche
               </button>
             </div>
           </div>
