@@ -643,8 +643,14 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     async function doEstimate(){
       if (!editing) return
       try{
+        // For Garde type: auto-calc garde_hours = ebrigade_duration - sortie_hours
+        let liveGardeH = editing.garde_hours || 0
+        if (editingIsGarde && editing.ebrigade_duration_hours != null &&
+            editing.sortie_hours !== null && editing.sortie_hours !== undefined) {
+          liveGardeH = editing.ebrigade_duration_hours - editing.sortie_hours
+        }
         const body = {
-          garde_hours: editing.garde_hours || 0,
+          garde_hours: liveGardeH,
           sortie_hours: editing.sortie_hours || 0,
           overtime_hours: editing.overtime_hours || 0,
           hours_actual: editing.hours_actual || 0,
@@ -663,7 +669,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     }
     doEstimate()
     return ()=>{ cancelled = true }
-  }, [editing && editing.garde_hours, editing && editing.sortie_hours, editing && editing.overtime_hours, editing && editing.hours_actual, editing && editing.pay_type, editing && editing.analytic_id, editing && editing.analytic_name, clientRole])
+  }, [editing && editing.garde_hours, editing && editing.sortie_hours, editing && editing.overtime_hours, editing && editing.hours_actual, editing && editing.pay_type, editing && editing.analytic_id, editing && editing.analytic_name, editing && editing.ebrigade_duration_hours, clientRole])
 
   function confirmAndSave(){
     saveEdit(true)
@@ -968,8 +974,8 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                         <div style={{fontSize:11,color:'#10b981',marginTop:6,fontWeight:600}}>💰 {ratePreview && ratePreview.rates && ratePreview.rates.detailed ? (ratePreview.rates.detailed.sortie_infi ? ratePreview.rates.detailed.sortie_infi+' €/h (infi) • '+ratePreview.rates.detailed.sortie_med+' €/h (med)' : ratePreview.rates.infi+' €/h • '+ratePreview.rates.med+' €/h') : '—'}</div>
                       </label>
                       
-                      {/* Auto-calculated garde hours */}
-                      {editing.ebrigade_duration_hours && editing.sortie_hours && (
+                      {/* Auto-calculated garde hours - shows even when sortie_hours=0 */}
+                      {editing.ebrigade_duration_hours && editing.sortie_hours !== null && editing.sortie_hours !== undefined && (
                         <div style={{padding:10,background:'#f0fdf4',borderRadius:6,border:'1px solid #bbf7d0'}}>
                           <div style={{fontSize:12,color:'#15803d',fontWeight:600,marginBottom:6}}>🧮 HEURES GARDE (Calculées)</div>
                           <div style={{fontSize:16,fontWeight:700,color:'#15803d'}}>{(editing.ebrigade_duration_hours - (editing.sortie_hours || 0)).toFixed(2)}h</div>

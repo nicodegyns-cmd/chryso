@@ -36,7 +36,8 @@ export default async function handler(req, res) {
             p.garde_hours, p.sortie_hours, p.overtime_hours, p.hours_actual,
             p.expense_amount, p.expense_comment, p.pdf_url, p.request_ref, p.invoice_number,
             an.code AS analytic_code, an.name AS analytic_name,
-            p.ebrigade_activity_name, p.ebrigade_activity_type, p.ebrigade_activity_code, p.ebrigade_id
+            p.ebrigade_activity_name, p.ebrigade_activity_type, p.ebrigade_activity_code, p.ebrigade_id,
+            p.ebrigade_duration_hours, p.ebrigade_start_time, p.ebrigade_end_time
              FROM prestations p
                LEFT JOIN analytics an ON p.analytic_id = an.id
                WHERE p.user_id = $1
@@ -95,7 +96,10 @@ export default async function handler(req, res) {
         ebrigade_activity_name: r.ebrigade_activity_name || null,
         ebrigade_activity_type: r.ebrigade_activity_type || null,
         ebrigade_activity_code: r.ebrigade_activity_code || null,
-        ebrigade_id: r.ebrigade_id || null
+        ebrigade_id: r.ebrigade_id || null,
+        ebrigade_duration_hours: r.ebrigade_duration_hours != null ? Number(r.ebrigade_duration_hours) : null,
+        ebrigade_start_time: r.ebrigade_start_time || null,
+        ebrigade_end_time: r.ebrigade_end_time || null
       }
     })
 
