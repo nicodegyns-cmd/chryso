@@ -19,10 +19,11 @@ export default async function handler(req, res) {
     const pool = getPool()
 
     // Find user by email
-    const [userRows] = await pool.query(
-      'SELECT id FROM users WHERE email = ?',
+    const userResult = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
       [email]
     )
+    const userRows = userResult.rows || []
 
     if (!userRows || userRows.length === 0) {
       return res.status(200).json({ documents: [] })
@@ -31,7 +32,7 @@ export default async function handler(req, res) {
     const userId = userRows[0].id
 
     // Fetch documents for this user from the documents table
-    const [docRows] = await pool.query(
+    const docResult = await pool.query(
       `SELECT 
         id,
         name,
@@ -42,10 +43,11 @@ export default async function handler(req, res) {
         validation_status,
         rejection_reason
       FROM documents 
-      WHERE user_id = ?
+      WHERE user_id = $1
       ORDER BY created_at DESC`,
       [userId]
     )
+    const docRows = docResult.rows || []
     
     return res.status(200).json({
       success: true,
