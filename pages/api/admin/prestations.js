@@ -51,39 +51,6 @@ export default async function handler(req, res) {
         return res.status(200).json({ items: rows })
       } catch (e) {
         console.warn('prestations query error', e && e.message)
-        return res.status(200).json({ items: [], prestation{pi++}`)
-            params.push(date)
-          }
-          if (analytic_code) {
-            whereClauses.push(`(an.code = $${pi++} OR p.ebrigade_activity_code = $${pi++})`)
-            params.push(analytic_code, analytic_code)
-            pi++ // already incremented twice above, but pi is local so OK
-          }
-          const where = whereClauses.length ? 'WHERE ' + whereClauses.join(' AND ') : ''
-          q = await pool.query(
-            `SELECT p.*, u.email AS user_email, an.name AS analytic_name, an.code AS analytic_code
-             FROM prestations p
-             LEFT JOIN users u ON p.user_id = u.id
-             LEFT JOIN analytics an ON p.analytic_id = an.id
-             ${where}
-             ORDER BY p.date DESC, p.id DESC`,
-            params
-          )
-          rows = (q && q.rows) ? q.rows : []
-          return res.status(200).json({ prestations: rows, items: rows })
-        }
-        q = await pool.query(
-          `SELECT p.*, u.email AS user_email, u.first_name AS user_firstname, u.last_name AS user_lastname, an.name AS analytic_name, an.code AS analytic_code,
-           (SELECT string_agg(r.code, ',') FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = u.id) AS role_codes
-           FROM prestations p
-           LEFT JOIN users u ON p.user_id = u.id
-           LEFT JOIN analytics an ON p.analytic_id = an.id
-           ORDER BY p.date DESC, p.id DESC`
-        )
-        rows = (q && q.rows) ? q.rows : []
-        return res.status(200).json({ items: rows })
-      } catch (e) {
-        console.warn('prestations query error', e && e.message)
         return res.status(200).json({ items: [], prestations: [] })
       }
     }
