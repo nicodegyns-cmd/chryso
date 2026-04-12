@@ -16,10 +16,11 @@ export default async function handler(req, res) {
     const pool = getPool()
 
     // Get document from database
-    const [rows] = await pool.query(
-      'SELECT id, name, file_data FROM documents WHERE id = ?',
+    const result = await pool.query(
+      'SELECT id, name, file_data FROM documents WHERE id = $1',
       [id]
     )
+    const rows = result.rows || []
 
     if (!rows || rows.length === 0) {
       console.log(`[SERVE] Document not found: ${id}`)
