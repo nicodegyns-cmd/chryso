@@ -6,6 +6,7 @@ export default function CreateAnalyticModal({ open, onClose, onCreate, initial, 
   const [code, setCode] = useState('')
   const [entite, setEntite] = useState('')
   const [distribution, setDistribution] = useState('')
+  const [accountNumber, setAccountNumber] = useState('')
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -16,6 +17,7 @@ export default function CreateAnalyticModal({ open, onClose, onCreate, initial, 
       setEntite(initial.entite || initial.entity || '')
       const dist = initial.distribution || ''
       setDistribution(Array.isArray(dist) ? dist.join('; ') : (typeof dist === 'string' ? dist : ''))
+      setAccountNumber(initial.account_number || '')
       setError(null)
     } else {
       setName('')
@@ -23,6 +25,7 @@ export default function CreateAnalyticModal({ open, onClose, onCreate, initial, 
       setCode('')
       setEntite('')
       setDistribution('')
+      setAccountNumber('')
       setError(null)
     }
   }, [initial])
@@ -45,7 +48,7 @@ export default function CreateAnalyticModal({ open, onClose, onCreate, initial, 
       .map(s => s.trim())
       .filter(Boolean)
 
-    const payload = { name, analytic, code: normalizedCode, entite, distribution: distList }
+    const payload = { name, analytic, code: normalizedCode, entite, distribution: distList, account_number: accountNumber.trim() || null }
     if (isEdit) {
       const id = initial && (initial.id || initial.id === 0) ? initial.id : null
       if (id && typeof onUpdate === 'function') {
@@ -117,6 +120,16 @@ export default function CreateAnalyticModal({ open, onClose, onCreate, initial, 
                   onChange={(e)=>setEntite(e.target.value)}
                   style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
                 />
+              </label>
+              <label style={{display:'block',marginTop:12}}>
+                <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>N° de compte</small>
+                <input 
+                  value={accountNumber} 
+                  onChange={(e)=>setAccountNumber(e.target.value)}
+                  placeholder="Ex: 723033/MED"
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,fontFamily:'monospace'}}
+                />
+                <small style={{display:'block',marginTop:4,color:'#9ca3af',fontSize:11}}>Référence qui apparaîtra dans la facture (champ "Compte" en haut à droite)</small>
               </label>
             </div>
 

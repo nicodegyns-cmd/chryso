@@ -31,7 +31,7 @@ export default async function handler(req, res){
 
     // fetch refreshed row (include user and analytic info for rich invoice template)
     const [[updatedRow]] = await pool.query(
-      `SELECT p.*, u.email AS user_email, u.role AS user_role, u.first_name AS user_first_name, u.last_name AS user_last_name, u.telephone AS user_phone, u.address AS user_address, u.bce AS user_bce, u.company AS company_name, u.account AS user_account, an.name AS analytic_name, an.code AS analytic_code, an.entite AS analytic_entite, an.description AS analytic_description, an.analytic_type AS analytic_identifier
+      `SELECT p.*, u.email AS user_email, u.role AS user_role, u.first_name AS user_first_name, u.last_name AS user_last_name, u.telephone AS user_phone, u.address AS user_address, u.bce AS user_bce, u.company AS company_name, u.account AS user_account, an.name AS analytic_name, an.code AS analytic_code, an.entite AS analytic_entite, an.description AS analytic_description, an.analytic_type AS analytic_identifier, an.account_number AS analytic_account_number
        FROM prestations p
        LEFT JOIN users u ON p.user_id = u.id
        LEFT JOIN analytics an ON p.analytic_id = an.id
@@ -52,7 +52,7 @@ export default async function handler(req, res){
         const ebrigadePrefix = extractPrefix(updatedRow.ebrigade_activity_name)
         
         const [mappingRows] = await pool.query(
-          `SELECT an.name AS analytic_name, an.code AS analytic_code, an.entite AS analytic_entite, an.analytic_type AS analytic_identifier
+          `SELECT an.name AS analytic_name, an.code AS analytic_code, an.entite AS analytic_entite, an.analytic_type AS analytic_identifier, an.account_number AS analytic_account_number
            FROM activity_ebrigade_name_mappings nm
            JOIN activities act ON nm.activity_id = act.id
            LEFT JOIN analytics an ON act.analytic_id = an.id
@@ -67,6 +67,7 @@ export default async function handler(req, res){
           updatedRow.analytic_code = correctAnalytic.analytic_code
           updatedRow.analytic_entite = correctAnalytic.analytic_entite
           updatedRow.analytic_identifier = correctAnalytic.analytic_identifier
+          if (correctAnalytic.analytic_account_number) updatedRow.analytic_account_number = correctAnalytic.analytic_account_number
         }
       } catch(e) { console.warn('[invoice] eBrigade analytic lookup failed:', e.message) }
     }
@@ -298,7 +299,7 @@ export default async function handler(req, res){
           <div class="invoice-ref">Référence : ${updatedRow.analytic_name || updatedRow.ebrigade_activity_name || updatedRow.analytic_code || updatedRow.ebrigade_activity_code || ''} ${updatedRow.analytic_identifier ? '- ' + updatedRow.analytic_identifier : ''} ${updatedRow.analytic_code ? '- ' + updatedRow.analytic_code : ''} ${updatedRow.analytic_entite ? '- ' + updatedRow.analytic_entite : ''}</div>
           <div class="invoice-ref">Facture No : ${updatedRow.invoice_number || ''}</div>
           <div class="invoice-ref">Date : ${invoiceDate}</div>
-          <div class="invoice-ref">Compte : ${updatedRow.user_account || updatedRow.account || '-'}</div>
+          <div class="invoice-ref">Compte : ${updatedRow.analytic_account_number || updatedRow.user_account || updatedRow.account || '-'}</div>
         </div>
         <div class="attention">
           <strong>A L'attention de :</strong>

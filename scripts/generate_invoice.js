@@ -11,7 +11,7 @@ async function main(){
   const pool = getPool()
   try{
     const [[row]] = await pool.query(
-      `SELECT p.*, u.email AS user_email, u.role AS user_role, u.first_name AS user_first_name, u.last_name AS user_last_name, u.telephone AS user_phone, u.address AS user_address, u.bce AS user_bce, u.company AS company_name, u.account AS user_account, an.name AS analytic_name, an.code AS analytic_code
+      `SELECT p.*, u.email AS user_email, u.role AS user_role, u.first_name AS user_first_name, u.last_name AS user_last_name, u.telephone AS user_phone, u.address AS user_address, u.bce AS user_bce, u.company AS company_name, u.account AS user_account, an.name AS analytic_name, an.code AS analytic_code, an.account_number AS analytic_account_number
        FROM prestations p
        LEFT JOIN users u ON p.user_id = u.id
        LEFT JOIN analytics an ON p.analytic_id = an.id
@@ -208,7 +208,7 @@ async function main(){
           <div class="invoice-ref">Référence : ${invoiceRef}</div>
           <div class="invoice-ref">Facture No : ${row.invoice_number || ''}</div>
           <div class="invoice-ref">Date : ${invoiceDate}</div>
-          <div class="invoice-ref">Compte : ${row.account || '-'}</div>
+          <div class="invoice-ref">Compte : ${row.analytic_account_number || row.account || '-'}</div>
         </div>
         <div class="attention">
           <strong>A L'attention de :</strong>

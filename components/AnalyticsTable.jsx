@@ -132,6 +132,7 @@ export default function AnalyticsTable(){
                 <th style={{textAlign:'left',padding:'16px',fontSize:12,fontWeight:700,color:'#374151',textTransform:'uppercase',letterSpacing:'0.5px'}}>Analytique</th>
                 <th style={{textAlign:'left',padding:'16px',fontSize:12,fontWeight:700,color:'#374151',textTransform:'uppercase',letterSpacing:'0.5px'}}>Code</th>
                 <th style={{textAlign:'left',padding:'16px',fontSize:12,fontWeight:700,color:'#374151',textTransform:'uppercase',letterSpacing:'0.5px'}}>Entité</th>
+                <th style={{textAlign:'left',padding:'16px',fontSize:12,fontWeight:700,color:'#374151',textTransform:'uppercase',letterSpacing:'0.5px'}}>N° de compte</th>
                 <th style={{textAlign:'center',padding:'16px',fontSize:12,fontWeight:700,color:'#374151',textTransform:'uppercase',letterSpacing:'0.5px'}}>Actions</th>
               </tr>
             </thead>
@@ -167,6 +168,15 @@ export default function AnalyticsTable(){
                       {it.entite ? (
                         <span style={{display:'inline-block',padding:'4px 8px',background:'#f3f4f6',color:'#374151',borderRadius:4,fontSize:12}}>
                           {it.entite}
+                        </span>
+                      ) : (
+                        <span style={{color:'#d1d5db'}}>-</span>
+                      )}
+                    </td>
+                    <td style={{padding:'16px',fontSize:13,color:'#374151',fontFamily:'monospace'}}>
+                      {it.account_number ? (
+                        <span style={{display:'inline-block',padding:'4px 8px',background:'#f0fdf4',color:'#166534',borderRadius:4,fontSize:12,fontWeight:600}}>
+                          {it.account_number}
                         </span>
                       ) : (
                         <span style={{color:'#d1d5db'}}>-</span>
