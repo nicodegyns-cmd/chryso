@@ -18,33 +18,24 @@ export default async function handler(req, res) {
   try {
     const pool = getPool();
 
-    // MySQL doesn't support RETURNING; perform UPDATE then SELECT the row
-    const updateQuery = `
-      UPDATE documents
-      SET validation_status = ?, validated_at = NOW(), rejection_reason = ?
-      WHERE id = ?
-    `;
+    const updateResult = await pool.query(
+      `UPDATE documents
+       SET validation_status = $1, validated_at = NOW(), rejection_reason = $2
+       WHERE id = $3
+       RETURNING *`,
+      [status, status === 'rejected' ? reason || null : null, documentId]
+    );
 
-    const [updateResult] = await pool.query(updateQuery, [
-      status,
-      status === 'rejected' ? reason || null : null,
-      documentId
-    ]);
-
-    // If no rows affected, document not found
-    const affected = updateResult && (updateResult.affectedRows || updateResult.affected_rows || 0);
-    if (!affected) {
+    const rows = updateResult.rows || [];
+    if (rows.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    // Fetch updated row
-    const [rows] = await pool.query('SELECT * FROM documents WHERE id = ?', [documentId]);
-    const doc = rows && rows[0] ? rows[0] : null;
-
-    const message = status === 'approved' ? 'validé' : (status === 'rejected' ? 'rejeté' : 'encodé');
+    const doc = rows[0];
+    const message = status === 'approved' ? 'valid\u00e9' : (status === 'rejected' ? 'rejet\u00e9' : 'encod\u00e9');
     return res.status(200).json({
       success: true,
-      message: `Document ${message} avec succès`,
+      message: `Document ${message} avec succ\u00e8s`,
       document: doc
     });
   } catch (error) {

@@ -1,229 +1,296 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import AdminHeader from '../../components/AdminHeader';
-import AdminSidebar from '../../components/AdminSidebar';
-import styles from './rib-validation.module.css';
+import React, { useState, useEffect } from 'react'
+import AdminHeader from '../../components/AdminHeader'
+import AdminSidebar from '../../components/AdminSidebar'
 
 export default function RIBValidation() {
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedDoc, setSelectedDoc] = useState(null);
-  const [validationInProgress, setValidationInProgress] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [message, setMessage] = useState('');
+  const [documents, setDocuments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState(null)
+  const [rejectMode, setRejectMode] = useState(false)
+  const [rejectReason, setRejectReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [toast, setToast] = useState(null)
 
-  useEffect(() => {
-    fetchPendingDocuments();
-  }, []);
+  useEffect(() => { fetchDocs() }, [])
 
-  const fetchPendingDocuments = async () => {
+  async function fetchDocs() {
+    setLoading(true)
     try {
-      setLoading(true);
-      const response = await fetch('/api/admin/documents/pending');
-      const data = await response.json();
-      setDocuments(data.documents || []);
-    } catch (error) {
-      console.error('Error fetching documents:', error);
-      setMessage('Erreur lors du chargement des documents');
+      const r = await fetch('/api/admin/documents/pending')
+      const d = await r.json()
+      setDocuments(d.documents || [])
+    } catch (e) {
+      showToast('Erreur lors du chargement', 'error')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  const handleValidate = async (documentId, status) => {
-    if (status === 'rejected' && !rejectionReason.trim()) {
-      setMessage('Veuillez ajouter une raison de rejet');
-      return;
-    }
+  function showToast(msg, type = 'success') {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 4000)
+  }
 
+  function selectDoc(doc) {
+    setSelected(doc)
+    setRejectMode(false)
+    setRejectReason('')
+  }
+
+  async function handleValidate(status) {
+    if (status === 'rejected' && !rejectReason.trim()) return
+    setBusy(true)
     try {
-      setValidationInProgress(true);
-      const response = await fetch('/api/admin/documents/validate', {
+      const r = await fetch('/api/admin/documents/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          documentId,
-          status,
-          reason: status === 'rejected' ? rejectionReason : null
-        })
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(`✅ Document ${status === 'approved' ? 'validé' : 'rejeté'} avec succès`);
-        setSelectedDoc(null);
-        setRejectionReason('');
-        fetchPendingDocuments();
-      } else {
-        setMessage(`❌ Erreur: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Error validating document:', error);
-      setMessage('❌ Erreur lors de la validation');
+        body: JSON.stringify({ documentId: selected.id, status, reason: rejectReason })
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error || 'Erreur')
+      showToast(status === 'approved' ? '\u2705 Document valid\u00e9 !' : '\u274c Document rejet\u00e9', status === 'approved' ? 'success' : 'error')
+      setDocuments(prev => prev.filter(doc => doc.id !== selected.id))
+      setSelected(null)
+      setRejectMode(false)
+      setRejectReason('')
+    } catch (e) {
+      showToast(e.message, 'error')
     } finally {
-      setValidationInProgress(false);
+      setBusy(false)
     }
-  };
+  }
+
+  const fmt = (bytes) => bytes ? (bytes / 1024).toFixed(1) + ' KB' : '-'
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-'
 
   return (
-    <div className="admin-layout">
+    <div className="admin-page-root">
       <AdminHeader />
-      <div className="admin-content">
-        <AdminSidebar />
-        <div className="admin-main">
-          <div className={styles['rib-validation-container']}>
-            <h1>📋 Validation des Documents RIB</h1>
+      <AdminSidebar />
+      <main className="admin-content" style={{ padding: 0 }}>
 
-            {message && (
-              <div className={`${styles.message} ${message.includes('✅') ? styles.success : styles.error}`}>
-                {message}
+        {/* Toast */}
+        {toast && (
+          <div style={{
+            position: 'fixed', top: 20, right: 20, zIndex: 9999,
+            padding: '12px 20px', borderRadius: 8, fontWeight: 600, fontSize: 14,
+            background: toast.type === 'success' ? '#d1fae5' : '#fee2e2',
+            color: toast.type === 'success' ? '#065f46' : '#991b1b',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            animation: 'fadeIn 0.2s ease'
+          }}>{toast.msg}</div>
+        )}
+
+        <div style={{ display: 'flex', height: '100%', minHeight: 'calc(100vh - 60px)' }}>
+
+          {/* LEFT: document list */}
+          <div style={{
+            width: selected ? 340 : '100%',
+            minWidth: 280,
+            borderRight: '1px solid #e5e7eb',
+            overflowY: 'auto',
+            background: '#f9fafb',
+            transition: 'width 0.2s ease',
+            flexShrink: 0
+          }}>
+            <div style={{ padding: '20px 16px 12px 16px', borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
+              <h1 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1f2937' }}>
+                Validation RIB
+              </h1>
+              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
+                {loading ? 'Chargement\u2026' : `${documents.length} document(s) en attente`}
               </div>
-            )}
+            </div>
 
             {loading ? (
-              <div className={styles.loading}>Chargement des documents...</div>
+              <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Chargement\u2026</div>
             ) : documents.length === 0 ? (
-              <div className={styles['empty-state']}>
-                <p>✅ Aucun document en attente de validation</p>
+              <div style={{ padding: 40, textAlign: 'center' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>\u2705</div>
+                <div style={{ fontWeight: 600, color: '#374151' }}>Aucun document en attente</div>
+                <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>Tous les RIB ont \u00e9t\u00e9 trait\u00e9s</div>
               </div>
             ) : (
-              <div className={styles['documents-grid']}>
+              <div style={{ padding: '8px 0' }}>
                 {documents.map(doc => (
-                  <div 
-                    key={doc.id} 
-                    className={`${styles['document-card']} ${selectedDoc?.id === doc.id ? styles.selected : ''}`}
-                    onClick={() => setSelectedDoc(doc)}
+                  <div key={doc.id}
+                    onClick={() => selectDoc(doc)}
+                    style={{
+                      padding: '14px 16px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #e5e7eb',
+                      background: selected?.id === doc.id ? '#eff6ff' : '#fff',
+                      borderLeft: selected?.id === doc.id ? '3px solid #3b82f6' : '3px solid transparent',
+                      transition: 'background 0.1s'
+                    }}
                   >
-                    <div className={styles['doc-header']}>
-                      <div className={styles['doc-type-badge']}>📄 {doc.type}</div>
-                      <div className={styles['doc-date']}>{new Date(doc.created_at).toLocaleDateString('fr-FR')}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ fontWeight: 600, color: '#1f2937', fontSize: 14 }}>{doc.user_name || 'Inconnu'}</div>
+                      <div style={{ fontSize: 11, color: '#9ca3af' }}>{fmtDate(doc.created_at)}</div>
                     </div>
-
-                    <div className={styles['user-info']}>
-                      <h3>{doc.user_name}</h3>
-                      <p className={styles.email}>📧 {doc.email}</p>
-                      <p className={styles.phone}>📱 {doc.phone}</p>
-                      {doc.company_name && <p className={styles.company}>🏢 {doc.company_name}</p>}
-                      {doc.city && <p className={styles.city}>📍 {doc.city}</p>}
+                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{doc.email}</div>
+                    <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
+                      \U0001f4c4 {doc.name} \u00b7 {fmt(doc.file_size)}
                     </div>
-
-                    <div className={styles['doc-filename']}>
-                      <strong>Fichier:</strong> {doc.name}
-                    </div>
-
-                    <div className={styles['doc-size']}>
-                      <strong>Taille:</strong> {(doc.file_size / 1024).toFixed(2)} KB
-                    </div>
-
-                    <div className={`${styles['status-badge']} ${styles.pending}`}>⏳ En attente</div>
+                    <div style={{
+                      display: 'inline-block', marginTop: 6,
+                      padding: '2px 8px', borderRadius: 10,
+                      background: '#fef3c7', color: '#92400e',
+                      fontSize: 11, fontWeight: 600
+                    }}>\u23f3 En attente</div>
                   </div>
                 ))}
               </div>
             )}
+          </div>
 
-            {selectedDoc && (
-              <div className={styles['validation-panel']}>
-                <div className={styles['panel-header']}>
-                  <h2>Valider le document</h2>
-                  <button 
-                    className={styles['close-btn']} 
-                    onClick={() => {
-                      setSelectedDoc(null);
-                      setRejectionReason('');
-                    }}
-                  >
-                    ✕
-                  </button>
+          {/* RIGHT: detail + PDF */}
+          {selected && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#fff' }}>
+
+              {/* Header */}
+              <div style={{
+                padding: '16px 20px', borderBottom: '1px solid #e5e7eb',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                background: '#fff', flexShrink: 0
+              }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: '#1f2937' }}>{selected.user_name}</div>
+                  <div style={{ fontSize: 13, color: '#6b7280' }}>{selected.email}</div>
+                </div>
+                <button onClick={() => { setSelected(null); setRejectMode(false) }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#9ca3af', lineHeight: 1 }}>
+                  \u00d7
+                </button>
+              </div>
+
+              <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+                {/* PDF iframe */}
+                <div style={{ flex: 1, background: '#374151', position: 'relative' }}>
+                  <iframe
+                    src={`/api/documents/serve?id=${selected.id}`}
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                    title="Aperçu RIB"
+                  />
                 </div>
 
-                <div className={styles['panel-content']}>
-                  <div className={styles['user-full-info']}>
-                    <h3>👤 Informations de l'utilisateur</h3>
-                    <div className={styles['info-row']}>
-                      <span className={styles.label}>Nom:</span>
-                      <span>{selectedDoc.user_name}</span>
+                {/* Side panel: info + actions */}
+                <div style={{ width: 280, borderLeft: '1px solid #e5e7eb', overflowY: 'auto', flexShrink: 0 }}>
+                  
+                  {/* User info */}
+                  <div style={{ padding: 16, borderBottom: '1px solid #f3f4f6' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+                      Informations
                     </div>
-                    <div className={styles['info-row']}>
-                      <span className={styles.label}>Email:</span>
-                      <span>{selectedDoc.email}</span>
-                    </div>
-                    <div className={styles['info-row']}>
-                      <span className={styles.label}>Téléphone:</span>
-                      <span>{selectedDoc.phone}</span>
-                    </div>
-                    {selectedDoc.company_name && (
-                      <div className={styles['info-row']}>
-                        <span className={styles.label}>Entreprise:</span>
-                        <span>{selectedDoc.company_name}</span>
+                    {[
+                      ['Nom', selected.user_name],
+                      ['Email', selected.email],
+                      ['T\u00e9l\u00e9phone', selected.phone],
+                      ['Soci\u00e9t\u00e9', selected.company_name],
+                      ['BCE', selected.bce],
+                      ['NISS', selected.niss],
+                      ['Compte', selected.account],
+                      ['Adresse', selected.address],
+                    ].filter(([, v]) => v).map(([label, value]) => (
+                      <div key={label} style={{ marginBottom: 8 }}>
+                        <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>{label}</div>
+                        <div style={{ fontSize: 13, color: '#1f2937', wordBreak: 'break-all' }}>{value}</div>
                       </div>
-                    )}
-                    {selectedDoc.city && (
-                      <div className={styles['info-row']}>
-                        <span className={styles.label}>Ville:</span>
-                        <span>{selectedDoc.city}</span>
-                      </div>
-                    )}
+                    ))}
                   </div>
 
-                  <div className={styles['document-preview']}>
-                    <h3>📎 Aperçu du document</h3>
-                    <div className={styles['document-info']}>
-                      <p><strong>Nom:</strong> {selectedDoc.name}</p>
-                      <p><strong>Type:</strong> {selectedDoc.type}</p>
-                      <p><strong>Taille:</strong> {(selectedDoc.file_size / 1024).toFixed(2)} KB</p>
-                      <p><strong>Date d'upload:</strong> {new Date(selectedDoc.created_at).toLocaleString('fr-FR')}</p>
+                  {/* Document info */}
+                  <div style={{ padding: 16, borderBottom: '1px solid #f3f4f6' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+                      Fichier
                     </div>
-                    <a 
-                      href={selectedDoc.url || `/api/documents/serve?id=${selectedDoc.id}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className={styles['view-document-btn']}
-                    >
-                      👁️ Voir le PDF
+                    <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>\U0001f4c4 {selected.name}</div>
+                    <div style={{ fontSize: 12, color: '#9ca3af' }}>{fmt(selected.file_size)} \u00b7 {fmtDate(selected.created_at)}</div>
+                    <a href={`/api/documents/serve?id=${selected.id}`} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'inline-block', marginTop: 10, fontSize: 12, color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>
+                      \U0001f517 Ouvrir dans un nouvel onglet
                     </a>
                   </div>
 
-                  {validationInProgress && (
-                    <div className={styles['validation-section']}>
-                      <label>Raison du rejet:</label>
-                      <textarea
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                        placeholder="Expliquez pourquoi ce document est rejeté..."
-                        rows="4"
-                      />
+                  {/* Actions */}
+                  <div style={{ padding: 16 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+                      D\u00e9cision
                     </div>
-                  )}
 
-                  <div className={styles['validation-actions']}>
-                    <button
-                      className={styles['btn-approve']}
-                      onClick={() => handleValidate(selectedDoc.id, 'approved')}
-                      disabled={validationInProgress}
-                    >
-                      ✅ Valider le document
-                    </button>
-                    <button
-                      className={styles['btn-reject']}
-                      onClick={() => {
-                        if (!validationInProgress) {
-                          setValidationInProgress(true);
-                        } else {
-                          handleValidate(selectedDoc.id, 'rejected');
-                        }
-                      }}
-                      disabled={validationInProgress && !rejectionReason.trim()}
-                    >
-                      {validationInProgress ? '❌ Confirmer le rejet' : '❌ Rejeter le document'}
-                    </button>
+                    {!rejectMode ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <button
+                          onClick={() => handleValidate('approved')}
+                          disabled={busy}
+                          style={{
+                            padding: '10px 16px', borderRadius: 8, border: 'none',
+                            background: busy ? '#d1d5db' : '#10b981', color: '#fff',
+                            fontWeight: 700, fontSize: 14, cursor: busy ? 'not-allowed' : 'pointer'
+                          }}
+                        >
+                          {busy ? 'En cours\u2026' : '\u2705 Valider le RIB'}
+                        </button>
+                        <button
+                          onClick={() => setRejectMode(true)}
+                          disabled={busy}
+                          style={{
+                            padding: '10px 16px', borderRadius: 8, border: '1px solid #fca5a5',
+                            background: '#fff', color: '#dc2626',
+                            fontWeight: 600, fontSize: 14, cursor: busy ? 'not-allowed' : 'pointer'
+                          }}
+                        >
+                          \u274c Rejeter
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ fontSize: 12, color: '#374151', marginBottom: 6, fontWeight: 600 }}>Raison du rejet :</div>
+                        <textarea
+                          value={rejectReason}
+                          onChange={e => setRejectReason(e.target.value)}
+                          placeholder="Expliquez pourquoi ce document est rejet\u00e9..."
+                          rows={4}
+                          style={{
+                            width: '100%', padding: '8px 10px', borderRadius: 6,
+                            border: '1px solid #d1d5db', fontSize: 13, resize: 'vertical',
+                            fontFamily: 'inherit', boxSizing: 'border-box'
+                          }}
+                        />
+                        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                          <button
+                            onClick={() => handleValidate('rejected')}
+                            disabled={busy || !rejectReason.trim()}
+                            style={{
+                              flex: 1, padding: '9px', borderRadius: 8, border: 'none',
+                              background: busy || !rejectReason.trim() ? '#fca5a5' : '#dc2626',
+                              color: '#fff', fontWeight: 700, fontSize: 13,
+                              cursor: busy || !rejectReason.trim() ? 'not-allowed' : 'pointer'
+                            }}
+                          >
+                            Confirmer
+                          </button>
+                          <button
+                            onClick={() => { setRejectMode(false); setRejectReason('') }}
+                            style={{
+                              flex: 1, padding: '9px', borderRadius: 8,
+                              border: '1px solid #d1d5db', background: '#fff',
+                              color: '#374151', fontWeight: 600, fontSize: 13, cursor: 'pointer'
+                            }}
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-      </div>
+      </main>
     </div>
-  );
+  )
 }
