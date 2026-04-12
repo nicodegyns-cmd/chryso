@@ -37,20 +37,24 @@ export default async function handler(req, res) {
       const { name, analytic, code, entite, distribution, description, is_active, account_number } = req.body || {}
       const updates = []
       const params = []
-      if (typeof name !== 'undefined') { updates.push('name = ?'); params.push(name) }
-      if (typeof analytic !== 'undefined') { updates.push('analytic_type = ?'); params.push(analytic) }
-      if (typeof code !== 'undefined') { updates.push('code = ?'); params.push((code||'').toString().trim().toUpperCase()) }
-      if (typeof entite !== 'undefined') { updates.push('entite = ?'); params.push(entite) }
-      if (typeof distribution !== 'undefined') { updates.push('distribution = ?'); params.push((Array.isArray(distribution) && distribution.length) ? JSON.stringify(distribution) : null) }
-      if (typeof description !== 'undefined') { updates.push('description = ?'); params.push(description) }
-      if (typeof is_active !== 'undefined') { updates.push('is_active = ?'); params.push(is_active ? 1 : 0) }
-      if (typeof account_number !== 'undefined') { updates.push('account_number = ?'); params.push(account_number || null) }
+      let pi = 1
+      if (typeof name !== 'undefined') { updates.push(`name = $${pi++}`); params.push(name) }
+      if (typeof analytic !== 'undefined') { updates.push(`analytic_type = $${pi++}`); params.push(analytic) }
+      if (typeof code !== 'undefined') { updates.push(`code = $${pi++}`); params.push((code||'').toString().trim().toUpperCase()) }
+      if (typeof entite !== 'undefined') { updates.push(`entite = $${pi++}`); params.push(entite) }
+      if (typeof distribution !== 'undefined') { updates.push(`distribution = $${pi++}`); params.push((Array.isArray(distribution) && distribution.length) ? JSON.stringify(distribution) : null) }
+      if (typeof description !== 'undefined') { updates.push(`description = $${pi++}`); params.push(description) }
+      if (typeof is_active !== 'undefined') { updates.push(`is_active = $${pi++}`); params.push(is_active ? 1 : 0) }
+      if (typeof account_number !== 'undefined') { updates.push(`account_number = $${pi++}`); params.push(account_number || null) }
 
       if (updates.length === 0) return res.status(400).json({ error: 'no fields' })
       params.push(id)
-      const sql = `UPDATE analytics SET ${updates.join(', ')} WHERE id = $1`
-      await pool.execute(sql, params)
-      const [[row]] = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at, account_number FROM analytics WHERE id = $1', [id])
+      await pool.query("ALTER TABLE analytics ADD COLUMN IF NOT EXISTS account_number VARCHAR(64) DEFAULT NULL").catch(() => {})
+      const sql = `UPDATE analytics SET ${updates.join(', ')} WHERE id = $${pi}`
+      await pool.query(sql, params)
+      const q2 = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at, account_number FROM analytics WHERE id = $1', [id])
+      const row = (q2 && q2.rows && q2.rows[0]) ? q2.rows[0] : null
+      if (!row) return res.status(404).json({ error: 'not found' })
       const item = {
         id: row.id,
         name: row.name,
