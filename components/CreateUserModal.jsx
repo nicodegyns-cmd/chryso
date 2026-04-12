@@ -14,6 +14,19 @@ function fmtIban(v) {
   const m = c.slice(0,16).match(/.{1,4}/g)
   return m ? m.join(' ') : c
 }
+function parseAdresse(v) {
+  if (!v) return { adresseNum: '', adresseRue: '', adresseCP: '', adresseVille: '' }
+  const m1 = v.match(/^(\d+[a-zA-Z]?)\s+(.+?),\s*(\d{4,5})\s+(.+)$/)
+  if (m1) return { adresseNum: m1[1], adresseRue: m1[2], adresseCP: m1[3], adresseVille: m1[4] }
+  const m2 = v.match(/^(.+?),\s*(\d{4,5})\s+(.+)$/)
+  if (m2) return { adresseNum: '', adresseRue: m2[1], adresseCP: m2[2], adresseVille: m2[3] }
+  return { adresseNum: '', adresseRue: v, adresseCP: '', adresseVille: '' }
+}
+function buildAdresse({ adresseNum, adresseRue, adresseCP, adresseVille }) {
+  const rue = [adresseNum, adresseRue].filter(Boolean).join(' ')
+  const loc = [adresseCP, adresseVille].filter(Boolean).join(' ')
+  return [rue, loc].filter(Boolean).join(', ')
+}
 
 export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   const [email, setEmail] = useState('')
@@ -22,7 +35,10 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   const [lastName, setLastName] = useState('')
   const [ninami, setNinami] = useState('')
   const [telephone, setTelephone] = useState('')
-  const [adresse, setAdresse] = useState('')
+  const [adresseNum, setAdresseNum] = useState('')
+  const [adresseRue, setAdresseRue] = useState('')
+  const [adresseCP, setAdresseCP] = useState('')
+  const [adresseVille, setAdresseVille] = useState('')
   const [niss, setNiss] = useState('')
   const [bce, setBce] = useState('')
   const [societe, setSociete] = useState('')
@@ -154,7 +170,11 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       setLastName(initial.last_name || initial.lastName || '')
       setNinami(initial.ninami || '')
       setTelephone(initial.telephone || '')
-      setAdresse(initial.address || initial.adresse || '')
+      const parsedA = parseAdresse(initial.address || initial.adresse || '')
+      setAdresseNum(parsedA.adresseNum)
+      setAdresseRue(parsedA.adresseRue)
+      setAdresseCP(parsedA.adresseCP)
+      setAdresseVille(parsedA.adresseVille)
       setNiss(initial.niss || '')
       setBce(initial.bce || '')
       setSociete(initial.company || initial.societe || '')
@@ -175,7 +195,10 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       setLastName('')
       setNinami('')
       setTelephone('')
-      setAdresse('')
+      setAdresseNum('')
+      setAdresseRue('')
+      setAdresseCP('')
+      setAdresseVille('')
       setNiss('')
       setBce('')
       setSociete('')
@@ -201,7 +224,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       lastName,
       ninami,
       telephone,
-      adresse,
+      adresse: buildAdresse({ adresseNum, adresseRue, adresseCP, adresseVille }),
       niss,
       bce,
       societe,
@@ -431,14 +454,15 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
                   />
                 </label>
               </div>
-              <label style={{display:'block',marginTop:12}}>
+              <div style={{marginTop:12}}>
                 <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Adresse</small>
-                <input 
-                  value={adresse} 
-                  onChange={(e) => setAdresse(e.target.value)} 
-                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
-                />
-              </label>
+                <div style={{display:'grid',gridTemplateColumns:'80px 1fr 100px 1fr',gap:8}}>
+                  <input value={adresseNum} onChange={(e) => setAdresseNum(e.target.value)} placeholder="N°" style={{padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}} />
+                  <input value={adresseRue} onChange={(e) => setAdresseRue(e.target.value)} placeholder="Rue / Avenue..." style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
+                  <input value={adresseCP} onChange={(e) => setAdresseCP(e.target.value)} placeholder="Code postal" style={{padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}} />
+                  <input value={adresseVille} onChange={(e) => setAdresseVille(e.target.value)} placeholder="Localité" style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
+                </div>
+              </div>
             </div>
 
             {/* Section: Informations professionnelles */}

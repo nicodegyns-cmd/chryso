@@ -17,6 +17,19 @@ function fmtIban(v) {
   const m = c.slice(0,16).match(/.{1,4}/g)
   return m ? m.join(' ') : c
 }
+function parseAdresse(v) {
+  if (!v) return { adresseNum: '', adresseRue: '', adresseCP: '', adresseVille: '' }
+  const m1 = v.match(/^(\d+[a-zA-Z]?)\s+(.+?),\s*(\d{4,5})\s+(.+)$/)
+  if (m1) return { adresseNum: m1[1], adresseRue: m1[2], adresseCP: m1[3], adresseVille: m1[4] }
+  const m2 = v.match(/^(.+?),\s*(\d{4,5})\s+(.+)$/)
+  if (m2) return { adresseNum: '', adresseRue: m2[1], adresseCP: m2[2], adresseVille: m2[3] }
+  return { adresseNum: '', adresseRue: v, adresseCP: '', adresseVille: '' }
+}
+function buildAdresse(f) {
+  const rue = [f.adresseNum, f.adresseRue].filter(Boolean).join(' ')
+  const loc = [f.adresseCP, f.adresseVille].filter(Boolean).join(' ')
+  return [rue, loc].filter(Boolean).join(', ')
+}
 
 export default function ProfilePage(){
   const router = useRouter()
@@ -62,7 +75,7 @@ export default function ProfilePage(){
             firstName: me.first_name || me.firstName || '',
             lastName: me.last_name || me.lastName || '',
             telephone: me.telephone || '',
-            adresse: me.address || me.adresse || '',
+            ...parseAdresse(me.address || me.adresse || ''),
             fonction: me.fonction || '',
             ninami: me.ninami || '',
             niss: me.niss || '',
@@ -107,7 +120,7 @@ export default function ProfilePage(){
         firstName: form.firstName,
         lastName: form.lastName,
         telephone: form.telephone,
-        adresse: form.adresse,
+        adresse: buildAdresse(form),
         fonction: form.fonction,
         ninami: form.ninami,
         niss: form.niss,
@@ -302,7 +315,12 @@ export default function ProfilePage(){
                       </label>
                       <label className="form-row" style={{gridColumn:'1 / -1'}}>
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>ADRESSE</div>
-                        <input value={form.adresse} onChange={(e) => setForm({...form, adresse: e.target.value})} />
+                        <div style={{display:'grid',gridTemplateColumns:'80px 1fr 100px 1fr',gap:8}}>
+                          <input value={form.adresseNum} onChange={(e) => setForm({...form, adresseNum: e.target.value})} placeholder="N°" />
+                          <input value={form.adresseRue} onChange={(e) => setForm({...form, adresseRue: e.target.value})} placeholder="Rue / Avenue..." />
+                          <input value={form.adresseCP} onChange={(e) => setForm({...form, adresseCP: e.target.value})} placeholder="Code postal" />
+                          <input value={form.adresseVille} onChange={(e) => setForm({...form, adresseVille: e.target.value})} placeholder="Localité" />
+                        </div>
                       </label>
                     </div>
                     {saveError && <div style={{color:'#d32f2f',fontSize:13,marginTop:12}}>{saveError}</div>}
@@ -364,7 +382,12 @@ export default function ProfilePage(){
                   </label>
                   <label className="form-row" style={{gridColumn:'1 / -1'}}>
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>ADRESSE</div>
-                    <input value={form.adresse} onChange={(e) => setForm({...form, adresse: e.target.value})} />
+                    <div style={{display:'grid',gridTemplateColumns:'80px 1fr 100px 1fr',gap:8}}>
+                      <input value={form.adresseNum} onChange={(e) => setForm({...form, adresseNum: e.target.value})} placeholder="N°" />
+                      <input value={form.adresseRue} onChange={(e) => setForm({...form, adresseRue: e.target.value})} placeholder="Rue / Avenue..." />
+                      <input value={form.adresseCP} onChange={(e) => setForm({...form, adresseCP: e.target.value})} placeholder="Code postal" />
+                      <input value={form.adresseVille} onChange={(e) => setForm({...form, adresseVille: e.target.value})} placeholder="Localité" />
+                    </div>
                   </label>
                 </div>
                 {saveError && <div style={{color:'#d32f2f',fontSize:13,marginTop:12}}>{saveError}</div>}
@@ -397,7 +420,7 @@ export default function ProfilePage(){
                     firstName: form.firstName,
                     lastName: form.lastName,
                     telephone: form.telephone,
-                    adresse: form.adresse,
+                    adresse: buildAdresse(form),
                     fonction: form.fonction,
                     ninami: form.ninami,
                     niss: form.niss,
