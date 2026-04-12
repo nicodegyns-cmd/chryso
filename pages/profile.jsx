@@ -3,6 +3,21 @@ import { useRouter } from 'next/router'
 import AdminHeader from '../components/AdminHeader'
 import UserSidebar from '../components/UserSidebar'
 
+function fmtNiss(v) {
+  const d = (v||'').replace(/\D/g,'').slice(0,11)
+  if (d.length<=2) return d
+  if (d.length<=4) return d.slice(0,2)+'.'+d.slice(2)
+  if (d.length<=6) return d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4)
+  if (d.length<=9) return d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4,6)+'-'+d.slice(6)
+  return d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4,6)+'-'+d.slice(6,9)+'.'+d.slice(9)
+}
+function fmtIban(v) {
+  let c = (v||'').replace(/\s/g,'').toUpperCase()
+  if (!c.startsWith('BE')) c = 'BE'+c.replace(/[^A-Z0-9]/g,'')
+  const m = c.slice(0,16).match(/.{1,4}/g)
+  return m ? m.join(' ') : c
+}
+
 export default function ProfilePage(){
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -266,7 +281,7 @@ export default function ProfilePage(){
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS</div>
-                        <input value={form.niss} onChange={(e) => setForm({...form, niss: e.target.value})} />
+                        <input value={form.niss} onChange={(e) => setForm({...form, niss: fmtNiss(e.target.value)})} placeholder="94.05.06-421.50" />
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE</div>
@@ -279,7 +294,7 @@ export default function ProfilePage(){
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE BANCAIRE</div>
-                        <input value={form.compte} onChange={(e) => setForm({...form, compte: e.target.value})} />
+                        <input value={form.compte} onChange={(e) => setForm({...form, compte: fmtIban(e.target.value)})} placeholder="BE88 0000 0000 0000" />
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>LIAISON EBRIGADE</div>
@@ -332,7 +347,7 @@ export default function ProfilePage(){
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS</div>
-                    <input value={form.niss} onChange={(e) => setForm({...form, niss: e.target.value})} />
+                    <input value={form.niss} onChange={(e) => setForm({...form, niss: fmtNiss(e.target.value)})} placeholder="94.05.06-421.50" />
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE</div>
@@ -345,7 +360,7 @@ export default function ProfilePage(){
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE BANCAIRE</div>
-                    <input value={form.compte} onChange={(e) => setForm({...form, compte: e.target.value})} />
+                    <input value={form.compte} onChange={(e) => setForm({...form, compte: fmtIban(e.target.value)})} placeholder="BE88 0000 0000 0000" />
                   </label>
                   <label className="form-row" style={{gridColumn:'1 / -1'}}>
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>ADRESSE</div>

@@ -1,5 +1,20 @@
 import React, { useEffect, useState, useMemo } from 'react'
 
+function fmtNiss(v) {
+  const d = (v||'').replace(/\D/g,'').slice(0,11)
+  if (d.length<=2) return d
+  if (d.length<=4) return d.slice(0,2)+'.'+d.slice(2)
+  if (d.length<=6) return d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4)
+  if (d.length<=9) return d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4,6)+'-'+d.slice(6)
+  return d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4,6)+'-'+d.slice(6,9)+'.'+d.slice(9)
+}
+function fmtIban(v) {
+  let c = (v||'').replace(/\s/g,'').toUpperCase()
+  if (!c.startsWith('BE')) c = 'BE'+c.replace(/[^A-Z0-9]/g,'')
+  const m = c.slice(0,16).match(/.{1,4}/g)
+  return m ? m.join(' ') : c
+}
+
 export default function UserValidation() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
@@ -268,7 +283,7 @@ export default function UserValidation() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>NISS</span>
-                    <input type="text" value={form.niss} onChange={e => setForm({ ...form, niss: e.target.value })} style={{ padding: '9px 12px', border: `1px solid ${form.niss ? '#10b981' : '#d1d5db'}`, borderRadius: 6, fontSize: 14 }} placeholder="Num\u00e9ro NISS" />
+                    <input type="text" value={form.niss} onChange={e => setForm({ ...form, niss: fmtNiss(e.target.value) })} style={{ padding: '9px 12px', border: `1px solid ${form.niss ? '#10b981' : '#d1d5db'}`, borderRadius: 6, fontSize: 14 }} placeholder="94.05.06-421.50" />
                   </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>BCE</span>
@@ -277,7 +292,7 @@ export default function UserValidation() {
                 </div>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>Compte bancaire</span>
-                  <input type="text" value={form.account} onChange={e => setForm({ ...form, account: e.target.value })} style={{ padding: '9px 12px', border: `1px solid ${form.account ? '#10b981' : '#d1d5db'}`, borderRadius: 6, fontSize: 14 }} placeholder="BE00 0000 0000 0000" />
+                  <input type="text" value={form.account} onChange={e => setForm({ ...form, account: fmtIban(e.target.value) })} style={{ padding: '9px 12px', border: `1px solid ${form.account ? '#10b981' : '#d1d5db'}`, borderRadius: 6, fontSize: 14 }} placeholder="BE88 0000 0000 0000" />
                 </label>
               </div>
 

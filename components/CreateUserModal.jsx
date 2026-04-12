@@ -1,5 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react'
 
+function fmtNiss(v) {
+  const d = (v||'').replace(/\D/g,'').slice(0,11)
+  if (d.length<=2) return d
+  if (d.length<=4) return d.slice(0,2)+'.'+d.slice(2)
+  if (d.length<=6) return d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4)
+  if (d.length<=9) return d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4,6)+'-'+d.slice(6)
+  return d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4,6)+'-'+d.slice(6,9)+'.'+d.slice(9)
+}
+function fmtIban(v) {
+  let c = (v||'').replace(/\s/g,'').toUpperCase()
+  if (!c.startsWith('BE')) c = 'BE'+c.replace(/[^A-Z0-9]/g,'')
+  const m = c.slice(0,16).match(/.{1,4}/g)
+  return m ? m.join(' ') : c
+}
+
 export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState(['INFI'])
@@ -452,7 +467,8 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
                   <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>NISS</small>
                   <input 
                     value={niss} 
-                    onChange={(e) => setNiss(e.target.value)} 
+                    onChange={(e) => setNiss(fmtNiss(e.target.value))} 
+                    placeholder="94.05.06-421.50"
                     style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
                   />
                 </label>
@@ -468,7 +484,8 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
                   <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>Compte</small>
                   <input 
                     value={compte} 
-                    onChange={(e) => setCompte(e.target.value)} 
+                    onChange={(e) => setCompte(fmtIban(e.target.value))} 
+                    placeholder="BE88 0000 0000 0000"
                     style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
                   />
                 </label>
