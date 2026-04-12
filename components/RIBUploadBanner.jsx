@@ -17,7 +17,8 @@ export default function RIBUploadBanner({ email }) {
       if (!r.ok) { setRibStatus('none'); return }
       const data = await r.json()
       const docs = data.documents || []
-      const rib = docs.find(d => (d.name || '').toLowerCase().includes('rib') || (d.type || '').toUpperCase() === 'RIB')
+      // Take the most recent document — this banner is only used for RIB uploads
+      const rib = docs[0] || null
       if (!rib) { setRibStatus('none'); return }
       setRibStatus(rib.validation_status || 'pending')
     } catch (e) {

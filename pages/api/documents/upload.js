@@ -63,14 +63,20 @@ export default async function handler(req, res) {
       // No need to save to disk - storing file_data in database instead
       console.log('[UPLOAD] Storing in database with file content')
 
+      console.log('[UPLOAD] Inserting document into DB, fileData length:', fileData.length)
       const docsResult = await pool.query(
         `INSERT INTO documents (user_id, name, type, file_path, file_data, file_size, validation_status, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id`,
-        [userId, uploadedFile.originalFilename, 'PDF', fileName, fileData, fileData.length, 'pending']
+        [userId, uploadedFile.originalFilename, 'RIB', fileName, fileData, fileData.length, 'pending']
       )
       const docs = docsResult.rows || []
 
-      console.log('[UPLOAD] Success:', docs[0].id)
+      if (!docs || !docs[0]) {
+        console.error('[UPLOAD] DB insert returned no rows!')
+        return res.status(500).json({ error: 'DB insert failed - no id returned' })
+      }
+
+      console.log('[UPLOAD] Success, document id:', docs[0].id)
       return res.status(200).json({
         success: true,
         document: {
