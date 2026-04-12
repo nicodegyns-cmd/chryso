@@ -20,7 +20,7 @@ export default async function handler(req, res) {
         d.created_at,
         d.validation_status,
         d.rejection_reason,
-        CONCAT(u.first_name, ' ', u.last_name) as user_name,
+        NULLIF(TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,''))), '') as user_name,
         u.email,
         u.telephone as phone,
         u.company as company_name,

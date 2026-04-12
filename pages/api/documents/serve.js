@@ -37,9 +37,18 @@ export default async function handler(req, res) {
     }
 
     // Convert to buffer if needed
-    const fileContent = Buffer.isBuffer(document.file_data) 
-      ? document.file_data 
-      : Buffer.from(document.file_data)
+    // pg returns BYTEA as hex string '\xDEADBEEF...' by default (text protocol)
+    let fileContent
+    if (Buffer.isBuffer(document.file_data)) {
+      fileContent = document.file_data
+    } else if (typeof document.file_data === 'string') {
+      const hex = document.file_data.startsWith('\\x')
+        ? document.file_data.slice(2)
+        : document.file_data
+      fileContent = Buffer.from(hex, 'hex')
+    } else {
+      fileContent = Buffer.from(document.file_data)
+    }
 
     console.log(`[SERVE] File read successfully: ${fileContent.length} bytes`)
 

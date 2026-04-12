@@ -48,7 +48,7 @@ export default function RIBValidation() {
       })
       const d = await r.json()
       if (!r.ok) throw new Error(d.error || 'Erreur')
-      showToast(status === 'approved' ? '\u2705 Document valid\u00e9 !' : '\u274c Document rejet\u00e9', status === 'approved' ? 'success' : 'error')
+      showToast(status === 'approved' ? '✅ Document validé !' : '❌ Document rejeté', status === 'approved' ? 'success' : 'error')
       setDocuments(prev => prev.filter(doc => doc.id !== selected.id))
       setSelected(null)
       setRejectMode(false)
@@ -98,17 +98,17 @@ export default function RIBValidation() {
                 Validation RIB
               </h1>
               <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
-                {loading ? 'Chargement\u2026' : `${documents.length} document(s) en attente`}
+                {loading ? 'Chargement…' : `${documents.length} document(s) en attente`}
               </div>
             </div>
 
             {loading ? (
-              <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Chargement\u2026</div>
+              <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Chargement…</div>
             ) : documents.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>\u2705</div>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
                 <div style={{ fontWeight: 600, color: '#374151' }}>Aucun document en attente</div>
-                <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>Tous les RIB ont \u00e9t\u00e9 trait\u00e9s</div>
+                <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>Tous les RIB ont été traités</div>
               </div>
             ) : (
               <div style={{ padding: '8px 0' }}>
@@ -130,14 +130,14 @@ export default function RIBValidation() {
                     </div>
                     <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{doc.email}</div>
                     <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
-                      \U0001f4c4 {doc.name} \u00b7 {fmt(doc.file_size)}
+                      📄 {doc.name} · {fmt(doc.file_size)}
                     </div>
                     <div style={{
                       display: 'inline-block', marginTop: 6,
                       padding: '2px 8px', borderRadius: 10,
                       background: '#fef3c7', color: '#92400e',
                       fontSize: 11, fontWeight: 600
-                    }}>\u23f3 En attente</div>
+                    }}>⏳ En attente</div>
                   </div>
                 ))}
               </div>
@@ -160,7 +160,7 @@ export default function RIBValidation() {
                 </div>
                 <button onClick={() => { setSelected(null); setRejectMode(false) }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#9ca3af', lineHeight: 1 }}>
-                  \u00d7
+                  ×
                 </button>
               </div>
 
@@ -186,8 +186,8 @@ export default function RIBValidation() {
                     {[
                       ['Nom', selected.user_name],
                       ['Email', selected.email],
-                      ['T\u00e9l\u00e9phone', selected.phone],
-                      ['Soci\u00e9t\u00e9', selected.company_name],
+                      ['Téléphone', selected.phone],
+                      ['Société', selected.company_name],
                       ['BCE', selected.bce],
                       ['NISS', selected.niss],
                       ['Compte', selected.account],
@@ -205,18 +205,18 @@ export default function RIBValidation() {
                     <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
                       Fichier
                     </div>
-                    <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>\U0001f4c4 {selected.name}</div>
-                    <div style={{ fontSize: 12, color: '#9ca3af' }}>{fmt(selected.file_size)} \u00b7 {fmtDate(selected.created_at)}</div>
+                    <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>📄 {selected.name}</div>
+                    <div style={{ fontSize: 12, color: '#9ca3af' }}>{fmt(selected.file_size)} · {fmtDate(selected.created_at)}</div>
                     <a href={`/api/documents/serve?id=${selected.id}`} target="_blank" rel="noopener noreferrer"
                       style={{ display: 'inline-block', marginTop: 10, fontSize: 12, color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>
-                      \U0001f517 Ouvrir dans un nouvel onglet
+                      🔗 Ouvrir dans un nouvel onglet
                     </a>
                   </div>
 
                   {/* Actions */}
                   <div style={{ padding: 16 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
-                      D\u00e9cision
+                      Décision
                     </div>
 
                     {!rejectMode ? (
@@ -230,7 +230,7 @@ export default function RIBValidation() {
                             fontWeight: 700, fontSize: 14, cursor: busy ? 'not-allowed' : 'pointer'
                           }}
                         >
-                          {busy ? 'En cours\u2026' : '\u2705 Valider le RIB'}
+                          {busy ? 'En cours…' : '✅ Valider le RIB'}
                         </button>
                         <button
                           onClick={() => setRejectMode(true)}
@@ -241,7 +241,7 @@ export default function RIBValidation() {
                             fontWeight: 600, fontSize: 14, cursor: busy ? 'not-allowed' : 'pointer'
                           }}
                         >
-                          \u274c Rejeter
+                          ❌ Rejeter
                         </button>
                       </div>
                     ) : (
@@ -250,7 +250,7 @@ export default function RIBValidation() {
                         <textarea
                           value={rejectReason}
                           onChange={e => setRejectReason(e.target.value)}
-                          placeholder="Expliquez pourquoi ce document est rejet\u00e9..."
+                          placeholder="Expliquez pourquoi ce document est rejeté..."
                           rows={4}
                           style={{
                             width: '100%', padding: '8px 10px', borderRadius: 6,
