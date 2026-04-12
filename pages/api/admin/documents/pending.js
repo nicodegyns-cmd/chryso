@@ -36,7 +36,7 @@ export default async function handler(req, res) {
 
     console.log('[SQL DEBUG] admin/documents/pending', query, [])
     const q = await pool.query(query)
-    const rows = Array.isArray(q) ? q : (q && q.rows) ? q.rows : []
+    const rows = q.rows || []
 
     return res.status(200).json({
       success: true,
