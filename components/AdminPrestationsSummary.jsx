@@ -114,7 +114,8 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
     if (savingIds[id]) return
     setSavingIds(prev=>({...prev, [id]: true}))
     try{
-      const r = await fetch(`/api/admin/prestations/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status }) })
+      const adminEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : null
+      const r = await fetch(`/api/admin/prestations/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status, validated_by_email: status === "Envoyé à la facturation" ? adminEmail : null }) })
       if (!r.ok) throw new Error('update failed')
       const updated = await r.json()
       setItems(prev => prev.map(p => p.id === updated.id ? updated : p))
@@ -227,12 +228,13 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
               <th style={{textAlign:'left',padding:12,fontWeight:700,color:'#1f2937',fontSize:14}}>Type</th>
               <th style={{textAlign:'left',padding:12,fontWeight:700,color:'#1f2937',fontSize:14}}>Montant</th>
               <th style={{textAlign:'left',padding:12,fontWeight:700,color:'#1f2937',fontSize:14}}>Statut</th>
+              <th style={{textAlign:'left',padding:12,fontWeight:700,color:'#1f2937',fontSize:14}}>Validé par</th>
               <th style={{textAlign:'left',padding:12,fontWeight:700,color:'#1f2937',fontSize:14}}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {displayed.length === 0 && (
-              <tr><td colSpan={7} style={{padding:24,textAlign:'center',background:'#f9fafb',borderBottom:'1px solid #e5e7eb'}}>
+              <tr><td colSpan={8} style={{padding:24,textAlign:'center',background:'#f9fafb',borderBottom:'1px solid #e5e7eb'}}>
                 <div style={{color:'#6b7280',marginBottom:10}}>
                   {statusFilter || dateFrom || dateTo || userFilter
                     ? `Aucune demande pour le filtre actuel.`
@@ -293,6 +295,22 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                   }}>
                     {it.status || '-'}
                   </span>
+                </td>
+                <td style={{padding:12,fontSize:14,color:'#6b7280'}}>
+                  {it.validated_at ? (
+                    <div>
+                      <div style={{fontWeight:500,color:'#1f2937'}}>
+                        {it.validated_by_first_name && it.validated_by_last_name 
+                          ? `${it.validated_by_first_name} ${it.validated_by_last_name}`
+                          : (it.validated_by_email || '-')}
+                      </div>
+                      <div style={{fontSize:12,color:'#9ca3af'}}>
+                        {new Date(it.validated_at).toLocaleDateString('fr-FR', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={{color:'#d1d5db'}}>-</span>
+                  )}
                 </td>
                 <td style={{padding:12,fontSize:14}}>
                   <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>

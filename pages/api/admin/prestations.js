@@ -41,7 +41,8 @@ export default async function handler(req, res) {
         }
         q = await pool.query(
           `SELECT p.*, u.email AS user_email, u.first_name AS user_firstname, u.last_name AS user_lastname, an.name AS analytic_name, an.code AS analytic_code,
-           (SELECT string_agg(r.code, ',') FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = u.id) AS role_codes
+           (SELECT string_agg(r.code, ',') FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = u.id) AS role_codes,
+           p.validated_at, p.validated_by_id, p.validated_by_email
            FROM prestations p
            LEFT JOIN users u ON p.user_id = u.id
            LEFT JOIN analytics an ON p.analytic_id = an.id
@@ -330,7 +331,24 @@ export default async function handler(req, res) {
       // Log incoming payload keys for debugging
       try{ console.log('[admin/prestations] PATCH payload keys:', Object.keys(req.body || {})) }catch(e){}
       const { id } = req.query
-      const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, analytic_name, status, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time } = req.body || {}
+      const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, analytic_name, status, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validated_by_email } = req.body || {}
+
+      // If status is being set to "Envoyé à la facturation" and we have the validator email, get their ID
+      let validatedById = null
+      if (status === "Envoyé à la facturation" && validated_by_email) {
+        try {
+          const validatorQuery = await pool.query(
+            'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
+            [validated_by_email]
+          )
+          const validatorRows = (validatorQuery && validatorQuery.rows) ? validatorQuery.rows : []
+          if (validatorRows.length > 0) {
+            validatedById = validatorRows[0].id
+          }
+        } catch (e) {
+          console.warn('Could not find validator user:', e.message)
+        }
+      }
 
       const q = await pool.query(
         `UPDATE prestations SET
@@ -347,6 +365,9 @@ export default async function handler(req, res) {
            proof_image = COALESCE($11, proof_image),
            analytic_id = COALESCE($12, analytic_id),
            status = COALESCE($13, status),
+           validated_by_email = CASE WHEN $24::varchar IS NOT NULL THEN $24 ELSE validated_by_email END,
+           validated_by_id = CASE WHEN $25::bigint IS NOT NULL THEN $25 ELSE validated_by_id END,
+           validated_at = CASE WHEN $24::varchar IS NOT NULL THEN NOW() ELSE validated_at END,
            ebrigade_id = COALESCE($15, ebrigade_id),
            ebrigade_personnel_id = COALESCE($16, ebrigade_personnel_id),
            ebrigade_personnel_name = COALESCE($17, ebrigade_personnel_name),
@@ -359,7 +380,7 @@ export default async function handler(req, res) {
            updated_at = NOW()
          WHERE id = $14
          RETURNING *`,
-        [pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status, id, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, analytic_name || ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time]
+        [pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status, id, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, analytic_name || ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validated_by_email, validatedById]
       )
 
       const rows = (q && q.rows) ? q.rows : []
@@ -371,10 +392,13 @@ export default async function handler(req, res) {
       
       // Fetch the complete prestation data WITH user and analytics JOIN
       const q2 = await pool.query(
-        `SELECT p.*, u.email AS user_email, u.first_name AS user_firstname, u.last_name AS user_lastname, an.name AS analytic_name, an.code AS analytic_code
+        `SELECT p.*, u.email AS user_email, u.first_name AS user_firstname, u.last_name AS user_lastname, an.name AS analytic_name, an.code AS analytic_code,
+         p.validated_at, p.validated_by_id, p.validated_by_email,
+         vuser.email AS validated_by_user_email, vuser.first_name AS validated_by_first_name, vuser.last_name AS validated_by_last_name
          FROM prestations p
          LEFT JOIN users u ON p.user_id = u.id
          LEFT JOIN analytics an ON p.analytic_id = an.id
+         LEFT JOIN users vuser ON p.validated_by_id = vuser.id
          WHERE p.id = $1`,
         [updated.id]
       )
