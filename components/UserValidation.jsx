@@ -21,6 +21,9 @@ export default function UserValidation() {
   const [viewing, setViewing] = useState(null)
   const [validating, setValidating] = useState({})
   const [filterTab, setFilterTab] = useState('all')
+  const [mainTab, setMainTab] = useState('pending')
+  const [history, setHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [form, setForm] = useState({
     liaison_ebrigade_id: '',
     role: 'INFI',
@@ -45,6 +48,20 @@ export default function UserValidation() {
     }
   }
 
+  async function fetchHistory() {
+    setHistoryLoading(true)
+    try {
+      const r = await fetch('/api/admin/users/validation-history')
+      if (!r.ok) throw new Error('failed')
+      const d = await r.json()
+      setHistory(d.items || [])
+    } catch (e) {
+      console.error('history fetch failed', e)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
   function openView(user) {
     setViewing(user)
     setForm({
@@ -61,10 +78,11 @@ export default function UserValidation() {
     if (validating[userId]) return
     setValidating(prev => ({ ...prev, [userId]: true }))
     try {
+      const adminEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : null
       const r = await fetch(`/api/admin/users/${userId}/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, admin_email: adminEmail })
       })
       if (!r.ok) {
         const errorData = await r.json()
@@ -146,10 +164,68 @@ export default function UserValidation() {
     { key: 'waiting',    label: 'Invitation seule',         count: counts.waiting },
   ]
 
-  if (loading) return <div style={{ padding: 24, color: '#6b7280' }}>Chargement...</div>
+  if (loading && mainTab === 'pending') return <div style={{ padding: 24, color: '#6b7280' }}>Chargement...</div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Main tabs: Pending / History */}
+      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e5e7eb', marginBottom: 4 }}>
+        <button onClick={() => setMainTab('pending')} style={{
+          padding: '10px 20px', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700,
+          background: mainTab === 'pending' ? '#fff' : 'transparent',
+          color: mainTab === 'pending' ? '#1d4ed8' : '#6b7280',
+          borderBottom: mainTab === 'pending' ? '2px solid #1d4ed8' : '2px solid transparent',
+          marginBottom: -2
+        }}>En attente</button>
+        <button onClick={() => { setMainTab('history'); if (!history.length) fetchHistory() }} style={{
+          padding: '10px 20px', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700,
+          background: mainTab === 'history' ? '#fff' : 'transparent',
+          color: mainTab === 'history' ? '#1d4ed8' : '#6b7280',
+          borderBottom: mainTab === 'history' ? '2px solid #1d4ed8' : '2px solid transparent',
+          marginBottom: -2
+        }}>Historique des validations</button>
+      </div>
+
+      {/* History tab */}
+      {mainTab === 'history' && (
+        <div>
+          {historyLoading ? (
+            <div style={{ padding: 24, color: '#6b7280' }}>Chargement...</div>
+          ) : history.length === 0 ? (
+            <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af' }}>Aucune validation enregistrée</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', fontSize: 11, textTransform: 'uppercase' }}>Utilisateur</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', fontSize: 11, textTransform: 'uppercase' }}>Email</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', fontSize: 11, textTransform: 'uppercase' }}>Rôle</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', fontSize: 11, textTransform: 'uppercase' }}>Validé par</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', fontSize: 11, textTransform: 'uppercase' }}>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map(h => (
+                  <tr key={h.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <td style={{ padding: '10px 12px', fontWeight: 600, color: '#1f2937' }}>{h.first_name} {h.last_name}</td>
+                    <td style={{ padding: '10px 12px', color: '#6b7280' }}>{h.email}</td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <span style={{ background: '#ede9fe', color: '#6d28d9', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>{h.role}</span>
+                    </td>
+                    <td style={{ padding: '10px 12px', color: '#1d4ed8', fontWeight: 600 }}>{h.validated_by || '—'}</td>
+                    <td style={{ padding: '10px 12px', color: '#6b7280' }}>
+                      {h.validated_at ? new Date(h.validated_at).toLocaleString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {mainTab === 'pending' && (<>
 
       {/* Stats bar */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
@@ -315,6 +391,8 @@ export default function UserValidation() {
           </div>
         </div>
       )}
+
+      </>)}
     </div>
   )
 }

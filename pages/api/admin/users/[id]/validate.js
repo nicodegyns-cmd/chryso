@@ -7,11 +7,18 @@ export default async function handler(req, res) {
 
   try {
     const { id } = req.query
-    const { liaison_ebrigade_id, role, niss, bce, account } = req.body
+    const { liaison_ebrigade_id, role, niss, bce, account, admin_email } = req.body
 
     if (!id || !role) {
       return res.status(400).json({ error: 'Missing required fields' })
     }
+
+    // Ensure tracking columns exist
+    await query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS validated_by VARCHAR(255) DEFAULT NULL,
+        ADD COLUMN IF NOT EXISTS validated_at TIMESTAMP DEFAULT NULL
+    `)
 
     // Update user: set liaison_ebrigade_id, role, admin fields, mark as active
     // DO NOT change password - user set their own password in onboarding step 3
@@ -24,10 +31,12 @@ export default async function handler(req, res) {
            account = $5,
            onboarding_status = $6,
            is_active = 1,
-           must_complete_profile = false
+           must_complete_profile = false,
+           validated_by = $8,
+           validated_at = NOW()
        WHERE id = $7
        RETURNING id, email, first_name, last_name, role`,
-      [liaison_ebrigade_id || null, role, niss || null, bce || null, account || null, 'active', parseInt(id)]
+      [liaison_ebrigade_id || null, role, niss || null, bce || null, account || null, 'active', parseInt(id), admin_email || null]
     )
 
     const rows = result.rows || result[0] || []
