@@ -681,8 +681,6 @@ export default function ComptabilitePage() {
 
                   <div className={adminStyles['user-info']}>
                     <h3>{doc.user_name || `${doc.first_name || ''} ${doc.last_name || ''}`.trim()}</h3>
-                    <p className={adminStyles.email}>📧 {doc.email || ''}</p>
-                    {doc.phone && <p className={adminStyles.phone}>📱 {doc.phone}</p>}
                     {doc.company_name && <p className={adminStyles.company}>🏢 {doc.company_name}</p>}
                     {doc.address && <p className={adminStyles.city}>📍 {doc.address}</p>}
                   </div>
@@ -700,8 +698,8 @@ export default function ComptabilitePage() {
                   </div>
 
                   <div style={{marginTop:12, display:'flex', gap:8}}>
-                    <a href={doc.url} target="_blank" rel="noreferrer" className={adminStyles['view-document-btn']}>Voir</a>
-                    <a href={doc.url} download style={{padding:'8px 12px',background:'#6b7280',color:'#fff',borderRadius:6,textDecoration:'none',textAlign:'center'}}>Télécharger</a>
+                    <a href={`/api/documents/serve?id=${doc.id}`} target="_blank" rel="noreferrer" className={adminStyles['view-document-btn']}>Voir</a>
+                    <a href={`/api/documents/serve?id=${doc.id}`} download={doc.name} style={{padding:'8px 12px',background:'#6b7280',color:'#fff',borderRadius:6,textDecoration:'none',textAlign:'center'}}>Télécharger</a>
                       <button onClick={() => { setConfirmDoc(doc); setConfirmEncodeOpen(true); }} style={{padding:'8px 12px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Encodé</button>
                   </div>
                 </div>
