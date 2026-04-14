@@ -375,9 +375,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       return
     }
 
-    // Prevent saving if status is "En attente d'envoie"
-    if (editing.status === "En attente d'envoie") {
-      alert('Cette demande est en attente d\'envoie et ne peut plus être modifiée.')
+    // Prevent saving if status is locked (submitted or approved)
+    const lockedStatuses = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation']
+    if (lockedStatuses.includes(editing.status)) {
+      alert('Cette prestation ne peut plus être modifiée.')
       return
     }
     
@@ -837,7 +838,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   // Prefer showing the prestation reference (`request_ref`) as a 5-digit code when available
                   const ref = editing.request_ref || editing.invoice_number || ('#'+editing.id)
                   if (role === 'admin') return `📋 Détails demande ${ref}`
-                  if (editing.status === "En attente d'envoie" || editing.status === 'Envoyé à la facturation') return `👁️ Consulter prestation ${ref}`
+                  if (editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation') return `👁️ Consulter prestation ${ref}`
                   return `✏️ Modifier prestation ${ref}`
                 })()
               }</h3>
@@ -845,13 +846,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
             <div style={{padding:24}}>
 
-            {(editing.status === "En attente d'envoie" || editing.status === 'Envoyé à la facturation') && role !== 'admin' && (
-              <div style={{padding:12,background: editing.status === 'Envoyé à la facturation' ? '#dcfce7' : '#fef3c7',border:`1px solid ${editing.status === 'Envoyé à la facturation' ? '#86efac' : '#fcd34d'}`,borderRadius:6,marginBottom:12,color: editing.status === 'Envoyé à la facturation' ? '#166534' : '#92400e',fontSize:13}}>
-                <strong>{editing.status === 'Envoyé à la facturation' ? '✅ Cette prestation a été envoyée à la facturation' : "🔒 Cette demande est en attente d'envoie"}</strong> — Vous pouvez consulter les informations mais vous ne pouvez plus les modifier.
+            {(editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation') && role !== 'admin' && (
+              <div style={{padding:12,background: editing.status === 'Envoyé à la facturation' ? '#dcfce7' : editing.status === "En attente d'approbation" ? '#ede9fe' : '#fef3c7',border:`1px solid ${editing.status === 'Envoyé à la facturation' ? '#86efac' : editing.status === "En attente d'approbation" ? '#c4b5fd' : '#fcd34d'}`,borderRadius:6,marginBottom:12,color: editing.status === 'Envoyé à la facturation' ? '#166534' : editing.status === "En attente d'approbation" ? '#5b21b6' : '#92400e',fontSize:13}}>
+                <strong>{editing.status === 'Envoyé à la facturation' ? '✅ Cette prestation a été envoyée à la facturation' : editing.status === "En attente d'approbation" ? "🔒 Cette prestation est en attente d'approbation" : "🔒 Cette demande est en attente d'envoie"}</strong> — Vous pouvez consulter les informations mais vous ne pouvez plus les modifier.
               </div>
             )}
 
-            {role === 'admin' && !editing.isActivity || editing.status === "En attente d'envoie" || editing.status === 'Envoyé à la facturation' ? (
+            {role === 'admin' && !editing.isActivity || editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation' ? (
               // Admin read-only view OR blocked prestation: show submitted values with styled sections
               <div className="edit-grid" style={{gridTemplateColumns:'1fr',gap:16}}>
                 {console.log('[PrestationsTable] Rendering ADMIN/READ-ONLY view. role:', role, 'isActivity:', editing.isActivity)}
@@ -1159,15 +1160,22 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
             )}
 
                 <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:12}}>
-              <button onClick={handleCloseModal} disabled={saving}>{role === 'admin' || editing.status === "En attente d'envoie" || editing.status === 'Envoyé à la facturation' ? 'Fermer' : 'Annuler'}</button>
-              {role !== 'admin' && editing.status !== "En attente d'envoie" && editing.status !== 'Envoyé à la facturation' && !confirmOpen && <button onClick={()=>saveEdit(false)} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer'}</button>}
-              {role !== 'admin' && editing.status !== 'Envoyé à la facturation' && confirmOpen && (
-                <>
-                  <button onClick={()=>{ setConfirmOpen(false); setConfirmPreview(null); }} disabled={saving}>Modifier</button>
-                  <button onClick={confirmAndSave} disabled={saving}>{saving ? 'Enregistrement...' : 'Confirmer'}</button>
-                </>
-              )}
-              {role === 'admin' && <button onClick={saveEdit} disabled={saving || editing.status === "En attente d'envoie" || editing.status === 'Envoyé à la facturation'}>{editing.status === "En attente d'envoie" || editing.status === 'Envoyé à la facturation' ? 'Non modifiable' : (saving ? 'Enregistrement...' : 'Enregistrer')}</button>}
+              {(() => {
+                const locked = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation'].includes(editing.status)
+                return (
+                  <>
+                    <button onClick={handleCloseModal} disabled={saving}>{role === 'admin' || locked ? 'Fermer' : 'Annuler'}</button>
+                    {role !== 'admin' && !locked && !confirmOpen && <button onClick={()=>saveEdit(false)} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer'}</button>}
+                    {role !== 'admin' && !locked && confirmOpen && (
+                      <>
+                        <button onClick={()=>{ setConfirmOpen(false); setConfirmPreview(null); }} disabled={saving}>Modifier</button>
+                        <button onClick={confirmAndSave} disabled={saving}>{saving ? 'Enregistrement...' : 'Confirmer'}</button>
+                      </>
+                    )}
+                    {role === 'admin' && <button onClick={saveEdit} disabled={saving || locked}>{locked ? 'Non modifiable' : (saving ? 'Enregistrement...' : 'Enregistrer')}</button>}
+                  </>
+                )
+              })()}
             </div>
             </div>
           </div>
