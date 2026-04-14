@@ -10,6 +10,7 @@ export default function PrestatairesPage(){
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [userEmail, setUserEmail] = useState('')
+  const [userRole, setUserRole] = useState('')
   const [ribViewer, setRibViewer] = useState(null)
   const [ficheViewer, setFicheViewer] = useState(null)
 
@@ -18,6 +19,7 @@ export default function PrestatairesPage(){
     const email = typeof window !== 'undefined' ? localStorage.getItem('email') : null
     if (email) {
       setUserEmail(email)
+      setUserRole(localStorage.getItem('role') || '')
       
       async function checkStatus() {
         try {
@@ -88,7 +90,7 @@ export default function PrestatairesPage(){
               <table style={{width:'100%',borderCollapse:'collapse'}}>
                 <thead>
                   <tr style={{background:'#f3f4f6',borderBottom:'1px solid #e5e7eb'}}>
-                    <th style={{textAlign:'left',padding:12}}>Email</th>
+                    {userRole !== 'comptabilite' && <th style={{textAlign:'left',padding:12}}>Email</th>}
                     <th style={{textAlign:'left',padding:12}}>Nom</th>
                     <th style={{textAlign:'left',padding:12}}>Société</th>
                     <th style={{textAlign:'center',padding:12}}>RIB</th>
@@ -98,7 +100,7 @@ export default function PrestatairesPage(){
                 <tbody>
                   {displayed.map(u => (
                     <tr key={u.id} style={{borderBottom:'1px solid #f3f4f6'}}>
-                      <td style={{padding:12}}>{u.email}</td>
+                      {userRole !== 'comptabilite' && <td style={{padding:12}}>{u.email}</td>}
                       <td style={{padding:12}}>{(u.first_name||'')+' '+(u.last_name||'')}</td>
                       <td style={{padding:12}}>{u.company || '-'}</td>
                       <td style={{padding:12,textAlign:'center'}}>
