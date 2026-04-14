@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     const result = await pool.query(
       `SELECT id, email, first_name, last_name, liaison_ebrigade_id 
        FROM users 
-       WHERE LOWER(email) = LOWER($1) AND is_active = true`,
+       WHERE LOWER(email) = LOWER($1) AND (is_active = 1 OR is_active IS NULL OR is_active::text = 'true')`,
       [email]
     )
 

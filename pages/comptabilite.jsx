@@ -82,12 +82,12 @@ export default function ComptabilitePage() {
     fetchPrestations()
   }, [filterStatus])
 
-  // Fetch pending documents (for RIB count)
+  // Fetch approved RIB documents count (for badge)
   useEffect(() => {
     let mounted = true
-    async function fetchPendingDocs() {
+    async function fetchApprovedDocs() {
       try {
-        const res = await fetch('/api/admin/documents/pending')
+        const res = await fetch('/api/admin/documents/approved')
         if (!res.ok) throw new Error('Erreur récupération documents')
         const data = await res.json()
         const docs = data.documents || []
@@ -98,17 +98,17 @@ export default function ComptabilitePage() {
         })
         if (mounted) setRibPendingCount(ribDocs.length)
       } catch (err) {
-        console.warn('Failed loading pending docs', err.message)
+        console.warn('Failed loading approved docs', err.message)
       }
     }
-    fetchPendingDocs()
+    fetchApprovedDocs()
     return () => { mounted = false }
   }, [])
 
   async function openRibModal() {
     setRibModalOpen(true)
     try {
-      const res = await fetch('/api/admin/documents/pending')
+      const res = await fetch('/api/admin/documents/approved')
       if (!res.ok) throw new Error('Erreur récupération documents')
       const data = await res.json()
       const docs = data.documents || []
@@ -666,12 +666,12 @@ export default function ComptabilitePage() {
         <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1200}} onClick={() => setRibModalOpen(false)}>
           <div style={{background:'#fff',borderRadius:8,width:'95%',maxWidth:1100,maxHeight:'90vh',overflow:'auto',padding:20}} onClick={(e)=>e.stopPropagation()}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-              <h2 style={{margin:0}}>🧾 RIB en attente ({ribDocuments.length})</h2>
+              <h2 style={{margin:0}}>🧾 RIB validés — à encoder ({ribDocuments.length})</h2>
               <button onClick={() => setRibModalOpen(false)} style={{border:'none',background:'transparent',fontSize:18,cursor:'pointer'}}>✕</button>
             </div>
             <div className={adminStyles['documents-grid']}>
               {ribDocuments.length === 0 ? (
-                <div style={{padding:20,color:'#6b7280'}}>Aucun RIB en attente</div>
+                <div style={{padding:20,color:'#6b7280'}}>Aucun RIB validé à encoder</div>
               ) : ribDocuments.map(doc => (
                 <div key={doc.id} className={adminStyles['document-card']} onClick={() => {}}>
                   <div className={adminStyles['doc-header']}>
@@ -695,7 +695,9 @@ export default function ComptabilitePage() {
                     <strong>Taille:</strong> {(doc.file_size / 1024).toFixed(2)} KB
                   </div>
 
-                  <div className={`${adminStyles['status-badge']} ${adminStyles.pending}`}>⏳ En attente</div>
+                  <div className={`${adminStyles['status-badge']} ${adminStyles.pending}`}>
+                    {doc.validation_status === 'encoded' ? '📥 Encodé' : '✅ Validé par admin'}
+                  </div>
 
                   <div style={{marginTop:12, display:'flex', gap:8}}>
                     <a href={doc.url} target="_blank" rel="noreferrer" className={adminStyles['view-document-btn']}>Voir</a>

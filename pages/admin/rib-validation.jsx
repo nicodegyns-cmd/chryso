@@ -3,7 +3,9 @@ import AdminHeader from '../../components/AdminHeader'
 import AdminSidebar from '../../components/AdminSidebar'
 
 export default function RIBValidation() {
+  const [tab, setTab] = useState('pending') // 'pending' | 'approved'
   const [documents, setDocuments] = useState([])
+  const [approvedDocs, setApprovedDocs] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [rejectMode, setRejectMode] = useState(false)
@@ -11,7 +13,7 @@ export default function RIBValidation() {
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState(null)
 
-  useEffect(() => { fetchDocs() }, [])
+  useEffect(() => { fetchDocs(); fetchApproved() }, [])
 
   async function fetchDocs() {
     setLoading(true)
@@ -24,6 +26,14 @@ export default function RIBValidation() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function fetchApproved() {
+    try {
+      const r = await fetch('/api/admin/documents/approved')
+      const d = await r.json()
+      setApprovedDocs(d.documents || [])
+    } catch (e) { /* silent */ }
   }
 
   function showToast(msg, type = 'success') {
@@ -50,6 +60,7 @@ export default function RIBValidation() {
       if (!r.ok) throw new Error(d.error || 'Erreur')
       showToast(status === 'approved' ? '✅ Document validé !' : '❌ Document rejeté', status === 'approved' ? 'success' : 'error')
       setDocuments(prev => prev.filter(doc => doc.id !== selected.id))
+      if (status === 'approved') fetchApproved()
       setSelected(null)
       setRejectMode(false)
       setRejectReason('')
@@ -97,50 +108,102 @@ export default function RIBValidation() {
               <h1 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1f2937' }}>
                 Validation RIB
               </h1>
-              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
-                {loading ? 'Chargement…' : `${documents.length} document(s) en attente`}
+              {/* Tabs */}
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button onClick={() => { setTab('pending'); setSelected(null) }} style={{
+                  padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                  background: tab === 'pending' ? '#3b82f6' : '#e5e7eb',
+                  color: tab === 'pending' ? '#fff' : '#374151'
+                }}>⏳ En attente ({documents.length})</button>
+                <button onClick={() => { setTab('approved'); setSelected(null) }} style={{
+                  padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                  background: tab === 'approved' ? '#10b981' : '#e5e7eb',
+                  color: tab === 'approved' ? '#fff' : '#374151'
+                }}>✅ Validés ({approvedDocs.length})</button>
               </div>
             </div>
 
             {loading ? (
               <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Chargement…</div>
-            ) : documents.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-                <div style={{ fontWeight: 600, color: '#374151' }}>Aucun document en attente</div>
-                <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>Tous les RIB ont été traités</div>
-              </div>
+            ) : tab === 'pending' ? (
+              documents.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center' }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                  <div style={{ fontWeight: 600, color: '#374151' }}>Aucun document en attente</div>
+                  <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>Tous les RIB ont été traités</div>
+                </div>
+              ) : (
+                <div style={{ padding: '8px 0' }}>
+                  {documents.map(doc => (
+                    <div key={doc.id}
+                      onClick={() => selectDoc(doc)}
+                      style={{
+                        padding: '14px 16px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #e5e7eb',
+                        background: selected?.id === doc.id ? '#eff6ff' : '#fff',
+                        borderLeft: selected?.id === doc.id ? '3px solid #3b82f6' : '3px solid transparent',
+                        transition: 'background 0.1s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ fontWeight: 600, color: '#1f2937', fontSize: 14 }}>{doc.user_name || 'Inconnu'}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{fmtDate(doc.created_at)}</div>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{doc.email}</div>
+                      <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
+                        📄 {doc.name} · {fmt(doc.file_size)}
+                      </div>
+                      <div style={{
+                        display: 'inline-block', marginTop: 6,
+                        padding: '2px 8px', borderRadius: 10,
+                        background: '#fef3c7', color: '#92400e',
+                        fontSize: 11, fontWeight: 600
+                      }}>⏳ En attente</div>
+                    </div>
+                  ))}
+                </div>
+              )
             ) : (
-              <div style={{ padding: '8px 0' }}>
-                {documents.map(doc => (
-                  <div key={doc.id}
-                    onClick={() => selectDoc(doc)}
-                    style={{
-                      padding: '14px 16px',
-                      cursor: 'pointer',
-                      borderBottom: '1px solid #e5e7eb',
-                      background: selected?.id === doc.id ? '#eff6ff' : '#fff',
-                      borderLeft: selected?.id === doc.id ? '3px solid #3b82f6' : '3px solid transparent',
-                      transition: 'background 0.1s'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ fontWeight: 600, color: '#1f2937', fontSize: 14 }}>{doc.user_name || 'Inconnu'}</div>
-                      <div style={{ fontSize: 11, color: '#9ca3af' }}>{fmtDate(doc.created_at)}</div>
+              /* Onglet Validés */
+              approvedDocs.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center' }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>📂</div>
+                  <div style={{ fontWeight: 600, color: '#374151' }}>Aucun document validé</div>
+                </div>
+              ) : (
+                <div style={{ padding: '8px 0' }}>
+                  {approvedDocs.map(doc => (
+                    <div key={doc.id}
+                      onClick={() => selectDoc(doc)}
+                      style={{
+                        padding: '14px 16px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #e5e7eb',
+                        background: selected?.id === doc.id ? '#f0fdf4' : '#fff',
+                        borderLeft: selected?.id === doc.id ? '3px solid #10b981' : '3px solid transparent',
+                        transition: 'background 0.1s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ fontWeight: 600, color: '#1f2937', fontSize: 14 }}>{doc.user_name || 'Inconnu'}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{fmtDate(doc.validated_at || doc.created_at)}</div>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{doc.email}</div>
+                      <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
+                        📄 {doc.name} · {fmt(doc.file_size)}
+                      </div>
+                      <div style={{
+                        display: 'inline-block', marginTop: 6,
+                        padding: '2px 8px', borderRadius: 10,
+                        background: doc.validation_status === 'encoded' ? '#ede9fe' : '#d1fae5',
+                        color: doc.validation_status === 'encoded' ? '#5b21b6' : '#065f46',
+                        fontSize: 11, fontWeight: 600
+                      }}>{doc.validation_status === 'encoded' ? '📥 Encodé' : '✅ Validé'}</div>
                     </div>
-                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{doc.email}</div>
-                    <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
-                      📄 {doc.name} · {fmt(doc.file_size)}
-                    </div>
-                    <div style={{
-                      display: 'inline-block', marginTop: 6,
-                      padding: '2px 8px', borderRadius: 10,
-                      background: '#fef3c7', color: '#92400e',
-                      fontSize: 11, fontWeight: 600
-                    }}>⏳ En attente</div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )
             )}
           </div>
 
