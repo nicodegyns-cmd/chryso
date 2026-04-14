@@ -266,7 +266,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       })
       if (!r.ok) {
         const data = await r.json()
-        throw new Error(data.error || 'Erreur lors de l\'envoi')
+        throw new Error(data.message || data.error || 'Erreur lors de l\'envoi')
       }
       const data = await r.json()
       setEmailSent(true)

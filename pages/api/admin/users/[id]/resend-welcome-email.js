@@ -13,9 +13,21 @@ export default async function handler(req, res) {
 
   try {
     // Get user details
-    const [[user]] = await pool.query('SELECT id, email, first_name FROM users WHERE id = $1 LIMIT 1', [id])
+    const [[user]] = await pool.query('SELECT id, email, first_name, invitation_excluded FROM users WHERE id = $1 LIMIT 1', [id])
     if (!user) {
       return res.status(404).json({ error: 'User not found' })
+    }
+
+    // Check if user is excluded from invitations
+    if (user.invitation_excluded) {
+      return res.status(403).json({ error: 'invitation_excluded', message: `${user.email} est exclu(e) des invitations. Désactivez l'exclusion dans la page Sécurité avant de renvoyer l'email.` })
+    }
+
+    // Check excluded_invitation_emails table too
+    const excQ = await pool.query('SELECT 1 FROM excluded_invitation_emails WHERE LOWER(email) = LOWER($1) LIMIT 1', [user.email])
+    const excRows = excQ.rows || excQ[0] || []
+    if (excRows.length > 0) {
+      return res.status(403).json({ error: 'invitation_excluded', message: `${user.email} est dans la liste d'exclusion des invitations. Retirez-le de la liste dans la page Sécurité avant de renvoyer l'email.` })
     }
 
     // Generate a new temporary password
