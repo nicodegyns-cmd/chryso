@@ -101,7 +101,9 @@ export default function InvoicesPage() {
           hours_actual: p.hours_actual || 0,
           pay_type: p.pay_type || '',
           analytic_id: p.analytic_id || null,
-          expense_amount: p.expense_amount || 0
+          expense_amount: p.expense_amount || 0,
+          remuneration_infi: p.remuneration_infi != null ? Number(p.remuneration_infi) : null,
+          remuneration_med:  p.remuneration_med  != null ? Number(p.remuneration_med)  : null,
         }))
 
         // Use saved remuneration from DB (remuneration_infi/med) as the total amount
