@@ -17,6 +17,7 @@ export default function SecurityPage() {
   const [newIp, setNewIp] = useState('')
   const [newReason, setNewReason] = useState('')
   const [ipBusy, setIpBusy] = useState(false)
+  const [myIp, setMyIp] = useState('')
 
   // --- Invitation exclusions (users with profile) ---
   const [users, setUsers] = useState([])
@@ -35,6 +36,7 @@ export default function SecurityPage() {
     fetchBlockedIps()
     fetchUsers()
     fetchExcludedEmails()
+    fetch('/api/admin/my-ip').then(r => r.json()).then(d => setMyIp(d.ip || '')).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -202,6 +204,13 @@ export default function SecurityPage() {
           {/* ===== IPs bloquées ===== */}
           {tab === 'ips' && (
             <div>
+              {myIp && (
+                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 16px', marginBottom: 16, fontSize: 13, color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span>🌐 Votre adresse IP actuelle :</span>
+                  <code style={{ fontWeight: 700, fontSize: 14 }}>{myIp}</code>
+                  <button onClick={() => setNewIp(myIp)} style={{ marginLeft: 8, padding: '3px 10px', background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: 4, cursor: 'pointer', fontSize: 12, color: '#1e40af' }}>Copier dans le formulaire</button>
+                </div>
+              )}
               <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 20, marginBottom: 20 }}>
                 <div style={{ fontWeight: 600, marginBottom: 12 }}>Bloquer une adresse IP</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
