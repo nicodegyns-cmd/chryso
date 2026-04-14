@@ -7,17 +7,26 @@ let lastFetch = 0
 const CACHE_TTL_MS = 60 * 1000 // refresh every 60 seconds
 
 async function refreshBlockedIps(baseUrl) {
-  try {
-    const res = await fetch(`${baseUrl}/api/admin/blocked-ips`, { cache: 'no-store' })
-    if (!res.ok) return
-    const data = await res.json()
-    if (Array.isArray(data)) {
-      blockedIpsCache = new Set(data.map(r => r.ip_address))
-      lastFetch = Date.now()
+  // Try localhost:3000 first (direct, no proxy), then fall back to baseUrl
+  const urls = [
+    'http://localhost:3000/api/admin/blocked-ips',
+    `${baseUrl}/api/admin/blocked-ips`,
+  ]
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: 'no-store' })
+      if (!res.ok) continue
+      const data = await res.json()
+      if (Array.isArray(data)) {
+        blockedIpsCache = new Set(data.map(r => r.ip_address))
+        lastFetch = Date.now()
+        return
+      }
+    } catch (_) {
+      // try next URL
     }
-  } catch (e) {
-    // Fail open — don't block traffic if DB unreachable
   }
+  // Fail open — don't block traffic if DB unreachable
 }
 
 export async function middleware(req) {

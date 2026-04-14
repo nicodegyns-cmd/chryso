@@ -7,6 +7,19 @@ export default async function handler(req, res) {
   const { email, password } = req.body || {}
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' })
 
+  // Check blocked IPs at login
+  try {
+    const pool = getPool()
+    const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim()
+    if (clientIp) {
+      const ipCheck = await pool.query('SELECT 1 FROM blocked_ips WHERE ip_address = $1 LIMIT 1', [clientIp])
+      const ipRows = ipCheck.rows || ipCheck[0] || []
+      if (ipRows.length > 0) {
+        return res.status(403).json({ error: 'ip_blocked', message: 'Accès refusé depuis cette adresse IP.' })
+      }
+    }
+  } catch (_) { /* fail open */ }
+
   try {
     console.log('[api/login] verifying user', email)
     const user = await verifyUser(String(email).trim().toLowerCase(), password)
