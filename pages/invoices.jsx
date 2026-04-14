@@ -216,7 +216,7 @@ export default function InvoicesPage() {
                               <td style={{padding: 12}}>
                                 <div style={{fontWeight:500}}>{inv.user_name || `${inv.first_name || ''} ${inv.last_name || ''}`}</div>
                               </td>
-                              <td style={{padding:12}}>{inv.amount != null && !isNaN(parseFloat(inv.amount)) ? parseFloat(inv.amount).toFixed(2) + ' €' : '-'}</td>
+                              <td style={{padding:12}}>{(() => { const a = parseFloat(inv.amount)||0; const e = parseFloat(inv.expense_amount)||0; const total = a+e; return total > 0 ? total.toFixed(2)+' €' : '-' })()}</td>
                               <td style={{padding:12}}>{inv.created_at ? new Date(inv.created_at).toLocaleDateString('fr-FR') : '-'}</td>
                               <td style={{padding:12}}><StatusBadge status={inv.status} /></td>
                               <td style={{padding:12, textAlign:'center'}}>

@@ -19,6 +19,7 @@ export default async function handler(req, res) {
         p.analytic_id,
         p.user_id,
         COALESCE(NULLIF(p.remuneration_infi, 0), p.remuneration_med, p.remuneration_infi, 0) AS amount,
+        COALESCE(p.expense_amount, 0) AS expense_amount,
         p.status,
         p.created_at,
         p.pdf_url,
