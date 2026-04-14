@@ -61,6 +61,19 @@ export default async function handler(req, res) {
     const active = roles.length > 0 ? roles[0] : 'user'
     console.log('[api/login] active role:', active)
 
+    // Log successful login to login_history
+    try {
+      const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim()
+      const ua = req.headers['user-agent'] || null
+      await dbQuery(
+        `INSERT INTO login_history (user_id, email, first_name, last_name, role, ip_address, user_agent)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [user.id, user.email, user.first_name || null, user.last_name || null, active, ip || null, ua]
+      )
+    } catch (e) {
+      console.warn('[api/login] Failed to log login history:', e.message)
+    }
+
     // In a real app you would sign a JWT or session; here we return a dev token
     return res.status(200).json({
       token: 'dev-token-' + Math.random().toString(36).slice(2, 10),

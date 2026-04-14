@@ -4,7 +4,12 @@ import AdminSidebar from '../../components/AdminSidebar'
 
 export default function SecurityPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [tab, setTab] = useState('ips') // 'ips' | 'invitations' | 'emails'
+  const [tab, setTab] = useState('ips') // 'ips' | 'invitations' | 'emails' | 'connexions'
+
+  // --- Login history ---
+  const [loginHistory, setLoginHistory] = useState([])
+  const [loginLoading, setLoginLoading] = useState(false)
+  const [loginSearch, setLoginSearch] = useState('')
 
   // --- IP blocking ---
   const [blockedIps, setBlockedIps] = useState([])
@@ -31,6 +36,20 @@ export default function SecurityPage() {
     fetchUsers()
     fetchExcludedEmails()
   }, [])
+
+  useEffect(() => {
+    if (tab === 'connexions') fetchLoginHistory()
+  }, [tab])
+
+  async function fetchLoginHistory() {
+    setLoginLoading(true)
+    try {
+      const r = await fetch('/api/admin/login-history')
+      const d = await r.json()
+      setLoginHistory(Array.isArray(d) ? d : [])
+    } catch (e) { setLoginHistory([]) }
+    finally { setLoginLoading(false) }
+  }
 
   // ---- IP functions ----
   async function fetchBlockedIps() {
@@ -145,7 +164,20 @@ export default function SecurityPage() {
     { key: 'ips', label: '🚫 IPs bloquées' },
     { key: 'invitations', label: '📧 Exclusions (avec compte)' },
     { key: 'emails', label: '✉️ Exclusions (sans compte)' },
+    { key: 'connexions', label: '🔐 Connexions' },
   ]
+
+  const now = new Date()
+  const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000)
+  const filteredLogin = loginHistory.filter(row => {
+    const q = loginSearch.toLowerCase()
+    if (!q) return true
+    return (row.email || '').toLowerCase().includes(q) ||
+      (row.first_name || '').toLowerCase().includes(q) ||
+      (row.last_name || '').toLowerCase().includes(q) ||
+      (row.ip_address || '').includes(q)
+  })
+  const recentlyConnected = loginHistory.filter(r => new Date(r.logged_in_at) > oneDayAgo)
 
   return (
     <div className="admin-page-root">
@@ -380,6 +412,86 @@ export default function SecurityPage() {
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ===== CONNEXIONS ===== */}
+          {tab === 'connexions' && (
+            <div>
+              {/* Currently connected (last 24h) */}
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', marginBottom: 24 }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
+                  Connectés dans les dernières 24h ({recentlyConnected.length})
+                </div>
+                {loginLoading ? (
+                  <div style={{ padding: 24, color: '#6b7280', textAlign: 'center' }}>Chargement…</div>
+                ) : recentlyConnected.length === 0 ? (
+                  <div style={{ padding: 24, color: '#6b7280', textAlign: 'center' }}>Aucune connexion récente</div>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: 16 }}>
+                    {[...new Map(recentlyConnected.map(r => [r.email, r])).values()].map(row => (
+                      <div key={row.email} style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '8px 14px', fontSize: 13 }}>
+                        <div style={{ fontWeight: 600 }}>{row.first_name} {row.last_name}</div>
+                        <div style={{ color: '#6b7280', fontSize: 12 }}>{row.email}</div>
+                        <div style={{ color: '#16a34a', fontSize: 11, marginTop: 2 }}>
+                          {new Date(row.logged_in_at).toLocaleString('fr-FR')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Full history */}
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>Historique des connexions ({loginHistory.length})</span>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      value={loginSearch} onChange={e => setLoginSearch(e.target.value)}
+                      placeholder="Filtrer…"
+                      style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, width: 200 }}
+                    />
+                    <button onClick={fetchLoginHistory} style={{ padding: '6px 14px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>↻ Rafraîchir</button>
+                  </div>
+                </div>
+                {loginLoading ? (
+                  <div style={{ padding: 24, color: '#6b7280', textAlign: 'center' }}>Chargement…</div>
+                ) : filteredLogin.length === 0 ? (
+                  <div style={{ padding: 24, color: '#6b7280', textAlign: 'center' }}>Aucune connexion enregistrée</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#374151' }}>Utilisateur</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#374151' }}>Rôle</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#374151' }}>IP</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#374151' }}>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredLogin.map(row => {
+                        const isRecent = new Date(row.logged_in_at) > oneDayAgo
+                        return (
+                          <tr key={row.id} style={{ borderBottom: '1px solid #f3f4f6', background: isRecent ? '#f0fdf4' : 'transparent' }}>
+                            <td style={{ padding: '9px 16px' }}>
+                              <div style={{ fontWeight: 600, fontSize: 13 }}>{row.first_name} {row.last_name}</div>
+                              <div style={{ fontSize: 11, color: '#6b7280' }}>{row.email}</div>
+                            </td>
+                            <td style={{ padding: '9px 16px', fontSize: 12, color: '#374151' }}>{row.role || '—'}</td>
+                            <td style={{ padding: '9px 16px', fontFamily: 'monospace', fontSize: 12, color: '#374151' }}>{row.ip_address || '—'}</td>
+                            <td style={{ padding: '9px 16px', fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>
+                              {new Date(row.logged_in_at).toLocaleString('fr-FR')}
+                              {isRecent && <span style={{ marginLeft: 6, color: '#16a34a', fontWeight: 600, fontSize: 10 }}>● récent</span>}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 )}
