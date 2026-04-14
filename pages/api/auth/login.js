@@ -1,5 +1,5 @@
 import { verifyUser } from '../../../services/userStore'
-import { query as dbQuery } from '../../../services/db'
+import { query as dbQuery, getPool } from '../../../services/db'
 
 export default async function handler(req, res) {
   console.log('[api/login] handler start', req.method)
@@ -65,10 +65,14 @@ export default async function handler(req, res) {
     try {
       const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim()
       const ua = req.headers['user-agent'] || null
-      await dbQuery(
+      // Fetch first_name/last_name (not returned by verifyUser)
+      const pool = getPool()
+      const nameQ = await pool.query('SELECT first_name, last_name FROM users WHERE id = $1', [user.id])
+      const nameRow = (nameQ.rows || nameQ[0] || [])[0] || {}
+      await pool.query(
         `INSERT INTO login_history (user_id, email, first_name, last_name, role, ip_address, user_agent)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [user.id, user.email, user.first_name || null, user.last_name || null, active, ip || null, ua]
+        [user.id, user.email, nameRow.first_name || null, nameRow.last_name || null, active, ip || null, ua]
       )
     } catch (e) {
       console.warn('[api/login] Failed to log login history:', e.message)
