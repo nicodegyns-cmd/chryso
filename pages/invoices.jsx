@@ -284,12 +284,18 @@ export default function InvoicesPage() {
 
 function StatusBadge({ status }) {
   const statusConfig = {
-    pending: { bg: '#fef3c7', color: '#92400e', label: '⏳ En attente' },
-    paid: { bg: '#dcfce7', color: '#166534', label: '✅ Payée' },
-    overdue: { bg: '#fee2e2', color: '#991b1b', label: '⚠️ En retard' },
-    cancelled: { bg: '#f3f4f6', color: '#374151', label: '❌ Annulée' }
+    'Envoyé à la facturation': { bg: '#dbeafe', color: '#1e40af', label: '📤 Envoyé à la facturation' },
+    'En attente d\'envoie': { bg: '#fef3c7', color: '#92400e', label: '⏳ En attente d\'envoi' },
+    'En attente': { bg: '#fef3c7', color: '#92400e', label: '⏳ En attente' },
+    'payé': { bg: '#dcfce7', color: '#166534', label: '✅ Payée' },
+    'Payé': { bg: '#dcfce7', color: '#166534', label: '✅ Payée' },
+    'rejeté': { bg: '#fee2e2', color: '#991b1b', label: '❌ Rejetée' },
+    'Rejeté': { bg: '#fee2e2', color: '#991b1b', label: '❌ Rejetée' },
+    'Validé': { bg: '#dcfce7', color: '#166534', label: '✅ Validé' },
+    'pending': { bg: '#fef3c7', color: '#92400e', label: '⏳ En attente' },
+    'paid': { bg: '#dcfce7', color: '#166534', label: '✅ Payée' },
   }
-  const config = statusConfig[status] || statusConfig.pending
+  const config = statusConfig[status] || { bg: '#f3f4f6', color: '#374151', label: status || '—' }
   return (
     <span style={{background: config.bg, color: config.color, padding: '4px 8px', borderRadius: 4, fontSize: 12, fontWeight: 600}}>{config.label}</span>
   )
