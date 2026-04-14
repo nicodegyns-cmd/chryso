@@ -1,0 +1,5 @@
+const { getPool } = require('./services/db')
+const p = getPool()
+p.query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name='documents' ORDER BY ordinal_position")
+  .then(r => { console.log(JSON.stringify(r.rows)); process.exit(); })
+  .catch(e => { console.error(e.message); process.exit(1); })

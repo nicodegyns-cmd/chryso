@@ -21,6 +21,8 @@ export default function LoginForm() {
       console.log('[LoginForm] Authentifié', data)
       // store token if provided
       if (data.token) localStorage.setItem('token', data.token)
+      // store user ID for validation tracking
+      if (data.id) localStorage.setItem('userId', data.id)
       // store email for profile lookup
       localStorage.setItem('email', email)
       // store role(s) for client-side guard

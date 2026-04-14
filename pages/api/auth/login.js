@@ -64,6 +64,7 @@ export default async function handler(req, res) {
     // In a real app you would sign a JWT or session; here we return a dev token
     return res.status(200).json({
       token: 'dev-token-' + Math.random().toString(36).slice(2, 10),
+      id: user.id,
       role: active,
       roles,
       email: user.email,

@@ -336,36 +336,15 @@ export default async function handler(req, res) {
       // Log incoming payload keys for debugging
       try{ console.log('[admin/prestations] PATCH payload keys:', Object.keys(req.body || {})) }catch(e){}
       const { id } = req.query
-      const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, analytic_name, status, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validated_by_email } = req.body || {}
+      const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, analytic_name, status, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validated_by_id } = req.body || {}
 
       // Debug logging for validation tracking
-      console.log('[PATCH /api/admin/prestations]', {
+      const validaterId = validated_by_id ? Number(validated_by_id) : null
+      console.log('[PATCH /api/admin/prestations] validating', {
         id,
         status,
-        validated_by_email,
-        has_validated_by_email: !!validated_by_email
+        validated_by_id: validaterId
       })
-
-      // If status is being set to "Envoyé à la facturation" and we have the validator email, get their ID
-      let validatedById = null
-      if (status === "Envoyé à la facturation" && validated_by_email) {
-        try {
-          console.log('[PATCH] Looking up validator with email:', validated_by_email)
-          const validatorQuery = await pool.query(
-            'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
-            [validated_by_email]
-          )
-          const validatorRows = (validatorQuery && validatorQuery.rows) ? validatorQuery.rows : []
-          if (validatorRows.length > 0) {
-            validatedById = validatorRows[0].id
-            console.log('[PATCH] ✓ Validator found with ID:', validatedById)
-          } else {
-            console.log('[PATCH] ✗ No validator found for email:', validated_by_email)
-          }
-        } catch (e) {
-          console.warn('Could not find validator user:', e.message)
-        }
-      }
 
       const q = await pool.query(
         `UPDATE prestations SET
@@ -382,9 +361,8 @@ export default async function handler(req, res) {
            proof_image = COALESCE($11, proof_image),
            analytic_id = COALESCE($12, analytic_id),
            status = COALESCE($13, status),
-           validated_by_email = CASE WHEN $24::varchar IS NOT NULL THEN $24 ELSE validated_by_email END,
-           validated_by_id = CASE WHEN $25::bigint IS NOT NULL THEN $25 ELSE validated_by_id END,
-           validated_at = CASE WHEN $24::varchar IS NOT NULL THEN NOW() ELSE validated_at END,
+           validated_by_id = CASE WHEN $24::bigint IS NOT NULL THEN $24 ELSE validated_by_id END,
+           validated_at = CASE WHEN $24::bigint IS NOT NULL THEN NOW() ELSE validated_at END,
            ebrigade_id = COALESCE($15, ebrigade_id),
            ebrigade_personnel_id = COALESCE($16, ebrigade_personnel_id),
            ebrigade_personnel_name = COALESCE($17, ebrigade_personnel_name),
@@ -397,7 +375,7 @@ export default async function handler(req, res) {
            updated_at = NOW()
          WHERE id = $14
          RETURNING *`,
-        [pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status, id, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, analytic_name || ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validated_by_email, validatedById]
+        [pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status, id, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, analytic_name || ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validaterId]
       )
 
       const rows = (q && q.rows) ? q.rows : []
