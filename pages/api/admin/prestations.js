@@ -338,10 +338,19 @@ export default async function handler(req, res) {
       const { id } = req.query
       const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, analytic_name, status, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validated_by_email } = req.body || {}
 
+      // Debug logging for validation tracking
+      console.log('[PATCH /api/admin/prestations]', {
+        id,
+        status,
+        validated_by_email,
+        has_validated_by_email: !!validated_by_email
+      })
+
       // If status is being set to "Envoyé à la facturation" and we have the validator email, get their ID
       let validatedById = null
       if (status === "Envoyé à la facturation" && validated_by_email) {
         try {
+          console.log('[PATCH] Looking up validator with email:', validated_by_email)
           const validatorQuery = await pool.query(
             'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
             [validated_by_email]
@@ -349,6 +358,9 @@ export default async function handler(req, res) {
           const validatorRows = (validatorQuery && validatorQuery.rows) ? validatorQuery.rows : []
           if (validatorRows.length > 0) {
             validatedById = validatorRows[0].id
+            console.log('[PATCH] ✓ Validator found with ID:', validatedById)
+          } else {
+            console.log('[PATCH] ✗ No validator found for email:', validated_by_email)
           }
         } catch (e) {
           console.warn('Could not find validator user:', e.message)
