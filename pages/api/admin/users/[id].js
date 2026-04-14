@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
   if (method === 'GET') {
     try {
-      const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy FROM users WHERE id = $1', [id])
+      const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids FROM users WHERE id = $1', [id])
       const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
       if (!rows || rows.length === 0) return res.status(404).json({ error: 'not_found' })
       const u = rows[0]
