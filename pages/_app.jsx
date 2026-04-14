@@ -9,19 +9,20 @@ function DevFooter() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 10,
-      padding: '10px 20px',
+      gap: 4,
+      padding: '4px 20px',
       background: '#1a1a2e',
       borderTop: '1px solid #2d2d4e',
       marginTop: 'auto',
+      height: 56,
     }}>
-      <span style={{ color: '#9ca3af', fontSize: 12 }}>Développé par</span>
+      <span style={{ color: '#9ca3af', fontSize: 12, whiteSpace: 'nowrap' }}>Développé par</span>
       <Image
         src="/nexio-seven-logo.png"
         alt="Nexio Seven"
-        width={160}
-        height={64}
-        style={{ objectFit: 'contain' }}
+        width={200}
+        height={48}
+        style={{ objectFit: 'contain', display: 'block' }}
         priority={false}
       />
     </footer>
