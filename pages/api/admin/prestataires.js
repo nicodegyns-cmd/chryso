@@ -14,6 +14,13 @@ export default async function handler(req, res) {
         u.last_name,
         u.company,
         u.role,
+        u.address,
+        u.niss,
+        u.bce,
+        u.account,
+        u.fonction,
+        u.ninami,
+        u.is_active,
         -- latest RIB doc id/url/name/status
         (SELECT d.id FROM documents d WHERE d.user_id = u.id AND (LOWER(d.type) LIKE '%rib%' OR LOWER(d.name) LIKE '%rib%') ORDER BY d.created_at DESC LIMIT 1) AS rib_id,
         (SELECT d.url FROM documents d WHERE d.user_id = u.id AND (LOWER(d.type) LIKE '%rib%' OR LOWER(d.name) LIKE '%rib%') ORDER BY d.created_at DESC LIMIT 1) AS rib_url,
