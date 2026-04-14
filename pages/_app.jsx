@@ -19,8 +19,8 @@ function DevFooter() {
       <Image
         src="/nexio-seven-logo.png"
         alt="Nexio Seven"
-        width={90}
-        height={36}
+        width={160}
+        height={64}
         style={{ objectFit: 'contain' }}
         priority={false}
       />
