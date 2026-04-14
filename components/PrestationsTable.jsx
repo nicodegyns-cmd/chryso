@@ -176,7 +176,23 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   }
 
   const today = new Date().toISOString().slice(0,10)
+
+  // Build a set of (date + analytic_code) keys for existing prestations, to hide duplicate activity cards
+  const prestationKeys = useMemo(() => {
+    const keys = new Set()
+    items.forEach(p => {
+      if (!p.isActivity && p.date && (p.analytic_code || p.analytic_id)) {
+        keys.add(`${p.date}__${p.analytic_code || p.analytic_id}`)
+      }
+    })
+    return keys
+  }, [items])
+
   const filtered = items.filter((p) => {
+    // Hide activity card when a prestation already exists for same date + analytic
+    if (p.isActivity && p.date && (p.analytic_code || p.analytic_id)) {
+      if (prestationKeys.has(`${p.date}__${p.analytic_code || p.analytic_id}`)) return false
+    }
     if (statusFilter && p.status !== statusFilter) return false
     // showUpcoming now filters to show only items that need hours to be declared (not filled)
     if (showUpcoming){ if (isFilled(p)) return false }
