@@ -91,20 +91,33 @@ export default async function handler(req, res) {
 
       console.log('[api/admin/users] Created user with auto-generated password:', { email })
 
-      // Send welcome email with credentials
-      const emailResult = await sendUserCreationEmail(
-        email,
-        plainPassword,
-        firstName || null
-      )
+      // Check if email is in exclusion list before sending
+      let emailExcluded = false
+      try {
+        const excQ = await pool.query(
+          'SELECT 1 FROM excluded_invitation_emails WHERE LOWER(email) = LOWER($1) LIMIT 1',
+          [(email || '').toLowerCase()]
+        )
+        const excRows = excQ.rows || excQ[0] || []
+        emailExcluded = excRows.length > 0
+      } catch (_) { /* fail open */ }
+
+      // Send welcome email with credentials (unless excluded)
+      let emailResult = { sent: false, error: 'invitation_excluded' }
+      if (!emailExcluded) {
+        emailResult = await sendUserCreationEmail(email, plainPassword, firstName || null)
+      }
 
       // Return the plain password AND email status
       return res.status(201).json({
         user,
         plainPassword,
         emailSent: emailResult.sent,
-        emailError: emailResult.error || null,
-        message: emailResult.sent
+        emailExcluded,
+        emailError: emailExcluded ? `${email} est dans la liste d'exclusion des invitations.` : (emailResult.error || null),
+        message: emailExcluded
+          ? 'Utilisateur créé mais email non envoyé (adresse dans la liste d\'exclusion des invitations)'
+          : emailResult.sent
           ? 'User created and email sent successfully'
           : 'User created but email failed to send (check logs)',
       })

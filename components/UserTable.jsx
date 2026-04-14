@@ -64,6 +64,9 @@ export default function UserTable() {
         setOpen(false)
         setQuery('')
         loadUsers()
+        if (data.emailExcluded) {
+          alert(`⚠️ Utilisateur créé mais email non envoyé.\n\n${data.emailError || 'Adresse dans la liste d\'exclusion des invitations.'}`)
+        }
         return data
       })
       .catch((err) => {
