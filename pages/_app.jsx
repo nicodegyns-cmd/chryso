@@ -9,8 +9,8 @@ function DevFooter() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
-      padding: '4px 20px',
+      gap: 0,
+      padding: '0 20px',
       background: '#1a1a2e',
       borderTop: '1px solid #2d2d4e',
       marginTop: 'auto',
@@ -20,9 +20,9 @@ function DevFooter() {
       <Image
         src="/nexio-seven-logo.png"
         alt="Nexio Seven"
-        width={200}
-        height={48}
-        style={{ objectFit: 'contain', display: 'block' }}
+        width={220}
+        height={56}
+        style={{ objectFit: 'contain', display: 'block', marginLeft: -16 }}
         priority={false}
       />
     </footer>
