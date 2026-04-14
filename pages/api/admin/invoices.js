@@ -68,9 +68,8 @@ export default async function handler(req, res) {
     const where = clauses.length > 0 ? ` AND ${clauses.join(' AND ')}` : ''
     const sql = `${base}${where} ORDER BY p.date DESC, p.id DESC`
 
-    console.log('[SQL DEBUG] admin/invoices', sql, params)
     const q = await pool.query(sql, params)
-    const invoices = Array.isArray(q) ? q : (q && q.rows) ? q.rows : q
+    const invoices = q.rows || (Array.isArray(q[0]) ? q[0] : [])
 
     return res.status(200).json(invoices)
   } catch (err) {
