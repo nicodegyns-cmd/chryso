@@ -67,11 +67,23 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No valid users found with selected IDs' })
     }
 
+    // Filter out users marked as invitation_excluded
+    const excludedQuery = await query(
+      `SELECT email FROM users WHERE invitation_excluded = TRUE AND email = ANY($1)`,
+      [usersToProcess.map(u => u.email)]
+    )
+    const excludedEmails = new Set(excludedQuery.rows.map(r => r.email.toLowerCase()))
+    const filteredUsers = usersToProcess.filter(u => !excludedEmails.has(u.email))
+    if (filteredUsers.length !== usersToProcess.length) {
+      console.log(`[ebrigade-sync-selected] Filtered out ${usersToProcess.length - filteredUsers.length} invitation-excluded user(s)`)
+    }
+    const usersToProcessFiltered = filteredUsers
+
     // Batch check linked users
     const batchId = crypto.randomBytes(16).toString('hex')
 
-    const ebrigadeIds = usersToProcess.map(u => u.ebrigadeId)
-    const emails = usersToProcess.map(u => u.email)
+    const ebrigadeIds = usersToProcessFiltered.map(u => u.ebrigadeId)
+    const emails = usersToProcessFiltered.map(u => u.email)
 
     const linkedQuery = await query(
       `SELECT id, email, liaison_ebrigade_id FROM users 
@@ -92,7 +104,7 @@ export default async function handler(req, res) {
     const invitationsToSend = [] // Track all invitations to send
     const alreadyLinked = []
 
-    for (const userData of usersToProcess) {
+    for (const userData of usersToProcessFiltered) {
       const { ebrigadeId, email, firstName, lastName } = userData
 
       // Check if already linked by eBrigade ID

@@ -82,6 +82,20 @@ export default async function handler(req, res) {
       }
     }
 
+    // Filter out users marked as invitation_excluded
+    if (usersToProcess.length > 0) {
+      const excludedQuery = await query(
+        `SELECT email FROM users WHERE invitation_excluded = TRUE AND email = ANY($1)`,
+        [usersToProcess.map(u => u.email)]
+      )
+      const excludedEmails = new Set(excludedQuery.rows.map(r => r.email.toLowerCase()))
+      const beforeCount = usersToProcess.length
+      usersToProcess.splice(0, usersToProcess.length, ...usersToProcess.filter(u => !excludedEmails.has(u.email)))
+      if (beforeCount !== usersToProcess.length) {
+        console.log(`[ebrigade-sync] Filtered out ${beforeCount - usersToProcess.length} invitation-excluded user(s)`)
+      }
+    }
+
     // Batch query 1: Find all ALREADY LINKED users (by ebrigadeId or email)
     const linkedByEbrigadeId = new Set()
     const linkedByEmail = new Map()

@@ -71,6 +71,11 @@ export default function AdminSidebar({ onNavigate }) {
             </Link>
           </li>
           <li>
+            <Link href="/admin/security" className={`sidebar-btn ${isActive('/admin/security') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('security')}>
+              🔒 Sécurité
+            </Link>
+          </li>
+          <li>
             <Link href="/admin/audit" className={`sidebar-btn ${isActive('/admin/audit') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('audit')}>
               Audit
             </Link>

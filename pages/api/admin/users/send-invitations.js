@@ -15,7 +15,19 @@ module.exports = async function handler(req, res) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
     const results = []
 
-    for (const user of users) {
+    // Filter out invitation-excluded users
+    const { query: dbQuery } = require('../../../../services/db')
+    let allowedUsers = users
+    try {
+      const excQ = await dbQuery(
+        `SELECT email FROM users WHERE invitation_excluded = TRUE AND email = ANY($1)`,
+        [users.map(u => u.email)]
+      )
+      const excludedEmails = new Set((excQ.rows || []).map(r => r.email.toLowerCase()))
+      allowedUsers = users.filter(u => !excludedEmails.has((u.email || '').toLowerCase()))
+    } catch (e) { /* fail open */ }
+
+    for (const user of allowedUsers) {
       try {
         const signupUrl = `${baseUrl}/signup?token=${encodeURIComponent(user.invitation_token)}`
 
