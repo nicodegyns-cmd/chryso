@@ -3,6 +3,7 @@ import AdminHeader from '../../components/AdminHeader'
 import AdminSidebar from '../../components/AdminSidebar'
 
 export default function SecurityPage() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [tab, setTab] = useState('ips') // 'ips' | 'invitations' | 'emails'
 
   // --- IP blocking ---
@@ -147,11 +148,10 @@ export default function SecurityPage() {
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f3f4f6' }}>
-      <AdminHeader />
-      <div style={{ display: 'flex', flex: 1 }}>
-        <AdminSidebar />
-        <main style={{ flex: 1, padding: 32 }}>
+    <div className="admin-page-root">
+      <AdminHeader onToggleSidebar={() => setSidebarOpen(v => !v)} />
+      <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <main className="admin-content" onClick={() => { if (sidebarOpen) setSidebarOpen(false) }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>🔒 Sécurité</h1>
 
           {/* Tabs */}
@@ -387,8 +387,7 @@ export default function SecurityPage() {
             </div>
           )}
 
-        </main>
-      </div>
+      </main>
     </div>
   )
 }
