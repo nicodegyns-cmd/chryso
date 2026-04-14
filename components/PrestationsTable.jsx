@@ -915,19 +915,23 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                       const roleLower = (clientRole || role || (typeof window !== 'undefined' ? localStorage.getItem('role') : null) || '').toLowerCase()
                       const isMed = roleLower.includes('med') || roleLower.includes('médec') || roleLower.includes('doctor') || roleLower.includes('doc')
                       const isInfi = roleLower.includes('infi') || roleLower.includes('infir') || roleLower.includes('infirm') || roleLower.includes('nurs')
-                      
+                      // If role is unknown show both; admin always sees both (handled by parent condition)
+                      const showInfi = isInfi || (!isInfi && !isMed)
+                      const showMed  = isMed  || (!isInfi && !isMed)
+                      const infiVal = confirmPreview?.estimated_infi ?? editing.remuneration_infi
+                      const medVal  = confirmPreview?.estimated_med  ?? editing.remuneration_med
                       return (
                         <div style={{display:'grid',gridTemplateColumns:'1fr',gap:12}}>
-                          {isInfi && (confirmPreview?.estimated_infi !== null && confirmPreview?.estimated_infi !== undefined) || (editing.remuneration_infi !== null && editing.remuneration_infi !== undefined) && (
+                          {showInfi && infiVal != null && (
                             <div>
                               <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT INFIRMIER</div>
-                              <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{confirmPreview?.estimated_infi ?? editing.remuneration_infi ?? 0} €</div>
+                              <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{infiVal} €</div>
                             </div>
                           )}
-                          {isMed && (confirmPreview?.estimated_med !== null && confirmPreview?.estimated_med !== undefined) || (editing.remuneration_med !== null && editing.remuneration_med !== undefined) && (
+                          {showMed && medVal != null && (
                             <div>
                               <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT MÉDECIN</div>
-                              <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{confirmPreview?.estimated_med ?? editing.remuneration_med ?? 0} €</div>
+                              <div style={{fontSize:15,fontWeight:600,color:'#10b981'}}>{medVal} €</div>
                             </div>
                           )}
                         </div>
