@@ -10,6 +10,7 @@ export default function PrestatairesPage(){
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [userEmail, setUserEmail] = useState('')
+  const [ribViewer, setRibViewer] = useState(null)
 
   // Check user status: onboarding > pending validation > full access
   useEffect(() => {
@@ -101,7 +102,7 @@ export default function PrestatairesPage(){
                       <td style={{padding:12}}>{u.company || '-'}</td>
                       <td style={{padding:12,textAlign:'center'}}>
                         {u.rib_id ? (
-                          <a href={u.rib_url || `/api/documents/serve?id=${u.rib_id}`} target="_blank" rel="noreferrer" style={{padding:'6px 10px',background:'#10b981',color:'#fff',borderRadius:6,textDecoration:'none'}}>Voir RIB</a>
+                          <button onClick={() => setRibViewer(u)} style={{padding:'6px 10px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Voir RIB</button>
                         ) : <span style={{color:'#9ca3af'}}>—</span>}
                       </td>
                       <td style={{padding:12,textAlign:'center'}}>
@@ -120,6 +121,28 @@ export default function PrestatairesPage(){
           )}
         </div>
       </main>
+    </div>
+      {ribViewer && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1200}} onClick={() => setRibViewer(null)}>
+          <div style={{background:'#fff',borderRadius:10,width:'95%',maxWidth:900,maxHeight:'92vh',display:'flex',flexDirection:'column',overflow:'hidden'}} onClick={e => e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'16px 20px',borderBottom:'1px solid #e5e7eb'}}>
+              <div>
+                <strong style={{fontSize:16}}>🧾 RIB — {(ribViewer.first_name||'')+' '+(ribViewer.last_name||'')}</strong>
+                {ribViewer.company && <span style={{marginLeft:12,color:'#6b7280',fontSize:14}}>🏢 {ribViewer.company}</span>}
+              </div>
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <a href={`/api/documents/serve?id=${ribViewer.rib_id}`} download style={{padding:'6px 12px',background:'#6b7280',color:'#fff',borderRadius:6,textDecoration:'none',fontSize:14}}>Télécharger</a>
+                <button onClick={() => setRibViewer(null)} style={{border:'none',background:'transparent',fontSize:22,cursor:'pointer',lineHeight:1}}>✕</button>
+              </div>
+            </div>
+            <iframe
+              src={`/api/documents/serve?id=${ribViewer.rib_id}`}
+              style={{flex:1,border:'none',minHeight:'75vh'}}
+              title="RIB"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
