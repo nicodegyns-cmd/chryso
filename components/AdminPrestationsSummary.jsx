@@ -114,8 +114,12 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
     if (savingIds[id]) return
     setSavingIds(prev=>({...prev, [id]: true}))
     try{
-      const validatedById = typeof window !== 'undefined' && status === "Envoyé à la facturation" ? localStorage.getItem('userId') : null
-      const r = await fetch(`/api/admin/prestations/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status, validated_by_id: validatedById ? Number(validatedById) : null }) })
+      const validatedById = typeof window !== 'undefined' ? localStorage.getItem('userId') : null
+      const validatedByEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : null
+      const validationPayload = status === "Envoyé à la facturation"
+        ? { status, validated_by_id: validatedById ? Number(validatedById) : null, validated_by_email: validatedByEmail }
+        : { status }
+      const r = await fetch(`/api/admin/prestations/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(validationPayload) })
       if (!r.ok) throw new Error('update failed')
       const updated = await r.json()
       setItems(prev => prev.map(p => p.id === updated.id ? updated : p))

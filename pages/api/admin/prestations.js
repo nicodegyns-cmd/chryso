@@ -336,15 +336,18 @@ export default async function handler(req, res) {
       // Log incoming payload keys for debugging
       try{ console.log('[admin/prestations] PATCH payload keys:', Object.keys(req.body || {})) }catch(e){}
       const { id } = req.query
-      const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, analytic_name, status, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validated_by_id } = req.body || {}
+      const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, analytic_name, status, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validated_by_id, validated_by_email } = req.body || {}
 
-      // Debug logging for validation tracking
-      const validaterId = validated_by_id ? Number(validated_by_id) : null
-      console.log('[PATCH /api/admin/prestations] validating', {
-        id,
-        status,
-        validated_by_id: validaterId
-      })
+      // Resolve validator ID: use provided ID, or look up by email as fallback
+      let validaterId = validated_by_id ? Number(validated_by_id) : null
+      if (!validaterId && validated_by_email && status === "Envoyé à la facturation") {
+        try {
+          const vq = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [validated_by_email])
+          const vrows = (vq && vq.rows) ? vq.rows : []
+          if (vrows.length > 0) validaterId = vrows[0].id
+        } catch (e) { console.warn('validator lookup failed:', e.message) }
+      }
+      console.log('[PATCH] validaterId resolved:', validaterId, '(from', validated_by_id ? 'id' : 'email', ')')
 
       const q = await pool.query(
         `UPDATE prestations SET
