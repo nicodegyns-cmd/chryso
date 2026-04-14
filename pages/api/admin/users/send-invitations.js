@@ -34,31 +34,8 @@ module.exports = async function handler(req, res) {
     for (const user of allowedUsers) {
       try {
         const signupUrl = `${baseUrl}/signup?token=${encodeURIComponent(user.invitation_token)}`
-
-        const emailContent = `
-Bienvenue,
-
-Vous avez été invité à rejoindre notre plateforme. Cliquez sur le lien ci-dessous pour compléter votre profil:
-
-${signupUrl}
-
-Ce lien est valide pendant 7 jours.
-
-Cordialement,
-L'équipe d'administration
-        `
-
-        await emailService.send({
-          to: user.email,
-          subject: 'Invitation à compléter votre profil',
-          text: emailContent,
-          html: `<p>Bienvenue,</p>
-<p>Vous avez été invité à rejoindre notre plateforme. <a href="${signupUrl}">Cliquez ici pour compléter votre profil</a></p>
-<p>Ce lien est valide pendant 7 jours.</p>
-<p>Cordialement,<br>L'équipe d'administration</p>`
-        })
-
-        results.push({ email: user.email, success: true })
+        const result = await emailService.sendInvitationEmail(user.email, signupUrl, user.first_name || null)
+        results.push({ email: user.email, success: result.sent, error: result.error })
       } catch (e) {
         console.error(`Failed to send email to ${user.email}:`, e)
         results.push({ email: user.email, success: false, error: e.message })

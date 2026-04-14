@@ -471,9 +471,226 @@ L'équipe ${appName}
   }
 }
 
+/**
+ * Send invitation email with signup link (same style as sendUserCreationEmail)
+ * @param {string} email - Recipient email
+ * @param {string} signupUrl - Full signup URL with token
+ * @param {string} firstName - User first name (optional)
+ * @returns {Promise<{sent: boolean, messageId?: string, error?: string}>}
+ */
+async function sendInvitationEmail(email, signupUrl, firstName) {
+  try {
+    const mailer = getTransporter()
+    const appName = process.env.APP_NAME || 'Fénix'
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invitation sur ${appName}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f9f9f9;">
+  <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0066cc; padding-bottom: 20px;">
+      <h1 style="color: #0066cc; margin: 0; font-size: 28px;">Bienvenue sur ${appName}!</h1>
+    </div>
+
+    <p style="margin-top: 0;">Bonjour ${firstName || 'Utilisateur'},</p>
+
+    <p>Vous avez été invité(e) à rejoindre la plateforme <strong>${appName}</strong>. Cliquez sur le bouton ci-dessous pour créer votre compte et compléter votre profil :</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${signupUrl}" style="display: inline-block; background-color: #0066cc; color: white; padding: 14px 30px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px;">
+        Créer mon compte
+      </a>
+    </div>
+
+    <p style="color: #666; font-size: 13px;">Ou copiez ce lien dans votre navigateur :</p>
+    <p style="word-break: break-all; background-color: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; color: #666;">
+      ${signupUrl}
+    </p>
+
+    <div style="background-color: #fff3cd; border-left: 4px solid #ff9800; padding: 16px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; color: #333;"><strong>⚠️ Important :</strong> Ce lien est valide pendant 7 jours. Passé ce délai, contactez l'administration pour obtenir un nouveau lien.</p>
+    </div>
+
+    <p style="color: #666; font-size: 13px; margin-top: 30px;">
+      Si vous n'attendiez pas cette invitation, vous pouvez ignorer cet email.
+    </p>
+
+    <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #999; font-size: 12px;">
+      <p style="margin: 4px 0;">© ${new Date().getFullYear()} ${appName}. Tous droits réservés.</p>
+      <p style="margin: 4px 0;">Cet email a été envoyé automatiquement. Veuillez ne pas y répondre.</p>
+    </div>
+
+  </div>
+</body>
+</html>
+    `.trim()
+
+    const textContent = `
+Bienvenue sur ${appName}!
+
+Bonjour ${firstName || 'Utilisateur'},
+
+Vous avez été invité(e) à rejoindre la plateforme ${appName}.
+
+Cliquez sur ce lien pour créer votre compte :
+${signupUrl}
+
+Ce lien est valide pendant 7 jours.
+
+Si vous n'attendiez pas cette invitation, ignorez cet email.
+
+Cordialement,
+L'équipe ${appName}
+    `.trim()
+
+    if (!mailer) {
+      console.log('[EmailService] Invitation email would be sent to:', email)
+      return { sent: false, error: 'SMTP not configured - logged to console only' }
+    }
+
+    const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'no-reply@sirona-consult.be'
+
+    const info = await mailer.sendMail({
+      from: { name: appName, address: fromEmail },
+      to: email,
+      subject: `Votre invitation sur ${appName}`,
+      html: htmlContent,
+      text: textContent,
+      replyTo: fromEmail,
+      headers: {
+        ...getEmailHeaders(fromEmail),
+        'X-Originating-IP': '[127.0.0.1]',
+        'Bounces-To': fromEmail,
+        'Errors-To': fromEmail,
+      }
+    })
+
+    console.log('[EmailService] Invitation email sent:', { email, messageId: info.messageId })
+    return { sent: true, messageId: info.messageId }
+  } catch (err) {
+    console.error('[EmailService] Error sending invitation email:', err.message)
+    return { sent: false, error: err.message }
+  }
+}
+
+/**
+ * Send invitation email with signup link (same style as sendUserCreationEmail)
+ * @param {string} email - Recipient email
+ * @param {string} signupUrl - Full signup URL with token
+ * @param {string} firstName - User first name (optional)
+ * @returns {Promise<{sent: boolean, messageId?: string, error?: string}>}
+ */
+async function sendInvitationEmail(email, signupUrl, firstName) {
+  try {
+    const mailer = getTransporter()
+    const appName = process.env.APP_NAME || 'Fénix'
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invitation sur ${appName}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f9f9f9;">
+  <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0066cc; padding-bottom: 20px;">
+      <h1 style="color: #0066cc; margin: 0; font-size: 28px;">Bienvenue sur ${appName}!</h1>
+    </div>
+
+    <p style="margin-top: 0;">Bonjour ${firstName || 'Utilisateur'},</p>
+
+    <p>Vous avez été invité(e) à rejoindre la plateforme <strong>${appName}</strong>. Cliquez sur le bouton ci-dessous pour créer votre compte et compléter votre profil :</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${signupUrl}" style="display: inline-block; background-color: #0066cc; color: white; padding: 14px 30px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px;">
+        Créer mon compte
+      </a>
+    </div>
+
+    <p style="color: #666; font-size: 13px;">Ou copiez ce lien dans votre navigateur :</p>
+    <p style="word-break: break-all; background-color: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; color: #666;">
+      ${signupUrl}
+    </p>
+
+    <div style="background-color: #fff3cd; border-left: 4px solid #ff9800; padding: 16px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; color: #333;"><strong>⚠️ Important :</strong> Ce lien est valide pendant 7 jours. Passé ce délai, contactez l'administration pour obtenir un nouveau lien.</p>
+    </div>
+
+    <p style="color: #666; font-size: 13px; margin-top: 30px;">
+      Si vous n'attendiez pas cette invitation, vous pouvez ignorer cet email.
+    </p>
+
+    <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #999; font-size: 12px;">
+      <p style="margin: 4px 0;">© ${new Date().getFullYear()} ${appName}. Tous droits réservés.</p>
+      <p style="margin: 4px 0;">Cet email a été envoyé automatiquement. Veuillez ne pas y répondre.</p>
+    </div>
+
+  </div>
+</body>
+</html>
+    `.trim()
+
+    const textContent = `
+Bienvenue sur ${appName}!
+
+Bonjour ${firstName || 'Utilisateur'},
+
+Vous avez été invité(e) à rejoindre la plateforme ${appName}.
+
+Cliquez sur ce lien pour créer votre compte :
+${signupUrl}
+
+Ce lien est valide pendant 7 jours.
+
+Si vous n'attendiez pas cette invitation, ignorez cet email.
+
+Cordialement,
+L'équipe ${appName}
+    `.trim()
+
+    if (!mailer) {
+      console.log('[EmailService] Invitation email would be sent to:', email)
+      return { sent: false, error: 'SMTP not configured - logged to console only' }
+    }
+
+    const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'no-reply@sirona-consult.be'
+
+    const info = await mailer.sendMail({
+      from: { name: appName, address: fromEmail },
+      to: email,
+      subject: `Votre invitation sur ${appName}`,
+      html: htmlContent,
+      text: textContent,
+      replyTo: fromEmail,
+      headers: {
+        ...getEmailHeaders(fromEmail),
+        'X-Originating-IP': '[127.0.0.1]',
+        'Bounces-To': fromEmail,
+        'Errors-To': fromEmail,
+      }
+    })
+
+    console.log('[EmailService] Invitation email sent:', { email, messageId: info.messageId })
+    return { sent: true, messageId: info.messageId }
+  } catch (err) {
+    console.error('[EmailService] Error sending invitation email:', err.message)
+    return { sent: false, error: err.message }
+  }
+}
+
 module.exports = {
   send,
   sendUserCreationEmail,
+  sendInvitationEmail,
   sendPasswordChangeEmail,
   sendPasswordResetEmail,
 }
