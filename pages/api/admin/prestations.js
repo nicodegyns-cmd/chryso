@@ -42,10 +42,12 @@ export default async function handler(req, res) {
         q = await pool.query(
           `SELECT p.*, u.email AS user_email, u.first_name AS user_firstname, u.last_name AS user_lastname, an.name AS analytic_name, an.code AS analytic_code,
            (SELECT string_agg(r.code, ',') FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = u.id) AS role_codes,
-           p.validated_at, p.validated_by_id, p.validated_by_email
+           p.validated_at, p.validated_by_id, p.validated_by_email,
+           vuser.first_name AS validated_by_first_name, vuser.last_name AS validated_by_last_name
            FROM prestations p
            LEFT JOIN users u ON p.user_id = u.id
            LEFT JOIN analytics an ON p.analytic_id = an.id
+           LEFT JOIN users vuser ON p.validated_by_id = vuser.id
            ORDER BY p.date DESC, p.id DESC`
         )
         rows = (q && q.rows) ? q.rows : []
