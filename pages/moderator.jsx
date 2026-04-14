@@ -7,7 +7,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 export default function ModeratorPage() {
   const router = useRouter()
   const [checking, setChecking] = useState(true)
-  const [userEmail, setUserEmail] = useLocalStorage('email', '')
+  const userEmail = useLocalStorage('email', '')
   const role = useLocalStorage('role', null)
   const [filterAnalyticIds, setFilterAnalyticIds] = useState(null)
 
