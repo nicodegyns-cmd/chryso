@@ -121,7 +121,6 @@ export default function PrestatairesPage(){
           )}
         </div>
       </main>
-    </div>
       {ribViewer && (
         <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1200}} onClick={() => setRibViewer(null)}>
           <div style={{background:'#fff',borderRadius:10,width:'95%',maxWidth:900,maxHeight:'92vh',display:'flex',flexDirection:'column',overflow:'hidden'}} onClick={e => e.stopPropagation()}>
