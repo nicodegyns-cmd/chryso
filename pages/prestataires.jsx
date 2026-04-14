@@ -135,6 +135,8 @@ export default function PrestatairesPage(){
             <div style={{marginBottom:24}}>
               <h3 style={{margin:'0 0 12px 0',fontSize:13,fontWeight:700,color:'#6b7280',textTransform:'uppercase',letterSpacing:'0.05em'}}>Informations personnelles</h3>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+                <div><label style={{display:'block',fontSize:12,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',marginBottom:4}}>Email</label><p style={{margin:0,fontSize:15,color:'#111827'}}>{ficheViewer.email}</p></div>
+                {ficheViewer.telephone && <div><label style={{display:'block',fontSize:12,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',marginBottom:4}}>Téléphone</label><p style={{margin:0,fontSize:15,color:'#111827'}}>{ficheViewer.telephone}</p></div>}
                 {ficheViewer.address && <div style={{gridColumn:'1/-1'}}><label style={{display:'block',fontSize:12,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',marginBottom:4}}>Adresse</label><p style={{margin:0,fontSize:15,color:'#111827'}}>{ficheViewer.address}</p></div>}
                 {ficheViewer.ninami && <div><label style={{display:'block',fontSize:12,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',marginBottom:4}}>N'INAMI</label><p style={{margin:0,fontSize:15,color:'#111827',fontFamily:'monospace'}}>{ficheViewer.ninami}</p></div>}
               </div>

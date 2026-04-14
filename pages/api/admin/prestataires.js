@@ -20,6 +20,7 @@ export default async function handler(req, res) {
         u.account,
         u.fonction,
         u.ninami,
+        u.telephone,
         u.is_active,
         -- latest RIB doc id/url/name/status
         (SELECT d.id FROM documents d WHERE d.user_id = u.id AND (LOWER(d.type) LIKE '%rib%' OR LOWER(d.name) LIKE '%rib%') ORDER BY d.created_at DESC LIMIT 1) AS rib_id,
@@ -34,8 +35,9 @@ export default async function handler(req, res) {
       LIMIT 2000
     `
 
-    const [rows] = await pool.query(sql)
-    return res.status(200).json({ success: true, users: rows || [] })
+    const result = await pool.query(sql)
+    const rows = result.rows || result[0] || []
+    return res.status(200).json({ success: true, users: rows })
   } catch (err) {
     console.error('[api/admin/prestataires] error', err)
     return res.status(500).json({ error: err.message })
