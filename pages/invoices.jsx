@@ -118,7 +118,8 @@ export default function InvoicesPage() {
             : (rRow.remuneration_infi != null ? Number(rRow.remuneration_infi) : null)
           
           // Use saved amount if available, otherwise fallback to 0 (no estimate call needed)
-          const total = savedAmount != null ? savedAmount : 0
+          const expense = rRow.expense_amount != null ? Number(rRow.expense_amount) : 0
+          const total = (savedAmount != null ? savedAmount : 0) + expense
           return {...rRow, total}
         })
         setInvoices(withTotals)
