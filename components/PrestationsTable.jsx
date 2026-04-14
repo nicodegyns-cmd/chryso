@@ -836,7 +836,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   // For new prestations (activities)
                   if (!editing.id) return `✏️ Déclarer mes heures`
                   // Prefer showing the prestation reference (`request_ref`) as a 5-digit code when available
-                  const ref = editing.request_ref || editing.invoice_number || ('#'+editing.id)
+                  const ref = '#' + (editing.request_ref || editing.invoice_number || editing.id)
                   if (role === 'admin') return `📋 Détails demande ${ref}`
                   if (editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation') return `👁️ Consulter prestation ${ref}`
                   return `✏️ Modifier prestation ${ref}`
