@@ -230,11 +230,17 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           const checkData = await checkResp.json()
           console.log('[openEdit] API check result:', checkData)
           
-          // Look for non-finalized prestation matching this analytic
-          const existingFromApi = checkData.prestations?.find(prest => 
-            prest.status !== "Envoyé à la facturation" &&
-            (prest.analytic_code === p.analytic_code || prest.analytic_id === p.analytic_id)
-          )
+          // Look for non-finalized prestation matching this specific activity.
+          // Primary: match by E_CODE (ebrigade_activity_code). Fallback: analytic_id only
+          // if prestation has no E_CODE (legacy records), to avoid cross-activity matches.
+          const existingFromApi = checkData.prestations?.find(prest => {
+            if (prest.status === 'Envoyé à la facturation') return false
+            if (prest.ebrigade_activity_code && p.analytic_code)
+              return prest.ebrigade_activity_code === p.analytic_code
+            if (!prest.ebrigade_activity_code && prest.analytic_id && p.analytic_id)
+              return prest.analytic_id === p.analytic_id
+            return false
+          })
           
           if (existingFromApi && existingFromApi.id) {
             console.log('[openEdit] ✅ FOUND existing prestation in API (id=' + existingFromApi.id + ')')
@@ -256,29 +262,19 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         // Fall back to local search
       }
       
-      // FALLBACK: Look for existing prestation in items (visible ones)
-      let existingPrestation = items.find(prest => 
-        !prest.isActivity &&
-        !prest.id?.toString().startsWith('act_') &&
-        prest.date === p.date &&
-        (prest.analytic_code === p.analytic_code || prest.analytic_id === p.analytic_id) &&
-        prest.status !== "Envoyé à la facturation"
-      )
-      
-      // Alternative: search by date + pay_type (only if analytic_code is also matching)
-      if (!existingPrestation && p.analytic_code) {
-        existingPrestation = items.find(prest => 
-          !prest.isActivity &&
-          !prest.id?.toString().startsWith('act_') &&
-          prest.date === p.date &&
-          prest.pay_type === p.pay_type &&
-          prest.analytic_code === p.analytic_code &&
-          prest.status !== "Envoyé à la facturation"
-        )
-      }
-      
-      // NOTE: intentionally NOT falling back to date-only search, as that would cause
-      // a prestation from a different activity on the same day to be wrongly matched
+      // FALLBACK: Look for existing prestation in items (visible ones).
+      // Primary match: by E_CODE. Fallback: by analytic_id ONLY if prestation has no E_CODE,
+      // to avoid cross-activity pre-filling when two activities share the same analytic_id.
+      let existingPrestation = items.find(prest => {
+        if (prest.isActivity || prest.id?.toString().startsWith('act_')) return false
+        if (prest.date !== p.date) return false
+        if (prest.status === 'Envoyé à la facturation') return false
+        if (prest.ebrigade_activity_code && p.analytic_code)
+          return prest.ebrigade_activity_code === p.analytic_code
+        if (!prest.ebrigade_activity_code && prest.analytic_id && p.analytic_id)
+          return prest.analytic_id === p.analytic_id
+        return false
+      })
       
       if (existingPrestation && existingPrestation.id) {
         console.log('[openEdit] ✅ FOUND existing prestation in items (id=' + existingPrestation.id + ')')
