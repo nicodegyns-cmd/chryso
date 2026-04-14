@@ -60,9 +60,9 @@ export default function InvoicesPage() {
         const rRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null
         setRole(rRole)
 
-        // Comptabilité users: show invoices pending in invoices table
+        // Comptabilité users: show all invoices with a PDF
         if (rRole === 'comptabilite') {
-          const res = await fetch('/api/admin/invoices?status=pending')
+          const res = await fetch('/api/admin/invoices')
           if (!res.ok) throw new Error('Échec récupération')
           const data = await res.json()
           // Normalize db wrapper response: some endpoints return [rows, meta]
@@ -167,10 +167,10 @@ export default function InvoicesPage() {
                       <input placeholder="Rechercher (n° facture, client)" value={search} onChange={e=>setSearch(e.target.value)} style={{padding:8,borderRadius:6,border:'1px solid #e5e7eb',minWidth:220}} />
                       <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{padding:8,borderRadius:6,border:'1px solid #e5e7eb'}}>
                         <option value="tous">Tous statuts</option>
-                        <option value="pending">En attente</option>
-                        <option value="paid">Payée</option>
-                        <option value="overdue">En retard</option>
-                        <option value="cancelled">Annulée</option>
+                        <option value="Envoyé à la facturation">À facturer</option>
+                        <option value="payé">Payée</option>
+                        <option value="En attente">En attente</option>
+                        <option value="rejeté">Rejetée</option>
                       </select>
                       <select value={analyticFilter} onChange={e=>setAnalyticFilter(e.target.value)} style={{padding:8,borderRadius:6,border:'1px solid #e5e7eb'}}>
                         <option value="">Tous analytiques</option>
@@ -198,21 +198,31 @@ export default function InvoicesPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {invoices.filter(Boolean).map((inv, idx) => (
+                          {invoices.filter(Boolean).filter(inv => {
+                            if (statusFilter !== 'tous' && inv.status !== statusFilter) return false
+                            if (analyticFilter && String(inv.analytic_id) !== analyticFilter) return false
+                            if (filterDateFrom && (inv.date || '').slice(0,10) < filterDateFrom) return false
+                            if (filterDateTo && (inv.date || '').slice(0,10) > filterDateTo) return false
+                            if (search) {
+                              const q = search.toLowerCase()
+                              const name = `${inv.first_name||''} ${inv.last_name||""}`.toLowerCase()
+                              if (!name.includes(q) && !(inv.invoice_number||'').toLowerCase().includes(q) && !(inv.analytic_name||'').toLowerCase().includes(q)) return false
+                            }
+                            return true
+                          }).map((inv, idx) => (
                             <tr key={inv.id || idx} style={{borderBottom: '1px solid #e5e7eb'}}>
-                              <td style={{padding: 12, fontWeight: 700}}>{inv.invoice_number}</td>
+                              <td style={{padding: 12, fontWeight: 700}}>{inv.invoice_number || '-'}</td>
                               <td style={{padding:12}}>{inv.analytic_name || '-'}</td>
                               <td style={{padding: 12}}>
                                 <div style={{fontWeight:500}}>{inv.user_name || `${inv.first_name || ''} ${inv.last_name || ''}`}</div>
-                                <div style={{fontSize:12,color:'#6b7280'}}>{inv.email}</div>
                               </td>
                               <td style={{padding:12}}>{parseFloat(inv.amount).toFixed(2)} €</td>
                               <td style={{padding:12}}>{inv.created_at ? new Date(inv.created_at).toLocaleDateString('fr-FR') : '-'}</td>
                               <td style={{padding:12}}><StatusBadge status={inv.status} /></td>
                               <td style={{padding:12, textAlign:'center'}}>
                                 <div style={{display:'flex',gap:6,justifyContent:'center'}}>
-                                  <a href={`/api/admin/invoices/${inv.id}/pdf`} target="_blank" rel="noreferrer" style={{padding:'6px 10px',background:'#3b82f6',color:'#fff',borderRadius:4,textDecoration:'none',display:'inline-block'}}>Voir</a>
-                                  <a href={`/api/admin/invoices/${inv.id}/pdf?download=1`} download style={{padding:'6px 10px',background:'#6b7280',color:'#fff',borderRadius:4,textDecoration:'none',display:'inline-block'}}>Télécharger</a>
+                                  <a href={inv.pdf_url} target="_blank" rel="noreferrer" style={{padding:'6px 10px',background:'#3b82f6',color:'#fff',borderRadius:4,textDecoration:'none',display:'inline-block'}}>Voir</a>
+                                  <a href={inv.pdf_url} download style={{padding:'6px 10px',background:'#6b7280',color:'#fff',borderRadius:4,textDecoration:'none',display:'inline-block'}}>Télécharger</a>
                                 </div>
                               </td>
                             </tr>
