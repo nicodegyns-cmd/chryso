@@ -15,15 +15,19 @@ module.exports = async function handler(req, res) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
     const results = []
 
-    // Filter out invitation-excluded users
+    // Filter out invitation-excluded users (by profile flag OR email table)
     const { query: dbQuery } = require('../../../../services/db')
     let allowedUsers = users
     try {
-      const excQ = await dbQuery(
-        `SELECT email FROM users WHERE invitation_excluded = TRUE AND email = ANY($1)`,
-        [users.map(u => u.email)]
-      )
-      const excludedEmails = new Set((excQ.rows || []).map(r => r.email.toLowerCase()))
+      const emails = users.map(u => u.email)
+      const [excQ, excEmailQ] = await Promise.all([
+        dbQuery(`SELECT email FROM users WHERE invitation_excluded = TRUE AND email = ANY($1)`, [emails]),
+        dbQuery(`SELECT email FROM excluded_invitation_emails WHERE LOWER(email) = ANY($1)`, [emails.map(e => e.toLowerCase())])
+      ])
+      const excludedEmails = new Set([
+        ...(excQ.rows || []).map(r => r.email.toLowerCase()),
+        ...(excEmailQ.rows || []).map(r => r.email.toLowerCase())
+      ])
       allowedUsers = users.filter(u => !excludedEmails.has((u.email || '').toLowerCase()))
     } catch (e) { /* fail open */ }
 

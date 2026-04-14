@@ -68,11 +68,15 @@ export default async function handler(req, res) {
     }
 
     // Filter out users marked as invitation_excluded
-    const excludedQuery = await query(
-      `SELECT email FROM users WHERE invitation_excluded = TRUE AND email = ANY($1)`,
-      [usersToProcess.map(u => u.email)]
-    )
-    const excludedEmails = new Set(excludedQuery.rows.map(r => r.email.toLowerCase()))
+    const emailList = usersToProcess.map(u => u.email)
+    const [excludedQuery, excEmailQuery] = await Promise.all([
+      query(`SELECT email FROM users WHERE invitation_excluded = TRUE AND email = ANY($1)`, [emailList]),
+      query(`SELECT email FROM excluded_invitation_emails WHERE LOWER(email) = ANY($1)`, [emailList.map(e => e.toLowerCase())])
+    ])
+    const excludedEmails = new Set([
+      ...excludedQuery.rows.map(r => r.email.toLowerCase()),
+      ...excEmailQuery.rows.map(r => r.email.toLowerCase())
+    ])
     const filteredUsers = usersToProcess.filter(u => !excludedEmails.has(u.email))
     if (filteredUsers.length !== usersToProcess.length) {
       console.log(`[ebrigade-sync-selected] Filtered out ${usersToProcess.length - filteredUsers.length} invitation-excluded user(s)`)

@@ -82,13 +82,17 @@ export default async function handler(req, res) {
       }
     }
 
-    // Filter out users marked as invitation_excluded
+    // Filter out users marked as invitation_excluded (profile flag OR email exclusion table)
     if (usersToProcess.length > 0) {
-      const excludedQuery = await query(
-        `SELECT email FROM users WHERE invitation_excluded = TRUE AND email = ANY($1)`,
-        [usersToProcess.map(u => u.email)]
-      )
-      const excludedEmails = new Set(excludedQuery.rows.map(r => r.email.toLowerCase()))
+      const emailList = usersToProcess.map(u => u.email)
+      const [excludedQuery, excEmailQuery] = await Promise.all([
+        query(`SELECT email FROM users WHERE invitation_excluded = TRUE AND email = ANY($1)`, [emailList]),
+        query(`SELECT email FROM excluded_invitation_emails WHERE LOWER(email) = ANY($1)`, [emailList.map(e => e.toLowerCase())])
+      ])
+      const excludedEmails = new Set([
+        ...excludedQuery.rows.map(r => r.email.toLowerCase()),
+        ...excEmailQuery.rows.map(r => r.email.toLowerCase())
+      ])
       const beforeCount = usersToProcess.length
       usersToProcess.splice(0, usersToProcess.length, ...usersToProcess.filter(u => !excludedEmails.has(u.email)))
       if (beforeCount !== usersToProcess.length) {
