@@ -267,6 +267,30 @@ export default async function handler(req, res) {
         }
       }
 
+      // Duplicate guard: reject if a prestation already exists for same user+date+activity
+      if (ebrigade_activity_code || resolvedAnalyticId) {
+        try {
+          let dupResult
+          if (ebrigade_activity_code) {
+            dupResult = await pool.query(
+              `SELECT id FROM prestations WHERE user_id = $1 AND date = $2 AND ebrigade_activity_code = $3 AND status != 'Envoyé à la facturation' LIMIT 1`,
+              [userId, date || null, ebrigade_activity_code]
+            )
+          } else {
+            dupResult = await pool.query(
+              `SELECT id FROM prestations WHERE user_id = $1 AND date = $2 AND analytic_id = $3 AND status != 'Envoyé à la facturation' LIMIT 1`,
+              [userId, date || null, resolvedAnalyticId]
+            )
+          }
+          if (dupResult.rows && dupResult.rows.length > 0) {
+            return res.status(409).json({ error: 'Une prestation existe déjà pour cette date et cette activité', existing_id: dupResult.rows[0].id })
+          }
+        } catch (dupErr) {
+          console.warn('[prestations POST] duplicate check error:', dupErr.message)
+          // Continue on error — do not block the save
+        }
+      }
+
       // Insert new prestation with eBrigade data
       const q2 = await pool.query(
         `INSERT INTO prestations (

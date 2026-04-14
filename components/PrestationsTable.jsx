@@ -177,21 +177,32 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
   const today = new Date().toISOString().slice(0,10)
 
-  // Build a set of (date + analytic_code) keys for existing prestations, to hide duplicate activity cards
+  // Build a set of keys for existing prestations, to hide duplicate activity cards.
+  // Uses ebrigade_activity_code (E_CODE) as primary key — matches activity.analytic_code (also E_CODE).
+  // Falls back to analytic_id with a distinct prefix to avoid cross-type collisions.
   const prestationKeys = useMemo(() => {
     const keys = new Set()
     items.forEach(p => {
-      if (!p.isActivity && p.date && (p.analytic_code || p.analytic_id)) {
-        keys.add(`${p.date}__${p.analytic_code || p.analytic_id}`)
+      if (!p.isActivity && p.date) {
+        if (p.ebrigade_activity_code) {
+          keys.add(`${p.date}__ecode__${p.ebrigade_activity_code}`)
+        }
+        if (p.analytic_id) {
+          keys.add(`${p.date}__anid__${p.analytic_id}`)
+        }
       }
     })
     return keys
   }, [items])
 
   const filtered = items.filter((p) => {
-    // Hide activity card when a prestation already exists for same date + analytic
-    if (p.isActivity && p.date && (p.analytic_code || p.analytic_id)) {
-      if (prestationKeys.has(`${p.date}__${p.analytic_code || p.analytic_id}`)) return false
+    // Hide activity card when a prestation already exists for same date + activity.
+    // activity.analytic_code = eBrigade E_CODE; prestation.ebrigade_activity_code = saved E_CODE.
+    if (p.isActivity && p.date) {
+      // Primary: match by E_CODE (most specific — avoids cross-activity collisions)
+      if (p.analytic_code && prestationKeys.has(`${p.date}__ecode__${p.analytic_code}`)) return false
+      // Fallback: match by analytic_id ONLY when activity has no E_CODE (rare unmapped case)
+      if (!p.analytic_code && p.analytic_id && prestationKeys.has(`${p.date}__anid__${p.analytic_id}`)) return false
     }
     if (statusFilter && p.status !== statusFilter) return false
     // showUpcoming now filters to show only items that need hours to be declared (not filled)

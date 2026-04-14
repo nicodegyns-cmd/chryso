@@ -153,24 +153,49 @@ export default async function handler(req, res){
         // Check if a prestation exists for this activity
         let existingPrestationResult = null
         
-        if (activity.analytic_id) {
-          // Strategy 1: Match by date + analytic_id
+        if (activity.analytic_code) {
+          // Strategy 1: Match by E_CODE (most specific — avoids cross-activity collisions on same date).
+          // activity.analytic_code = eBrigade E_CODE; saved as ebrigade_activity_code on prestations.
           existingPrestationResult = await pool.query(
-            `SELECT id FROM prestations 
-             WHERE user_id = $1 
-             AND date = $2 
+            `SELECT id FROM prestations
+             WHERE user_id = $1
+             AND date = $2
+             AND ebrigade_activity_code = $3
+             AND status != 'Envoyé à la facturation'
+             LIMIT 1`,
+            [user.id, activity.date, activity.analytic_code]
+          )
+          // Fallback: if no prestation found by E_CODE, check by analytic_id for prestations
+          // that were saved before ebrigade_activity_code was stored (no E_CODE on prestation).
+          if ((!existingPrestationResult.rows || existingPrestationResult.rows.length === 0) && activity.analytic_id) {
+            existingPrestationResult = await pool.query(
+              `SELECT id FROM prestations
+               WHERE user_id = $1
+               AND date = $2
+               AND analytic_id = $3
+               AND (ebrigade_activity_code IS NULL OR ebrigade_activity_code = '')
+               AND status != 'Envoyé à la facturation'
+               LIMIT 1`,
+              [user.id, activity.date, activity.analytic_id]
+            )
+          }
+        } else if (activity.analytic_id) {
+          // Strategy 2: No E_CODE available — match by analytic_id only
+          existingPrestationResult = await pool.query(
+            `SELECT id FROM prestations
+             WHERE user_id = $1
+             AND date = $2
              AND analytic_id = $3
              AND status != 'Envoyé à la facturation'
              LIMIT 1`,
             [user.id, activity.date, activity.analytic_id]
           )
         } else {
-          // Strategy 2: If no analytic_id, search by ebrigade_activity_code or E_LIBELLE
-          // For eBrigade activities without local mapping
+          // Strategy 3: No E_CODE, no analytic_id — search by ebrigade_activity_code or name
           existingPrestationResult = await pool.query(
             `SELECT id FROM prestations p
-             WHERE p.user_id = $1 
-             AND p.date = $2 
+             WHERE p.user_id = $1
+             AND p.date = $2
              AND (p.ebrigade_activity_code = $3 OR p.ebrigade_activity_name = $4)
              AND p.status != 'Envoyé à la facturation'
              LIMIT 1`,
