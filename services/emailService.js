@@ -579,10 +579,186 @@ L'équipe ${appName}
   }
 }
 
+/**
+ * Send email to user when their prestation status changes
+ * @param {Object} opts
+ * @param {string} opts.userEmail - User email
+ * @param {string} opts.firstName - User first name
+ * @param {string} opts.status - New status
+ * @param {string} opts.date - Prestation date (ISO or formatted)
+ * @param {string} opts.analyticName - Activity/analytic name
+ * @param {string} [opts.payType] - Pay type (Garde, Permanence…)
+ * @param {string} [opts.invoiceNumber] - Invoice number if applicable
+ * @param {string} [opts.refusalReason] - Reason for refusal if cancelled
+ * @returns {Promise<{sent: boolean, error?: string}>}
+ */
+async function sendStatusChangeEmail({ userEmail, firstName, status, date, analyticName, payType, invoiceNumber, refusalReason }) {
+  try {
+    const mailer = getTransporter()
+    const appName = process.env.APP_NAME || 'Fénix'
+    const appUrl = process.env.APP_URL || 'https://www.sirona-consult.be'
+
+    const statusConfigs = {
+      "En attente d'approbation": {
+        color: '#7c3aed', bg: '#f5f3ff', textColor: '#5b21b6',
+        icon: '🔔', title: 'Demande reçue',
+        message: "Votre demande a bien été enregistrée et est en attente d'approbation par l'équipe administrative."
+      },
+      "Envoyé à la facturation": {
+        color: '#10b981', bg: '#ecfdf5', textColor: '#047857',
+        icon: '✅', title: 'Demande approuvée',
+        message: "Votre demande a été approuvée et transmise à la comptabilité pour traitement."
+      },
+      "En attente d'envoie": {
+        color: '#f59e0b', bg: '#fffbeb', textColor: '#92400e',
+        icon: '⏳', title: 'Demande en cours de traitement',
+        message: "Votre demande est en cours de traitement."
+      },
+      'Annulé': {
+        color: '#dc2626', bg: '#fee2e2', textColor: '#991b1b',
+        icon: '❌', title: 'Demande refusée',
+        message: refusalReason
+          ? `Votre demande a été refusée. Motif : ${refusalReason}`
+          : "Votre demande a été refusée par l'équipe administrative."
+      },
+      'Facturé': {
+        color: '#10b981', bg: '#ecfdf5', textColor: '#047857',
+        icon: '💶', title: 'Prestation facturée',
+        message: "Votre prestation a été facturée avec succès."
+      },
+      'Payé': {
+        color: '#0066cc', bg: '#eff6ff', textColor: '#1e40af',
+        icon: '💰', title: 'Paiement effectué',
+        message: "Le paiement de votre prestation a été effectué."
+      }
+    }
+
+    const cfg = statusConfigs[status]
+    if (!cfg) {
+      // Don't send email for unknown/internal statuses
+      return { sent: false, error: 'No email template for status: ' + status }
+    }
+
+    let formattedDate = date || '-'
+    try {
+      if (date) {
+        formattedDate = new Date(date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        // Capitalize first letter
+        formattedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)
+      }
+    } catch(e) { /* use raw date */ }
+
+    const activityDisplay = analyticName || '-'
+    const invoiceRow = invoiceNumber
+      ? `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 140px;">Facture N°</td><td style="padding: 6px 0; font-weight: 600; color: #1f2937;">${invoiceNumber}</td></tr>`
+      : ''
+    const payTypeRow = payType
+      ? `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 140px;">Type</td><td style="padding: 6px 0; font-weight: 600; color: #1f2937;">${payType}</td></tr>`
+      : ''
+
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mise à jour de votre demande — ${appName}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f9f9f9;">
+  <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid ${cfg.color}; padding-bottom: 20px;">
+      <h1 style="color: ${cfg.color}; margin: 0; font-size: 28px;">${cfg.icon} ${cfg.title}</h1>
+    </div>
+
+    <p style="margin-top: 0;">Bonjour ${firstName || 'Utilisateur'},</p>
+
+    <p>Le statut de votre demande de prestation a été mis à jour.</p>
+
+    <div style="background-color: ${cfg.bg}; border-left: 4px solid ${cfg.color}; padding: 16px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; color: ${cfg.textColor}; font-size: 15px; font-weight: bold;">${cfg.message}</p>
+    </div>
+
+    <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0 0 12px; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Détails de la prestation</p>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 140px;">Date</td>
+          <td style="padding: 6px 0; font-weight: 600; color: #1f2937;">${formattedDate}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 140px;">Activité</td>
+          <td style="padding: 6px 0; font-weight: 600; color: #1f2937;">${activityDisplay}</td>
+        </tr>
+        ${payTypeRow}
+        ${invoiceRow}
+      </table>
+    </div>
+
+    <p style="color: #666; font-size: 13px;">
+      Pour consulter le détail de vos prestations, connectez-vous à votre espace personnel :
+      <a href="${appUrl}" style="color: ${cfg.color}; font-weight: bold;">${appUrl}</a>
+    </p>
+
+    <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #999; font-size: 12px;">
+      <p style="margin: 4px 0;">© ${new Date().getFullYear()} ${appName}. Tous droits réservés.</p>
+      <p style="margin: 4px 0;">Cet email a été envoyé automatiquement. Veuillez ne pas y répondre.</p>
+    </div>
+
+  </div>
+</body>
+</html>`
+
+    const textContent = `${cfg.icon} ${cfg.title} — ${appName}
+
+Bonjour ${firstName || 'Utilisateur'},
+
+${cfg.message}
+
+Détails :
+- Date : ${formattedDate}
+- Activité : ${activityDisplay}${payType ? '\n- Type : ' + payType : ''}${invoiceNumber ? '\n- Facture N° : ' + invoiceNumber : ''}
+
+Consultez vos prestations sur : ${appUrl}
+
+Cordialement,
+L'équipe ${appName}
+`.trim()
+
+    if (!mailer) {
+      console.log('[EmailService] Status change email would be sent to:', userEmail, '— status:', status)
+      return { sent: false, error: 'SMTP not configured - logged to console only' }
+    }
+
+    const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'no-reply@sirona-consult.be'
+
+    const info = await mailer.sendMail({
+      from: { name: appName, address: fromEmail },
+      to: userEmail,
+      subject: `${appName} — ${cfg.icon} ${cfg.title}`,
+      html: htmlContent,
+      text: textContent,
+      replyTo: fromEmail,
+      headers: {
+        ...getEmailHeaders(fromEmail),
+        'X-Originating-IP': '[127.0.0.1]',
+        'Bounces-To': fromEmail,
+        'Errors-To': fromEmail,
+      }
+    })
+
+    console.log('[EmailService] Status change email sent:', { to: userEmail, status, messageId: info.messageId })
+    return { sent: true, messageId: info.messageId }
+  } catch (err) {
+    console.error('[EmailService] Error sending status change email:', err.message)
+    return { sent: false, error: err.message }
+  }
+}
+
 module.exports = {
   send,
   sendUserCreationEmail,
   sendInvitationEmail,
   sendPasswordChangeEmail,
   sendPasswordResetEmail,
+  sendStatusChangeEmail,
 }

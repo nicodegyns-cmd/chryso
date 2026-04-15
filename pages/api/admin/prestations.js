@@ -1,4 +1,5 @@
 const { getPool } = require('../../../services/db')
+const { sendStatusChangeEmail } = require('../../../services/emailService')
 
 export default async function handler(req, res) {
   const pool = getPool()
@@ -426,6 +427,20 @@ export default async function handler(req, res) {
       )
       const completeRows = (q2 && q2.rows) ? q2.rows : []
       const completeUpdate = completeRows[0] || updated
+
+      // Send status change notification email (fire-and-forget)
+      if (req.body && req.body.status && completeUpdate.user_email) {
+        sendStatusChangeEmail({
+          userEmail: completeUpdate.user_email,
+          firstName: completeUpdate.user_firstname || '',
+          status: req.body.status,
+          date: completeUpdate.date,
+          analyticName: completeUpdate.analytic_name || completeUpdate.ebrigade_activity_name || '',
+          payType: completeUpdate.pay_type || '',
+          invoiceNumber: completeUpdate.invoice_number || null,
+          refusalReason: req.body.refusalReason || null,
+        }).catch(e => console.warn('[prestations PATCH] status email failed:', e.message))
+      }
 
       return res.status(200).json(completeUpdate)
     }

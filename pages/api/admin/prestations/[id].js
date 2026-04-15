@@ -1,5 +1,6 @@
 ﻿// Minimal handler - single export to ensure no duplicates
 const { getPool } = require('../../../../services/db')
+const { sendStatusChangeEmail } = require('../../../../services/emailService')
 
 export default async function handler(req, res){
   const pool = getPool()
@@ -378,6 +379,20 @@ export default async function handler(req, res){
           console.error('pdf generation failed', e && e.message, e && e.stack)
         }
       }
+    }
+
+    // Send status change notification email (fire-and-forget)
+    if (req.body && req.body.status && updatedRow.user_email) {
+      sendStatusChangeEmail({
+        userEmail: updatedRow.user_email,
+        firstName: updatedRow.user_first_name || updatedRow.first_name || '',
+        status: req.body.status,
+        date: updatedRow.date,
+        analyticName: updatedRow.analytic_name || updatedRow.ebrigade_activity_name || '',
+        payType: updatedRow.pay_type || '',
+        invoiceNumber: updatedRow.invoice_number || null,
+        refusalReason: req.body.refusalReason || null,
+      }).catch(e => console.warn('[prestations/[id]] status email failed:', e.message))
     }
 
     return res.status(200).json(updatedRow)
