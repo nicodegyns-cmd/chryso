@@ -5,42 +5,62 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method not allowed' })
   }
 
-  const { user_id } = req.query
+  const { user_id, user_email } = req.query
 
-  if (!user_id) {
-    return res.status(400).json({ message: 'user_id est obligatoire' })
+  if (!user_id && !user_email) {
+    return res.status(400).json({ message: 'user_id ou user_email est obligatoire' })
   }
-
-  console.log('[user-prestations API] Searching for user_id:', user_id)
 
   const pool = getPool()
 
   try {
+    let whereClauses = []
+    let params = []
+    let pi = 1
+
+    if (user_id) {
+      whereClauses.push(`p.user_id = $${pi++}`)
+      params.push(user_id)
+    }
+    if (user_email) {
+      whereClauses.push(`LOWER(u.email) = LOWER($${pi++})`)
+      params.push(user_email)
+    }
+
+    const where = whereClauses.length ? 'WHERE ' + whereClauses.join(' OR ') : ''
+
     const query = `
       SELECT 
-        id,
-        user_id,
-        date,
-        hours_actual,
-        garde_hours,
-        sortie_hours,
-        overtime_hours,
-        remuneration_infi,
-        remuneration_med,
-        comments,
-        status,
-        pay_type,
-        activity_id,
-        created_at,
-        updated_at
-      FROM prestations
-      WHERE user_id = $1
-      ORDER BY date DESC, created_at DESC
-      LIMIT 50
+        p.id,
+        p.user_id,
+        p.date,
+        p.hours_actual,
+        p.garde_hours,
+        p.sortie_hours,
+        p.overtime_hours,
+        p.remuneration_infi,
+        p.remuneration_med,
+        p.comments,
+        p.status,
+        p.pay_type,
+        p.activity_id,
+        p.analytic_id,
+        p.ebrigade_activity_name,
+        p.ebrigade_activity_code,
+        p.ebrigade_duration_hours,
+        p.created_at,
+        p.updated_at,
+        an.name AS analytic_name
+      FROM prestations p
+      LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN analytics an ON p.analytic_id = an.id
+      ${where}
+      ORDER BY p.date DESC, p.id DESC
+      LIMIT 100
     `
 
-    const result = await pool.query(query, [user_id])
-    console.log('[user-prestations API] Found', result.rows.length, 'prestations for user_id:', user_id)
+    const result = await pool.query(query, params)
+    console.log('[user-prestations API] Found', result.rows.length, 'prestations')
 
     return res.status(200).json({
       prestations: result.rows || [],

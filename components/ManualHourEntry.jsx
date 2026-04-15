@@ -86,7 +86,7 @@ export default function ManualHourEntry() {
     if (!searchQuery.trim() || searchQuery.length < 2) return []
     const q = searchQuery.toLowerCase()
     return allUsers.filter(u => {
-      const name = `${u.firstname || ''} ${u.lastname || ''} ${u.email || ''}`.toLowerCase()
+      const name = `${u.first_name || u.firstname || ''} ${u.last_name || u.lastname || ''} ${u.email || ''}`.toLowerCase()
       return name.includes(q)
     }).slice(0, 8)
   }, [allUsers, searchQuery])
@@ -100,7 +100,9 @@ export default function ManualHourEntry() {
     const loadUserPrestations = async () => {
       setLoadingPrests(true)
       try {
-        const res = await fetch(`/api/admin/user-prestations?user_id=${selectedUser.id}`)
+        const params = new URLSearchParams({ user_id: selectedUser.id })
+        if (selectedUser.email) params.append('user_email', selectedUser.email)
+        const res = await fetch(`/api/admin/user-prestations?${params}`)
         const data = await res.json()
         if (res.ok) {
           setUserPrestations(data.prestations || [])
@@ -119,7 +121,8 @@ export default function ManualHourEntry() {
 
   const handleUserSelect = (user) => {
     setSelectedUser(user)
-    setSearchQuery(`${user.firstname || ''} ${user.lastname || ''}`.trim() || user.email)
+    const name = `${user.first_name || user.firstname || ''} ${user.last_name || user.lastname || ''}`.trim()
+    setSearchQuery(name || user.email)
     setShowSuggestions(false)
     setEditingPrestation(null)
     setError('')
@@ -211,7 +214,9 @@ export default function ManualHourEntry() {
       cancelEdit()
 
       // Reload prestations
-      const prestRes = await fetch(`/api/admin/user-prestations?user_id=${selectedUser.id}`)
+      const reloadParams = new URLSearchParams({ user_id: selectedUser.id })
+      if (selectedUser.email) reloadParams.append('user_email', selectedUser.email)
+      const prestRes = await fetch(`/api/admin/user-prestations?${reloadParams}`)
       if (prestRes.ok) {
         const data = await prestRes.json()
         setUserPrestations(data.prestations || [])
@@ -264,7 +269,9 @@ export default function ManualHourEntry() {
                   onMouseLeave={e => e.currentTarget.style.background = 'none'}
                 >
                   <span style={{ fontWeight: 600, fontSize: 14, color: '#1f2937' }}>
-                    {u.firstname || u.lastname ? `${u.firstname || ''} ${u.lastname || ''}`.trim() : u.email}
+                    {(u.first_name || u.firstname) || (u.last_name || u.lastname)
+                      ? `${u.first_name || u.firstname || ''} ${u.last_name || u.lastname || ''}`.trim()
+                      : u.email}
                   </span>
                   <span style={{ fontSize: 12, color: '#6b7280' }}>{u.email}</span>
                 </button>
@@ -278,8 +285,8 @@ export default function ManualHourEntry() {
             <span style={{ fontSize: 18 }}>👤</span>
             <div>
               <div style={{ fontWeight: 700, fontSize: 14, color: '#1f2937' }}>
-                {selectedUser.firstname || selectedUser.lastname
-                  ? `${selectedUser.firstname || ''} ${selectedUser.lastname || ''}`.trim()
+                {(selectedUser.first_name || selectedUser.firstname) || (selectedUser.last_name || selectedUser.lastname)
+                  ? `${selectedUser.first_name || selectedUser.firstname || ''} ${selectedUser.last_name || selectedUser.lastname || ''}`.trim()
                   : selectedUser.email}
               </div>
               <div style={{ fontSize: 12, color: '#6b7280' }}>{selectedUser.email}</div>
@@ -322,7 +329,7 @@ export default function ManualHourEntry() {
                         </span>
                         <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>{formatDate(p.date)}</span>
                       </div>
-                      {p.analytic_name && <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 600, marginBottom: 8 }}>{p.analytic_name}</div>}
+                      {(p.analytic_name || p.ebrigade_activity_name) && <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 600, marginBottom: 8 }}>{p.ebrigade_activity_name || p.analytic_name}</div>}
                       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                         {p.hours_actual > 0 && <div style={{ fontSize: 13 }}><span style={{ color: '#6b7280' }}>Réelles </span><strong>{p.hours_actual}h</strong></div>}
                         {p.garde_hours > 0 && <div style={{ fontSize: 13 }}><span style={{ color: '#6b7280' }}>Garde </span><strong>{p.garde_hours}h</strong></div>}
