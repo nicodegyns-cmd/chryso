@@ -53,6 +53,13 @@ export default async function handler(req, res) {
     const plainPassword = generateRandomPassword()
     const passwordHash = await bcrypt.hash(plainPassword, 10)
 
+    // Admin/moderator/comptabilite accounts are immediately active (no validation needed)
+    // but must change password on first login
+    const internalRoles = ['admin', 'moderator', 'comptabilite']
+    const isInternalRole = roleValue.split(',').some(r => internalRoles.includes(r.trim()))
+    const initialIsActive = isInternalRole ? 1 : 0
+    const initialOnboardingStatus = isInternalRole ? 'active' : 'pending_validation'
+
     try {
       const q = await pool.query(
         `INSERT INTO users (email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, password_hash, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status, moderator_analytic_ids)
@@ -72,11 +79,11 @@ export default async function handler(req, res) {
           fonction || null,
           liaisonId || null,
           passwordHash,
-          true, // must_complete_profile
+          true, // must_complete_profile — always true to force password change on first login
           false, // accepted_cgu
           false, // accepted_privacy
-          0, // is_active = 0 (pending validation) - SMALLINT not boolean
-          'pending_validation', // onboarding_status
+          initialIsActive,
+          initialOnboardingStatus,
           moderatorAnalyticIds || null
         ]
       )

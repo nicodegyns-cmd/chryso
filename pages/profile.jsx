@@ -91,7 +91,12 @@ export default function ProfilePage(){
           // Priority 1: If account requires completion, start onboarding flow (step 1: profile completion)
           // This takes priority over is_active check (only for INFI/MED roles)
           const mustCompleteRoles = ['INFI', 'MED', 'infirmier', 'medecin']
-          if (me.must_complete_profile && mustCompleteRoles.some(r => me.role?.includes(r))) {
+          const internalMustCompleteRoles = ['moderator', 'comptabilite', 'admin']
+          if (me.must_complete_profile && internalMustCompleteRoles.some(r => me.role?.includes(r))) {
+            // Internal roles: skip profile/CGU steps, go directly to password change
+            setOnboardingStep('password')
+          }
+          else if (me.must_complete_profile && mustCompleteRoles.some(r => me.role?.includes(r))) {
             setOnboardingStep('profile')
           }
           // Priority 2: If user is not active and onboarding is complete, redirect to pending page
@@ -213,6 +218,11 @@ export default function ProfilePage(){
         // Onboarding complete - close all modals
         setOnboardingStep(null)
         setPasswordSuccess(false)
+        // Redirect internal roles to their dashboard after password change
+        const role = localStorage.getItem('role')
+        if (role === 'moderator') router.replace('/moderator')
+        else if (role === 'comptabilite') router.replace('/comptabilite')
+        else if (role === 'admin') router.replace('/admin')
       }, 1500)
     } catch (err) {
       console.error('Save password failed', err)
@@ -519,7 +529,9 @@ export default function ProfilePage(){
                 {passwordError && <div className="form-error" style={{marginTop:12}}>{passwordError}</div>}
                 {passwordSuccess && <div style={{color:'#10b981',fontSize:13,marginTop:12,fontWeight:600}}>Mot de passe modifié avec succès!</div>}
                 <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:16}}>
-                  <button type="button" className="secondary" onClick={() => setOnboardingStep('acceptance')} disabled={passwordLoading}>← Retour</button>
+                  {!['moderator','comptabilite','admin'].some(r => user?.role?.includes(r)) && (
+                    <button type="button" className="secondary" onClick={() => setOnboardingStep('acceptance')} disabled={passwordLoading}>← Retour</button>
+                  )}
                   <button type="submit" className="primary" disabled={passwordLoading}>{passwordLoading ? 'Enregistrement…' : 'Valider'}</button>
                 </div>
               </form>
