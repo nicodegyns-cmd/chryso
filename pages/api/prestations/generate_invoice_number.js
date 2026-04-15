@@ -21,7 +21,7 @@ export default async function handler(req, res){
         const year = new Date().getFullYear()
         const like = `${year}-%`
         const [resInv] = await pool.query('SELECT invoice_number FROM prestations WHERE invoice_number LIKE $1 ORDER BY invoice_number DESC LIMIT 1', [like])
-        let nextNum = 1
+        let nextNum = 20001
         if (resInv && resInv.length > 0 && resInv[0].invoice_number){
           const parts = String(resInv[0].invoice_number).split('-')
           const last = parts[1] || ''
