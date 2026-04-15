@@ -40,14 +40,23 @@ export default async function handler(req, res) {
 
     // After password change, check if both CGU and privacy were accepted
     // If yes, complete the onboarding and move to pending validation
-    const [userCheck] = await pool.query('SELECT accepted_cgu, accepted_privacy FROM users WHERE id = $1', [id])
+    // Exception: internal roles (admin/moderator/comptabilite) skip CGU and are already active
+    const [userCheck] = await pool.query('SELECT accepted_cgu, accepted_privacy, role FROM users WHERE id = $1', [id])
     if (userCheck && userCheck.length > 0) {
       const u = userCheck[0]
-      if (u.accepted_cgu && u.accepted_privacy) {
-        // Mark onboarding as complete and ensure is_active = false until admin validates
+      const internalRoles = ['admin', 'moderator', 'comptabilite']
+      const isInternal = (u.role || '').split(',').some(r => internalRoles.includes(r.trim()))
+      if (isInternal) {
+        // Internal roles: just clear must_complete_profile, stay active
+        await pool.query(
+          'UPDATE users SET must_complete_profile = $1 WHERE id = $2',
+          [false, id]
+        )
+      } else if (u.accepted_cgu && u.accepted_privacy) {
+        // Standard roles: complete onboarding → pending_validation
         await pool.query(
           'UPDATE users SET onboarding_status = $1, must_complete_profile = $2, is_active = $3 WHERE id = $4',
-          ['pending_validation', 0, 0, id] // Use integer 0 for SMALLINT columns, not false (boolean)
+          ['pending_validation', 0, 0, id]
         )
       }
     }
