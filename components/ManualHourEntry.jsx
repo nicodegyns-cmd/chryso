@@ -76,7 +76,11 @@ export default function ManualHourEntry() {
   const handleCardClick = (card) => {
     setSelectedCard(card); setSaveError(''); setSaveSuccess('')
     setFormData({ hours_actual: card.duration ? String(card.duration) : '', garde_hours: '', sortie_hours: '', overtime_hours: '', comments: '' })
-    setTimeout(() => document.getElementById('mhe-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+  }
+
+  const handleCloseModal = () => {
+    if (saving) return
+    setSelectedCard(null); setFormData(emptyForm()); setSaveError('')
   }
 
   const handleFormChange = (e) => { const { name, value } = e.target; setFormData(prev => ({ ...prev, [name]: value })) }
@@ -117,6 +121,7 @@ export default function ManualHourEntry() {
   }
 
   return (
+    <>
     <div className={styles.container}>
       <div className={styles.section}>
         <h3 style={{ marginTop: 0 }}>1. Rechercher un utilisateur</h3>
@@ -207,50 +212,106 @@ export default function ManualHourEntry() {
         </div>
       )}
 
-      {selectedCard && (
-        <div className={styles.section} id="mhe-form">
-          <h3>3. Saisir les heures - <span style={{ color: '#7c3aed' }}>{selectedCard.analytic_name || selectedCard.ebrigade_activity_name} · {formatDate(selectedCard.date)}</span></h3>
-          {selectedCard.duration && (
-            <div style={{ marginBottom: 16, padding: '8px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 13, color: '#1d4ed8' }}>
-              Duree eBrigade : <strong>{selectedCard.duration}h</strong>{selectedCard.startTime && ` · ${selectedCard.startTime} - ${selectedCard.endTime}`}
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <div className={styles.formGrid}>
-              <div className={styles.formGroup}>
-                <label htmlFor="hours_actual">Heures reelles :</label>
-                <input id="hours_actual" type="number" step="0.25" min="0" name="hours_actual" value={formData.hours_actual} onChange={handleFormChange} placeholder="0" />
-              </div>
-              <div className={styles.formGroup}>
-                <label htmlFor="garde_hours">Heures de garde :</label>
-                <input id="garde_hours" type="number" step="0.25" min="0" name="garde_hours" value={formData.garde_hours} onChange={handleFormChange} placeholder="0" />
-              </div>
-              <div className={styles.formGroup}>
-                <label htmlFor="sortie_hours">Heures de sortie :</label>
-                <input id="sortie_hours" type="number" step="0.25" min="0" name="sortie_hours" value={formData.sortie_hours} onChange={handleFormChange} placeholder="0" />
-              </div>
-              <div className={styles.formGroup}>
-                <label htmlFor="overtime_hours">Heures supplementaires :</label>
-                <input id="overtime_hours" type="number" step="0.25" min="0" name="overtime_hours" value={formData.overtime_hours} onChange={handleFormChange} placeholder="0" />
-              </div>
-              <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-                <label htmlFor="comments">Commentaires :</label>
-                <textarea id="comments" name="comments" rows="3" value={formData.comments} onChange={handleFormChange} placeholder="Ajouter des notes..." />
-              </div>
-            </div>
-            {saveError && <div className={styles.error}>{saveError}</div>}
-            {saveSuccess && <div className={styles.success}>{saveSuccess}</div>}
-            <div className={styles.buttonGroup}>
-              <button type="submit" disabled={saving} className={styles.submitBtn}>{saving ? 'Enregistrement...' : 'Enregistrer les heures'}</button>
-              <button type="button" onClick={() => { setSelectedCard(null); setFormData(emptyForm()) }} disabled={saving} className={styles.cancelBtn}>Annuler</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {saveSuccess && !selectedCard && (
+      {saveSuccess && (
         <div className={styles.section}><div className={styles.success}>{saveSuccess}</div></div>
       )}
     </div>
+
+    {/* Modal saisie heures */}
+    {selectedCard && (
+      <div
+        onClick={handleCloseModal}
+        style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}
+      >
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{ width: '100%', maxWidth: 560, background: '#fff', borderRadius: 12, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)', overflow: 'auto', maxHeight: '90vh' }}
+        >
+          {/* Header */}
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1f2937' }}>✏️ Déclarer mes heures</h3>
+              <div style={{ marginTop: 4, fontSize: 13, color: '#6b7280' }}>
+                {selectedCard.analytic_name || selectedCard.ebrigade_activity_name || '-'} · {selectedCard.date ? new Date(selectedCard.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '-'}
+              </div>
+            </div>
+            <button
+              onClick={handleCloseModal}
+              disabled={saving}
+              style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af', lineHeight: 1, padding: 4 }}
+            >✕</button>
+          </div>
+
+          {/* Body */}
+          <div style={{ padding: 24 }}>
+            {/* eBrigade info banner */}
+            {selectedCard.duration && (
+              <div style={{ marginBottom: 20, padding: '10px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 13, color: '#1d4ed8' }}>
+                📅 Durée eBrigade : <strong>{selectedCard.duration}h</strong>
+                {selectedCard.startTime && <span> · {selectedCard.startTime} – {selectedCard.endTime}</span>}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              <div style={{ display: 'grid', gap: 16 }}>
+
+                {/* Heures de travail */}
+                <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
+                  <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 14, color: '#1f2937' }}>📊 Heures de travail</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <label style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>HEURES RÉELLES</div>
+                      <input type="number" step="0.25" min="0" name="hours_actual" value={formData.hours_actual} onChange={handleFormChange} placeholder="0"
+                        style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>HEURES DE GARDE</div>
+                      <input type="number" step="0.25" min="0" name="garde_hours" value={formData.garde_hours} onChange={handleFormChange} placeholder="0"
+                        style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>HEURES DE SORTIE</div>
+                      <input type="number" step="0.25" min="0" name="sortie_hours" value={formData.sortie_hours} onChange={handleFormChange} placeholder="0"
+                        style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>HEURES SUPPLÉMENTAIRES</div>
+                      <input type="number" step="0.25" min="0" name="overtime_hours" value={formData.overtime_hours} onChange={handleFormChange} placeholder="0"
+                        style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Commentaires */}
+                <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
+                  <label style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 14, color: '#1f2937' }}>💬 Commentaires</div>
+                    <textarea name="comments" rows={3} value={formData.comments} onChange={handleFormChange}
+                      placeholder="Ajouter un commentaire..."
+                      style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, resize: 'vertical', fontFamily: 'inherit' }} />
+                  </label>
+                </div>
+
+              </div>
+
+              {saveError && <div className={styles.error} style={{ marginTop: 12 }}>{saveError}</div>}
+
+              {/* Boutons */}
+              <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={handleCloseModal} disabled={saving}
+                  style={{ padding: '10px 20px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', color: '#374151' }}>
+                  Annuler
+                </button>
+                <button type="submit" disabled={saving}
+                  style={{ padding: '10px 24px', background: saving ? '#9ca3af' : '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
+                  {saving ? 'Enregistrement...' : 'Enregistrer les heures'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
