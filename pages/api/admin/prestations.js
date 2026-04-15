@@ -108,6 +108,17 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'user_email required' })
       }
 
+      // Prevent submitting a prestation for a future date
+      if (date) {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const prestDate = new Date(date)
+        prestDate.setHours(0, 0, 0, 0)
+        if (prestDate > today) {
+          return res.status(400).json({ error: 'Impossible de soumettre une demande pour une prestation dont la date n\'a pas encore eu lieu.' })
+        }
+      }
+
       // Find user by email
       const q1 = await pool.query(
         'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',

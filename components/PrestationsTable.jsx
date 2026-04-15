@@ -375,6 +375,18 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       return
     }
 
+    // Prevent submitting a prestation for a future date (non-admins only)
+    if (isNewPrestation && editing.date && role !== 'admin' && role !== 'moderator') {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const prestDate = new Date(editing.date)
+      prestDate.setHours(0, 0, 0, 0)
+      if (prestDate > today) {
+        alert(`⚠️ Impossible de soumettre une demande pour une prestation à venir.\n\nLa date de la prestation (${prestDate.toLocaleDateString('fr-FR')}) n'a pas encore eu lieu.\n\nVeuillez revenir après la date de la prestation.`)
+        return
+      }
+    }
+
     // Prevent saving if status is locked (submitted or approved)
     const lockedStatuses = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation']
     if (lockedStatuses.includes(editing.status)) {
