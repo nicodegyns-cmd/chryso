@@ -231,7 +231,7 @@ export default function UserValidation() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
         <div style={{ padding: '14px 16px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0', textAlign: 'center' }}>
           <div style={{ fontSize: 24, fontWeight: 700, color: '#15803d' }}>{counts.ready}</div>
-          <div style={{ fontSize: 12, color: '#16a34a', marginTop: 2 }}>Pr\u00eats \u00e0 valider</div>
+          <div style={{ fontSize: 12, color: '#16a34a', marginTop: 2 }}>Prêts à valider</div>
         </div>
         <div style={{ padding: '14px 16px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fde68a', textAlign: 'center' }}>
           <div style={{ fontSize: 24, fontWeight: 700, color: '#b45309' }}>{counts.incomplete}</div>
@@ -239,7 +239,7 @@ export default function UserValidation() {
         </div>
         <div style={{ padding: '14px 16px', background: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb', textAlign: 'center' }}>
           <div style={{ fontSize: 24, fontWeight: 700, color: '#374151' }}>{counts.waiting}</div>
-          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Invitation envoy\u00e9e</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Invitation envoyée</div>
         </div>
       </div>
 
@@ -261,7 +261,7 @@ export default function UserValidation() {
 
       {/* List */}
       {displayed.length === 0 ? (
-        <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af' }}>Aucun utilisateur dans cette cat\u00e9gorie</div>
+        <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af' }}>Aucun utilisateur dans cette catégorie</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {displayed.map(user => {
@@ -322,18 +322,18 @@ export default function UserValidation() {
 
               {viewing.onboarding_status === 'pending_signup' && (
                 <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8, padding: 12, fontSize: 12, color: '#92400e' }}>
-                  Cet utilisateur n&apos;a pas encore compl\u00e9t\u00e9 son profil. Son invitation est en attente.
+                  Cet utilisateur n&apos;a pas encore complété son profil. Son invitation est en attente.
                 </div>
               )}
               {viewing.onboarding_status === 'pending_validation' && getMissingFields(viewing).length > 0 && (
                 <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: 12, fontSize: 12, color: '#c2410c' }}>
-                  <strong>A compl\u00e9ter avant validation :</strong> {getMissingFields(viewing).join(', ')}
+                  <strong>À compléter avant validation :</strong> {getMissingFields(viewing).join(', ')}
                 </div>
               )}
 
               {(viewing.telephone || viewing.fonction || viewing.company || viewing.address) && (
                 <div style={{ background: '#f9fafb', borderRadius: 8, padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {viewing.telephone && <div><div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>T\u00e9l\u00e9phone</div><div style={{ fontSize: 13, color: '#1f2937' }}>{viewing.telephone}</div></div>}
+                  {viewing.telephone && <div><div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>Téléphone</div><div style={{ fontSize: 13, color: '#1f2937' }}>{viewing.telephone}</div></div>}
                   {viewing.fonction && <div><div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>Fonction</div><div style={{ fontSize: 13, color: '#1f2937' }}>{viewing.fonction}</div></div>}
                   {viewing.company && <div><div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>Entreprise</div><div style={{ fontSize: 13, color: '#1f2937' }}>{viewing.company}</div></div>}
                   {viewing.address && <div><div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>Adresse</div><div style={{ fontSize: 13, color: '#1f2937' }}>{viewing.address}</div></div>}
@@ -342,13 +342,13 @@ export default function UserValidation() {
 
               <div style={{ display: 'grid', gap: 12 }}>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>R\u00f4le *</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>Rôle *</span>
                   <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} style={{ padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}>
-                    <option value="">-- S\u00e9lectionner un r\u00f4le --</option>
+                    <option value="">-- Sélectionner un rôle --</option>
                     <option value="INFI">Infirmier</option>
-                    <option value="MED">M\u00e9decin</option>
-                    <option value="moderator">Mod\u00e9rateur</option>
-                    <option value="comptabilite">Comptabilit\u00e9</option>
+                    <option value="MED">Médecin</option>
+                    <option value="moderator">Modérateur</option>
+                    <option value="comptabilite">Comptabilité</option>
                     <option value="admin">Admin</option>
                   </select>
                 </label>
