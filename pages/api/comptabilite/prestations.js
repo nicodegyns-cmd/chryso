@@ -50,11 +50,12 @@ export default async function handler(req, res) {
         sql += ` AND p.status = $1`
         params.push('Payé')
       }
-    } else {
-      // Default: show prestations sent to billing (Envoyé à la facturation)
+    } else if (!status) {
+      // Default: show prestations sent to billing
       sql += ` AND p.status = $1`
       params.push('Envoyé à la facturation')
     }
+    // status === 'all' → no filter, show everything
 
     sql += ` ORDER BY p.date DESC, p.created_at DESC`
 

@@ -185,6 +185,8 @@ export default function ComptabilitePage() {
         params.append('status', 'invoiced')
       } else if (filterStatus === 'paid') {
         params.append('status', 'paid')
+      } else if (filterStatus === 'all') {
+        params.append('status', 'all')
       }
 
       const res = await fetch(`/api/comptabilite/prestations?${params.toString()}`)
