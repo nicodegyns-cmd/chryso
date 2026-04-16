@@ -263,9 +263,9 @@ export default async function handler(req, res) {
                 if (rateGardeInfi > 0) calculatedRemuneInfi = (gH * rateGardeInfi) + (sH * rateSortieInfi) + (oH * rateGardeInfi)
                 if (rateGardeMed > 0) calculatedRemuneMed = (gH * rateGardeMed) + (sH * rateSortieMed) + (oH * rateGardeMed)
               } else if (totalH > 0) {
-                // Simple: hours × rate
-                if (rateGardeInfi > 0) calculatedRemuneInfi = totalH * rateGardeInfi
-                if (rateGardeMed > 0) calculatedRemuneMed = totalH * rateGardeMed
+                // Simple: hours × rate + overtime × rate
+                if (rateGardeInfi > 0) calculatedRemuneInfi = (totalH * rateGardeInfi) + (oH * rateGardeInfi)
+                if (rateGardeMed > 0) calculatedRemuneMed = (totalH * rateGardeMed) + (oH * rateGardeMed)
               } else {
                 // No hours info, store hourly rates as fallback
                 calculatedRemuneInfi = activity.remuneration_infi || calculatedRemuneInfi

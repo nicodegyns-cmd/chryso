@@ -277,8 +277,8 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                     const isInfi = rc.includes('INFI')
                     const isMed = rc.includes('MED') && !isInfi
                     const amt = isMed ? it.remuneration_med : it.remuneration_infi
-                    if (amt != null && amt > 0) return `${amt}€`
-                    if (estimatedAmounts[it.id]) return `${estimatedAmounts[it.id]} €`
+                    if (estimatedAmounts[it.id]) return `${estimatedAmounts[it.id]} \u20ac`
+                    if (amt != null && amt > 0) return `${amt}\u20ac`
                     return '-'
                   })()}
                 </td>
