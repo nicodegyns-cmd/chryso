@@ -150,8 +150,13 @@ export default async function handler(req, res){
     const hasGuardeBreakdown = Number(garde_hours || 0) > 0 || Number(sortie_hours || 0) > 0
     
     if (hasGuardeBreakdown || payLower.includes('garde')){
-      estInfi = (Number(garde_hours) * rateGardeInfi) + (Number(sortie_hours) * rateSortieInfi) + (Number(overtime_hours) * rateGardeInfi * OT_MULT)
-      estMed = (Number(garde_hours) * rateGardeMed) + (Number(sortie_hours) * rateSortieMed) + (Number(overtime_hours) * rateGardeMed * OT_MULT)
+      const gH = Number(garde_hours || 0)
+      const sH = Number(sortie_hours || 0)
+      const oH = Number(overtime_hours || 0)
+      // If no garde/sortie breakdown, fall back to hours_actual as garde hours
+      const effectiveGarde = (gH === 0 && sH === 0) ? Number(hours_actual || 0) : gH
+      estInfi = (effectiveGarde * rateGardeInfi) + (sH * rateSortieInfi) + (oH * rateGardeInfi * OT_MULT)
+      estMed = (effectiveGarde * rateGardeMed) + (sH * rateSortieMed) + (oH * rateGardeMed * OT_MULT)
     } else if (payLower.includes('permanence') || payLower.includes('sortie') || payLower.includes('astreinte')) {
       // For permanence-type activities use the sortie/permanence rates
       estInfi = (Number(hours_actual) * rateSortieInfi) + (Number(overtime_hours) * rateSortieInfi * OT_MULT)
