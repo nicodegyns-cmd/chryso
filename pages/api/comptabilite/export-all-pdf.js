@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       queryParams.push(analytic_id)
       analyticFilter = `AND p.analytic_id = $${queryParams.length}`
     }
-    queryParams.push('sent_to_billing')
+    queryParams.push('Envoyé à la facturation')
     const statusParam = `$${queryParams.length}`
 
     const result = await pool.query(`
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
 
     if (rows.length === 0) {
       const scope = analyticName ? `pour l'analytique "${analyticName}"` : ''
-      return res.status(404).json({ error: `Aucune prestation à facturer (statut "sent_to_billing") ${scope}`.trim() })
+      return res.status(404).json({ error: `Aucune prestation à facturer (statut "Envoyé à la facturation") ${scope}`.trim() })
     }
 
     // 2. Grouper par user_id
