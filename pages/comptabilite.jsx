@@ -234,6 +234,7 @@ export default function ComptabilitePage() {
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
       await new Promise(resolve => setTimeout(resolve, 500))
+      setFilterStatus('invoiced')
       fetchPrestations()
     } catch (err) {
       console.error('Export analytic failed:', err)
@@ -284,6 +285,7 @@ export default function ComptabilitePage() {
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
       await new Promise(resolve => setTimeout(resolve, 500))
+      setFilterStatus('invoiced')
       fetchPrestations()
     } catch (err) {
       console.error('Export failed:', err)
