@@ -93,28 +93,36 @@ const ActivitiesCards = forwardRef(function ActivitiesCards({ email, ebrigade_id
               const dateB = b.date ? new Date(b.date).getTime() : 0
               return dateB - dateA
             })
-            .map((activity) => (
+            .map((activity) => {
+            const today = new Date(); today.setHours(0, 0, 0, 0)
+            const actDate = activity.date ? new Date(activity.date) : null
+            if (actDate) actDate.setHours(0, 0, 0, 0)
+            const isFuture = actDate && actDate > today
+            return (
             <div
               key={activity.id}
-              onClick={() => onEditActivity && onEditActivity({ ...activity, isActivity: true })}
+              onClick={() => !isFuture && onEditActivity && onEditActivity({ ...activity, isActivity: true })}
               style={{
-                background:'#fff',
-                border:'2px solid #e5e7eb',
+                background: isFuture ? '#f9fafb' : '#fff',
+                border: `2px solid ${isFuture ? '#e5e7eb' : '#e5e7eb'}`,
                 borderRadius:12,
                 padding:16,
-                cursor:'pointer',
+                cursor: isFuture ? 'not-allowed' : 'pointer',
                 transition:'all 0.3s ease',
                 display:'flex',
                 flexDirection:'column',
                 gap:12,
-                boxShadow:'0 1px 3px rgba(0,0,0,0.1)'
+                boxShadow:'0 1px 3px rgba(0,0,0,0.1)',
+                opacity: isFuture ? 0.6 : 1
               }}
               onMouseEnter={(e) => {
+                if (isFuture) return
                 e.currentTarget.style.borderColor = '#0366d6'
                 e.currentTarget.style.boxShadow = '0 10px 25px rgba(3, 102, 214, 0.15)'
                 e.currentTarget.style.transform = 'translateY(-4px)'
               }}
               onMouseLeave={(e) => {
+                if (isFuture) return
                 e.currentTarget.style.borderColor = '#e5e7eb'
                 e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'
                 e.currentTarget.style.transform = 'translateY(0)'
@@ -170,26 +178,30 @@ const ActivitiesCards = forwardRef(function ActivitiesCards({ email, ebrigade_id
 
               {/* CTA Button */}
               <button
+                disabled={isFuture}
                 style={{
                   width:'100%',
                   padding:'10px 16px',
-                  background:'#0366d6',
+                  background: isFuture ? '#9ca3af' : '#0366d6',
                   color:'#fff',
                   border:'none',
                   borderRadius:8,
                   fontWeight:600,
                   fontSize:14,
-                  cursor:'pointer',
+                  cursor: isFuture ? 'not-allowed' : 'pointer',
                   transition:'background 0.2s',
                   marginTop:'auto'
                 }}
-                onMouseEnter={(e) => e.target.style.background = '#0260c8'}
-                onMouseLeave={(e) => e.target.style.background = '#0366d6'}
+                onMouseEnter={(e) => { if (!isFuture) e.target.style.background = '#0260c8' }}
+                onMouseLeave={(e) => { if (!isFuture) e.target.style.background = '#0366d6' }}
               >
-                ✏️ Déclarer mes heures
+                {isFuture
+                  ? `⏳ Disponible le ${actDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+                  : '✏️ Déclarer mes heures'
+                }
               </button>
             </div>
-          ))}
+          )})}  
         </div>
       )}
     </div>

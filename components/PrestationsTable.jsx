@@ -218,6 +218,16 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     // If this is an activity (not a prestation), look for existing prestation or create new one
     if (p.isActivity) {
       console.log('[openEdit] ACTIVITY DETECTED: date=' + p.date + ', analytic_code=' + p.analytic_code)
+
+      // Block opening modal for future-dated activities (non-admin)
+      if (p.date && role !== 'admin' && role !== 'moderator') {
+        const today = new Date(); today.setHours(0, 0, 0, 0)
+        const prestDate = new Date(p.date); prestDate.setHours(0, 0, 0, 0)
+        if (prestDate > today) {
+          alert(`⚠️ Impossible de déclarer des heures pour une prestation à venir.\n\nCette activité aura lieu le ${prestDate.toLocaleDateString('fr-FR')}. Revenez après cette date.`)
+          return
+        }
+      }
       
       // FIRST: Check in the API if a prestation already exists for this user/date/analytic
       // This ensures we don't miss existing prestations that are scrolled out of view or filtered
