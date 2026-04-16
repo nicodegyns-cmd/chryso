@@ -243,6 +243,21 @@ export default function ComptabilitePage() {
     }
   }
 
+  async function cancelPrestation(prestationId) {
+    if (!confirm('Annuler cette prestation ? Elle repassera au statut "À saisir" pour l\'utilisateur.')) return
+    try {
+      const r = await fetch(`/api/admin/prestations/${prestationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'À saisir' })
+      })
+      if (!r.ok) throw new Error('Erreur')
+      fetchPrestations()
+    } catch (err) {
+      alert('❌ Erreur lors de l\'annulation: ' + err.message)
+    }
+  }
+
   async function exportAll() {
     const pending = safePrestations.filter(p => p && p.status === 'sent_to_billing')
     if (pending.length === 0) {
@@ -563,27 +578,23 @@ export default function ComptabilitePage() {
                                   >
                                     👁️
                                   </button>
-                                  {prestation.status === 'sent_to_billing' && (
-                                    <button
-                                      onClick={() => {}}
-                                      title="Marquer comme facturé"
-                                      style={{
-                                        padding: '6px 10px',
-                                        background: '#10b981',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: 4,
-                                        cursor: 'pointer',
-                                        fontSize: 11,
-                                        fontWeight: 600,
-                                        transition: 'background 0.2s'
-                                      }}
-                                      onMouseEnter={(e) => e.target.style.background = '#059669'}
-                                      onMouseLeave={(e) => e.target.style.background = '#10b981'}
-                                    >
-                                      ✅
-                                    </button>
-                                  )}
+                                  <button
+                                    onClick={() => cancelPrestation(prestation.id)}
+                                    title="Annuler — repassera en À saisir"
+                                    style={{
+                                      padding: '6px 10px',
+                                      background: '#fee2e2',
+                                      color: '#991b1b',
+                                      border: '1px solid #fca5a5',
+                                      borderRadius: 4,
+                                      cursor: 'pointer',
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      transition: 'background 0.2s'
+                                    }}
+                                  >
+                                    🔄 Annuler
+                                  </button>
                                 </div>
                               </td>
                             </tr>
