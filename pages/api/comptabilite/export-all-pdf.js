@@ -214,6 +214,7 @@ export default async function handler(req, res) {
       }
 
       // HTML complet pour cet utilisateur
+      const firstAnalytic = analyticMap.values().next().value
       const html = buildInvoiceHtml({
         logoDataUri: logoDataUri || fallbackLogo,
         userName,
@@ -224,6 +225,8 @@ export default async function handler(req, res) {
         invoiceDate,
         tableBodyHtml,
         grandTotal,
+        analyticRef: first.analytic_identifier || '',
+        analyticAccount: first.analytic_account_number || '',
       })
 
       // Rendu Puppeteer
@@ -288,7 +291,7 @@ function escHtml(str) {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-function buildInvoiceHtml({ logoDataUri, userName, userAddress, userBce, userAccount, invoiceNumber, invoiceDate, tableBodyHtml, grandTotal }) {
+function buildInvoiceHtml({ logoDataUri, userName, userAddress, userBce, userAccount, invoiceNumber, invoiceDate, tableBodyHtml, grandTotal, analyticRef, analyticAccount }) {
   return `<!doctype html>
 <html>
   <head>
@@ -341,6 +344,8 @@ function buildInvoiceHtml({ logoDataUri, userName, userAddress, userBce, userAcc
           <div class="invoice-title">FACTURE</div>
           <div class="invoice-ref">Facture No : ${invoiceNumber}</div>
           <div class="invoice-ref">Date : ${invoiceDate}</div>
+          ${analyticRef ? `<div class="invoice-ref">Référence : ${escHtml(analyticRef)}</div>` : ''}
+          ${analyticAccount ? `<div class="invoice-ref">Compte : ${escHtml(analyticAccount)}</div>` : ''}
         </div>
         <div class="attention">
           <strong>A L'attention de :</strong>
