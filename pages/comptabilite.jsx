@@ -26,6 +26,7 @@ export default function ComptabilitePage() {
   const [selectedPrestation, setSelectedPrestation] = useState(null)
   const [confirmPaymentOpen, setConfirmPaymentOpen] = useState(false)
   const [confirmPaymentItem, setConfirmPaymentItem] = useState(null)
+  const [exportingAll, setExportingAll] = useState(false)
   const [exportingIds, setExportingIds] = useState({})
 
   const userRole = useLocalStorage('role', null)
@@ -199,78 +200,85 @@ export default function ComptabilitePage() {
     }
   }
 
-  async function exportPdfForAnalytic(analyticId, analyticName) {
+  async function exportForAnalytic(analyticId, analyticName) {
     const analyticPrestations = safePrestations.filter(p => {
-      const pAnalyticId = p.analytic_id || 'unassigned'
-      return pAnalyticId === (analyticId === 'unassigned' ? 'unassigned' : analyticId)
+      const pId = p.analytic_id != null ? String(p.analytic_id) : 'unassigned'
+      return pId === (analyticId === 'unassigned' ? 'unassigned' : String(analyticId))
     })
-    
     if (analyticPrestations.length === 0) {
       alert('❌ Aucune prestation à exporter pour cette analytique')
       return
     }
-
-    // Seules les prestations avec un PDF généré peuvent être fusionnées
-    const withPdf = analyticPrestations.filter(p => p.pdf_url)
-    if (withPdf.length === 0) {
-      alert('❌ Aucune facture PDF générée pour cette analytique.\nLes PDFs doivent être générés avant l\'export.')
-      return
-    }
-    if (withPdf.length < analyticPrestations.length) {
-      const missing = analyticPrestations.length - withPdf.length
-      const ok = confirm(`⚠️ ${missing} prestation(s) sans PDF seront ignorées.\nExporter les ${withPdf.length} factures disponibles ?`)
-      if (!ok) return
-    }
+    const userCount = new Set(analyticPrestations.map(p => p.user_id)).size
+    const ok = confirm(`📤 Exporter ${analyticPrestations.length} prestation(s) pour ${userCount} collaborateur(s) — ${analyticName} ?\n\nCela va générer une facture par collaborateur et les compiler en un seul PDF.\nToutes ces prestations seront marquées comme « Facturé ».`)
+    if (!ok) return
 
     setExportingIds(prev => ({ ...prev, [analyticId]: true }))
     try {
-      const prestationIds = withPdf.map(p => p.id)
-
-      const res = await fetch('/api/comptabilite/export-pdf', {
+      const res = await fetch('/api/comptabilite/export-all-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prestationIds,
-          analytic_id: analyticId !== 'unassigned' ? analyticId : null,
-          analyticName
-        })
+        body: JSON.stringify({ analytic_id: analyticId !== 'unassigned' ? analyticId : null, analyticName })
       })
-
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
         throw new Error(errData.error || 'Erreur lors de l\'export')
       }
-
       const blob = await res.blob()
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `Factures_${analyticName.replace(/[^a-zA-Z0-9_-]/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`
+      link.download = `Factures_${analyticName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      fetchPrestations()
+    } catch (err) {
+      console.error('Export analytic failed:', err)
+      alert('❌ Erreur lors de l\'export: ' + err.message)
+    } finally {
+      setExportingIds(prev => { const n = { ...prev }; delete n[analyticId]; return n })
+    }
+  }
 
-      // Mark prestations as exported
-      const markRes = await fetch('/api/comptabilite/mark-exported', {
+  async function exportAll() {
+    const pending = safePrestations.filter(p => p && p.status === 'sent_to_billing')
+    if (pending.length === 0) {
+      alert('❌ Aucune prestation à facturer (statut "À facturer")')
+      return
+    }
+    const ok = confirm(`📤 Exporter TOUTES les ${pending.length} prestation(s) pour ${new Set(pending.map(p => p.user_id)).size} collaborateur(s) ?\n\nCela va générer une facture par collaborateur (toutes analytiques confondues) en un seul PDF.\nToutes les prestations seront marquées comme « Facturé ».`)
+    if (!ok) return
+
+    setExportingAll(true)
+    try {
+      const res = await fetch('/api/comptabilite/export-all-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          analytic_id: analyticId !== 'unassigned' ? analyticId : null, 
-          prestationIds 
-        })
+        body: JSON.stringify({})
       })
-      if (!markRes.ok) {
-        console.warn('Failed to mark prestations as exported')
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Erreur lors de l\'export')
       }
-
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `Compilation_Factures_${new Date().toISOString().split('T')[0]}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
       await new Promise(resolve => setTimeout(resolve, 500))
       fetchPrestations()
     } catch (err) {
       console.error('Export failed:', err)
       alert('❌ Erreur lors de l\'export: ' + err.message)
     } finally {
-      setExportingIds(prev => { const n = { ...prev }; delete n[analyticId]; return n })
+      setExportingAll(false)
     }
   }
 
@@ -394,8 +402,35 @@ export default function ComptabilitePage() {
           </div>
         </div>
 
-        {/* Export Button */}
-        {/* Removed - now each analytic has its own export button */}
+        {/* Export Button — Global */}
+        {filterStatus === 'sent_to_billing' && pendingCount > 0 && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginBottom: 16
+          }}>
+            <button
+              onClick={exportAll}
+              disabled={exportingAll}
+              style={{
+                padding: '12px 24px',
+                background: exportingAll ? '#9ca3af' : '#4f46e5',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                cursor: exportingAll ? 'not-allowed' : 'pointer',
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: '0 2px 6px rgba(79,70,229,0.3)',
+                transition: 'all 0.2s'
+              }}
+            >
+              {exportingAll
+                ? '⏳ Génération en cours... (peut prendre 1-2 min)'
+                : `📤 Exporter toutes les factures (${pendingCount} prestations)`}
+            </button>
+          </div>
+        )}
 
         {/* Prestations by Analytic - Grouped View */}
         {loading ? (
@@ -447,7 +482,7 @@ export default function ComptabilitePage() {
                       </p>
                     </div>
                     <button
-                      onClick={() => exportPdfForAnalytic(analyticId, analyticName)}
+                      onClick={() => exportForAnalytic(analyticId, analyticName)}
                       disabled={exportingIds[analyticId] || analyticsItems.length === 0}
                       style={{
                         padding: '10px 16px',
@@ -462,12 +497,8 @@ export default function ComptabilitePage() {
                         opacity: exportingIds[analyticId] ? 0.7 : 1,
                         transition: 'all 0.3s'
                       }}
-                      onMouseEnter={(e) => {
-                        if (analyticsItems.length > 0) e.target.style.background = '#059669'
-                      }}
-                      onMouseLeave={(e) => {
-                        if (analyticsItems.length > 0) e.target.style.background = '#10b981'
-                      }}
+                      onMouseEnter={(e) => { if (analyticsItems.length > 0) e.currentTarget.style.background = '#059669' }}
+                      onMouseLeave={(e) => { if (analyticsItems.length > 0) e.currentTarget.style.background = '#10b981' }}
                     >
                       {exportingIds[analyticId] ? '⏳ Export en cours...' : '📄 Exporter'}
                     </button>

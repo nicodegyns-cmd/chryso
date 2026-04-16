@@ -258,28 +258,50 @@ export default function ManualHourEntry() {
                 {/* Heures de travail */}
                 <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
                   <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 14, color: '#1f2937' }}>📊 Heures de travail</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <label style={{ display: 'flex', flexDirection: 'column' }}>
-                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>HEURES RÉELLES</div>
-                      <input type="number" step="0.25" min="0" name="hours_actual" value={formData.hours_actual} onChange={handleFormChange} placeholder="0"
-                        style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
-                    </label>
-                    <label style={{ display: 'flex', flexDirection: 'column' }}>
-                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>HEURES DE GARDE</div>
-                      <input type="number" step="0.25" min="0" name="garde_hours" value={formData.garde_hours} onChange={handleFormChange} placeholder="0"
-                        style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
-                    </label>
-                    <label style={{ display: 'flex', flexDirection: 'column' }}>
-                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>HEURES DE SORTIE</div>
-                      <input type="number" step="0.25" min="0" name="sortie_hours" value={formData.sortie_hours} onChange={handleFormChange} placeholder="0"
-                        style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
-                    </label>
-                    <label style={{ display: 'flex', flexDirection: 'column' }}>
-                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>HEURES SUPPLÉMENTAIRES</div>
-                      <input type="number" step="0.25" min="0" name="overtime_hours" value={formData.overtime_hours} onChange={handleFormChange} placeholder="0"
-                        style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
-                    </label>
-                  </div>
+                  {(() => {
+                    const isGarde = (selectedCard?.pay_type || '').toLowerCase() === 'garde'
+                    const ebrigadeDuration = selectedCard?.duration ? parseFloat(selectedCard.duration) : undefined
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <label style={{ display: 'flex', flexDirection: 'column' }}>
+                          <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>
+                            {isGarde ? 'HEURES RÉELLES' : 'HEURES PRESTÉES'}
+                          </div>
+                          <input
+                            type="number" step="0.25" min="0"
+                            max={!isGarde && ebrigadeDuration != null ? ebrigadeDuration : undefined}
+                            name="hours_actual"
+                            value={formData.hours_actual}
+                            onChange={handleFormChange}
+                            placeholder="0"
+                            style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }}
+                          />
+                          {!isGarde && ebrigadeDuration != null && (
+                            <div style={{ fontSize: 11, color: '#6b7280', marginTop: 3 }}>
+                              Max eBrigade : <strong>{ebrigadeDuration}h</strong> — le surplus va en heures supp·
+                            </div>
+                          )}
+                        </label>
+                        <label style={{ display: 'flex', flexDirection: 'column' }}>
+                          <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>HEURES DE GARDE</div>
+                          <input type="number" step="0.25" min="0" name="garde_hours" value={formData.garde_hours} onChange={handleFormChange} placeholder="0"
+                            style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
+                        </label>
+                        <label style={{ display: 'flex', flexDirection: 'column' }}>
+                          <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>HEURES DE SORTIE</div>
+                          <input type="number" step="0.25" min="0" name="sortie_hours" value={formData.sortie_hours} onChange={handleFormChange} placeholder="0"
+                            style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
+                        </label>
+                        {!isGarde && (
+                          <label style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ fontSize: 12, color: '#f97316', fontWeight: 600, marginBottom: 6 }}>HEURES SUPPLÉMENTAIRES</div>
+                            <input type="number" step="0.25" min="0" name="overtime_hours" value={formData.overtime_hours} onChange={handleFormChange} placeholder="0"
+                              style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #fed7aa', fontSize: 14 }} />
+                          </label>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {/* Commentaires */}

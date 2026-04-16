@@ -13,6 +13,8 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
   const [remuMed, setRemuMed] = useState('')
   const [remuSortieInfi, setRemuSortieInfi] = useState('')
   const [remuSortieMed, setRemuSortieMed] = useState('')
+  const [remuOvertimeInfi, setRemuOvertimeInfi] = useState('')
+  const [remuOvertimeMed, setRemuOvertimeMed] = useState('')
   const [error, setError] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -30,6 +32,8 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       setRemuMed(typeof initial.remuneration_med !== 'undefined' && initial.remuneration_med !== null ? String(initial.remuneration_med) : '')
       setRemuSortieInfi(typeof initial.remuneration_sortie_infi !== 'undefined' && initial.remuneration_sortie_infi !== null ? String(initial.remuneration_sortie_infi) : '')
       setRemuSortieMed(typeof initial.remuneration_sortie_med !== 'undefined' && initial.remuneration_sortie_med !== null ? String(initial.remuneration_sortie_med) : '')
+      setRemuOvertimeInfi(typeof initial.remuneration_overtime_infi !== 'undefined' && initial.remuneration_overtime_infi !== null ? String(initial.remuneration_overtime_infi) : '')
+      setRemuOvertimeMed(typeof initial.remuneration_overtime_med !== 'undefined' && initial.remuneration_overtime_med !== null ? String(initial.remuneration_overtime_med) : '')
       setSelectedEbrigadeAnalytics(initial.ebrigade_analytics || []) // Load existing selections
       setError(null)
     } else if (!open) {
@@ -42,6 +46,8 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       setRemuMed('')
       setRemuSortieInfi('')
       setRemuSortieMed('')
+      setRemuOvertimeInfi('')
+      setRemuOvertimeMed('')
       setSelectedEbrigadeAnalytics([])
       setEbrigadePatternInput('')
       setError(null)
@@ -78,6 +84,10 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
     if (remuMed !== '' && (isNaN(med) || med < 0)) { setError('Montant rémunération med invalide'); return }
     if (remuSortieInfi !== '' && (isNaN(sortieInfi) || sortieInfi < 0)) { setError('Montant rémunération sortie infi invalide'); return }
     if (remuSortieMed !== '' && (isNaN(sortieMed) || sortieMed < 0)) { setError('Montant rémunération sortie med invalide'); return }
+    const overtimeInfi = remuOvertimeInfi === '' ? null : parseFloat(remuOvertimeInfi.replace(',', '.'))
+    const overtimeMed = remuOvertimeMed === '' ? null : parseFloat(remuOvertimeMed.replace(',', '.'))
+    if (remuOvertimeInfi !== '' && (isNaN(overtimeInfi) || overtimeInfi < 0)) { setError('Taux horaire heures supp. infirmier invalide'); return }
+    if (remuOvertimeMed !== '' && (isNaN(overtimeMed) || overtimeMed < 0)) { setError('Taux horaire heures supp. médecin invalide'); return }
 
     setIsSaving(true)
     try {
@@ -93,6 +103,8 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
         remuneration_med: med,
         remuneration_sortie_infi: sortieInfi,
         remuneration_sortie_med: sortieMed,
+        remuneration_overtime_infi: overtimeInfi,
+        remuneration_overtime_med: overtimeMed,
         ebrigade_analytics: selectedEbrigadeAnalytics // Send selected eBrigade analytics
       }
       console.log('[CreateActivityModal] SUBMITTING:', {
@@ -262,7 +274,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
                   />
                 </label>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
                 <label style={{display:'block'}}>
                   <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>🚑 Rémunération Sortie - Infirmier·ère</small>
                   <input 
@@ -287,6 +299,36 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
                     style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
                   />
                 </label>
+              </div>
+              {/* Taux heures supplémentaires (hors Garde) */}
+              <div style={{borderTop:'1px solid #fde68a',paddingTop:12,marginTop:4}}>
+                <div style={{fontSize:12,fontWeight:700,color:'#92400e',marginBottom:8}}>⏱️ Taux horaire heures supplémentaires</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                  <label style={{display:'block'}}>
+                    <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>H. supp. - Infirmier·ère (€/h)</small>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      value={remuOvertimeInfi} 
+                      onChange={e=>setRemuOvertimeInfi(e.target.value)} 
+                      placeholder="55.00"
+                      style={{width:'100%',padding:'10px 12px',border:'1px solid #fde68a',borderRadius:6,fontSize:14}}
+                    />
+                  </label>
+                  <label style={{display:'block'}}>
+                    <small style={{display:'block',marginBottom:4,color:'#6b7280',fontWeight:500}}>H. supp. - Médecin (€/h)</small>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      value={remuOvertimeMed} 
+                      onChange={e=>setRemuOvertimeMed(e.target.value)} 
+                      placeholder="140.00"
+                      style={{width:'100%',padding:'10px 12px',border:'1px solid #fde68a',borderRadius:6,fontSize:14}}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
 

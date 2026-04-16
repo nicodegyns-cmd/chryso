@@ -73,9 +73,10 @@ export default async function handler(req, res){
       } catch(e) { console.warn('[invoice] eBrigade analytic lookup failed:', e.message) }
     }
 
-    // If status moved to 'En attente d'envoie' or 'Envoyé à la facturation', ensure invoice_number and generate PDF if missing
+    // PDF and invoice_number generation is now handled at export time by /api/comptabilite/export-all-pdf
+    // Auto-generation on validation is disabled intentionally
     const targetStatus = req.body.status
-    const isInvoiceableStatus = targetStatus === 'En attente d\'envoie' || targetStatus === 'Envoyé à la facturation'
+    const isInvoiceableStatus = false
     
     if (isInvoiceableStatus){
       // Ensure columns exist
