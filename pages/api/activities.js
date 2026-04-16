@@ -100,7 +100,14 @@ export default async function handler(req, res){
     console.log('  - Looking for P_ID:', user.liaison_ebrigade_id, '(type:', typeof user.liaison_ebrigade_id, ')')
     console.log('  - Available P_IDs:', allParticipations.slice(0, 10).map(p => ({ P_ID: p.P_ID, type: typeof p.P_ID })))
     console.log('  - Matches found:', userParticipations.length)
-    const unfilled = userParticipations.filter(p => !p.hours_actual && !p.remuneration_infi && !p.remuneration_med)
+    // Only show participations from April 1st 2026 onwards (system start date)
+    const systemStartDate = new Date('2026-04-01')
+    const userParticipationsInRange = userParticipations.filter(p => {
+      if (!p.EH_DATE_DEBUT) return true
+      return new Date(p.EH_DATE_DEBUT) >= systemStartDate
+    })
+
+    const unfilled = userParticipationsInRange.filter(p => !p.hours_actual && !p.remuneration_infi && !p.remuneration_med)
 
     const activities = unfilled.map(p => {
       // Extract prefix from eBrigade analytic name (before ' - ' or ' | ')
