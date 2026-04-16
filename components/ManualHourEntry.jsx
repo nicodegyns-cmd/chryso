@@ -90,7 +90,8 @@ export default function ManualHourEntry() {
     if (!selectedUser || !selectedCard) return
     setSaving(true); setSaveError(''); setSaveSuccess('')
     try {
-      const isGardeSubmit = (selectedCard?.pay_type || '').toLowerCase().includes('garde')
+      const ptSubmit = (selectedCard?.pay_type || '').toLowerCase()
+      const isGardeSubmit = ptSubmit.includes('garde') && (ptSubmit.includes('nuit') || ptSubmit.includes('week') || ptSubmit.includes('medecin') || ptSubmit.includes('médecin'))
       const ebrigadeDurSubmit = selectedCard?.duration ? parseFloat(selectedCard.duration) : null
       const sortieHoursSubmit = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
       const gardeHoursSubmit = isGardeSubmit && ebrigadeDurSubmit !== null && sortieHoursSubmit !== null
@@ -265,7 +266,8 @@ export default function ManualHourEntry() {
                 <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
                   <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 14, color: '#1f2937' }}>📊 Heures de travail</div>
                   {(() => {
-                    const isGarde = (selectedCard?.pay_type || '').toLowerCase().includes('garde')
+                    const pt = (selectedCard?.pay_type || '').toLowerCase()
+                    const isGarde = pt.includes('garde') && (pt.includes('nuit') || pt.includes('week') || pt.includes('medecin') || pt.includes('médecin'))
                     const ebrigadeDuration = selectedCard?.duration ? parseFloat(selectedCard.duration) : null
                     const sortieVal = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
                     return isGarde ? (
