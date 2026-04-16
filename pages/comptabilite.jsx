@@ -246,11 +246,7 @@ export default function ComptabilitePage() {
   async function cancelPrestation(prestationId) {
     if (!confirm('Annuler cette prestation ? Elle repassera au statut "À saisir" pour l\'utilisateur.')) return
     try {
-      const r = await fetch(`/api/admin/prestations/${prestationId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'À saisir' })
-      })
+      const r = await fetch(`/api/admin/prestations/${prestationId}`, { method: 'DELETE' })
       if (!r.ok) throw new Error('Erreur')
       fetchPrestations()
     } catch (err) {
