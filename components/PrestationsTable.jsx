@@ -499,9 +499,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           preview.garde_amount_med = Math.round(((Number(preview.garde_hours || 0) * Number(rateData.garde_med || 0)) + Number.EPSILON) * 100) / 100
           preview.sortie_amount_infi = Math.round(((Number(preview.sortie_hours || 0) * Number(rateData.sortie_infi || 0)) + Number.EPSILON) * 100) / 100
           preview.sortie_amount_med = Math.round(((Number(preview.sortie_hours || 0) * Number(rateData.sortie_med || 0)) + Number.EPSILON) * 100) / 100
-          const otAmount = Math.round(((Number(preview.overtime_hours || 0) * Number(rateData.garde_infi || 0) * 1.5) + Number.EPSILON) * 100) / 100
+          const otAmount = Math.round(((Number(preview.overtime_hours || 0) * Number(rateData.garde_infi || 0)) + Number.EPSILON) * 100) / 100
           preview.overtime_amount_infi = otAmount
-          preview.overtime_amount_med = Math.round(((Number(preview.overtime_hours || 0) * Number(rateData.garde_med || 0) * 1.5) + Number.EPSILON) * 100) / 100
+          preview.overtime_amount_med = Math.round(((Number(preview.overtime_hours || 0) * Number(rateData.garde_med || 0)) + Number.EPSILON) * 100) / 100
           
           // Update editing with estimated totals (for display in Montants section)
           setEditing({...editing, remuneration_infi: data.estimated_infi, remuneration_med: data.estimated_med})
@@ -1150,7 +1150,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                         <div style={{fontSize:13}}>
                           {confirmPreview.garde_hours > 0 && <div>Garde: {confirmPreview.garde_hours}h × {confirmPreview.rates?.detailed?.garde_infi || 0}€ = <strong>{confirmPreview.garde_amount_infi || 0}€</strong></div>}
                           {confirmPreview.sortie_hours > 0 && <div>Sortie: {confirmPreview.sortie_hours}h × {confirmPreview.rates?.detailed?.sortie_infi || 0}€ = <strong>{confirmPreview.sortie_amount_infi || 0}€</strong></div>}
-                          {confirmPreview.overtime_hours > 0 && <div>Supp: {confirmPreview.overtime_hours}h × {confirmPreview.rates?.detailed?.garde_infi || 0}€ × 1.5 = <strong>{confirmPreview.overtime_amount_infi || 0}€</strong></div>}
+                          {confirmPreview.overtime_hours > 0 && <div>Supp: {confirmPreview.overtime_hours}h × {confirmPreview.rates?.detailed?.garde_infi || 0}€ = <strong>{confirmPreview.overtime_amount_infi || 0}€</strong></div>}
                           <div style={{marginTop:6,paddingTop:6,borderTop:'1px solid #bfdbfe',fontWeight:700}}>Total: {confirmPreview.estimated_infi}€</div>
                         </div>
                       </div>
@@ -1162,7 +1162,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                         <div style={{fontSize:13}}>
                           {confirmPreview.garde_hours > 0 && <div>Garde: {confirmPreview.garde_hours}h × {confirmPreview.rates?.detailed?.garde_med || 0}€ = <strong>{confirmPreview.garde_amount_med || 0}€</strong></div>}
                           {confirmPreview.sortie_hours > 0 && <div>Sortie: {confirmPreview.sortie_hours}h × {confirmPreview.rates?.detailed?.sortie_med || 0}€ = <strong>{confirmPreview.sortie_amount_med || 0}€</strong></div>}
-                          {confirmPreview.overtime_hours > 0 && <div>Supp: {confirmPreview.overtime_hours}h × {confirmPreview.rates?.detailed?.garde_med || 0}€ × 1.5 = <strong>{confirmPreview.overtime_amount_med || 0}€</strong></div>}
+                          {confirmPreview.overtime_hours > 0 && <div>Supp: {confirmPreview.overtime_hours}h × {confirmPreview.rates?.detailed?.garde_med || 0}€ = <strong>{confirmPreview.overtime_amount_med || 0}€</strong></div>}
                           <div style={{marginTop:6,paddingTop:6,borderTop:'1px solid #fde68a',fontWeight:700}}>Total: {confirmPreview.estimated_med}€</div>
                         </div>
                       </div>

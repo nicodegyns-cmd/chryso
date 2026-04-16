@@ -498,11 +498,11 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                         <div>
                           {viewing.garde_hours || viewing.sortie_hours ? (
                             <>
-                              <div>Infirmier: ({viewing.garde_hours || 0}h × {d.garde_infi}€) + ({viewing.sortie_hours || 0}h × {d.sortie_infi || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${d.garde_infi}€ × 1.5)` : ''}</div>
+                              <div>Infirmier: ({viewing.garde_hours || 0}h × {d.garde_infi}€) + ({viewing.sortie_hours || 0}h × {d.sortie_infi || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${d.garde_infi}€)` : ''}</div>
                               <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {(() => {
                                 const garde = (viewing.garde_hours || 0) * (d.garde_infi || 0)
                                 const sortie = (viewing.sortie_hours || 0) * (d.sortie_infi || 0)
-                                const ot = (viewing.overtime_hours || 0) * (d.garde_infi || 0) * 1.5
+                                const ot = (viewing.overtime_hours || 0) * (d.garde_infi || 0)
                                 return Math.round((garde + sortie + ot + Number.EPSILON) * 100) / 100
                               })()} €</div>
                             </>
@@ -521,11 +521,11 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                         <div style={{marginTop:6}}>
                           {viewing.garde_hours || viewing.sortie_hours ? (
                             <>
-                              <div>Médecin: ({viewing.garde_hours || 0}h × {d.garde_med}€) + ({viewing.sortie_hours || 0}h × {d.sortie_med || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${d.garde_med}€ × 1.5)` : ''}</div>
+                              <div>Médecin: ({viewing.garde_hours || 0}h × {d.garde_med}€) + ({viewing.sortie_hours || 0}h × {d.sortie_med || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${d.garde_med}€)` : ''}</div>
                               <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {(() => {
                                 const garde = (viewing.garde_hours || 0) * (d.garde_med || 0)
                                 const sortie = (viewing.sortie_hours || 0) * (d.sortie_med || 0)
-                                const ot = (viewing.overtime_hours || 0) * (d.garde_med || 0) * 1.5
+                                const ot = (viewing.overtime_hours || 0) * (d.garde_med || 0)
                                 return Math.round((garde + sortie + ot + Number.EPSILON) * 100) / 100
                               })()} €</div>
                             </>

@@ -142,7 +142,7 @@ export default async function handler(req, res){
 
     // compute based on pay_type
     const payLower = (pay_type || '').toLowerCase()
-    const OT_MULT = 1.5
+    const OT_MULT = 1
     let estInfi = 0, estMed = 0
     console.log('[estimate] RATE RESOLUTION:', { rateGardeInfi, rateGardeMed, rateSortieInfi, rateSortieMed, payLower, allActsLength: allActs.length })
     
