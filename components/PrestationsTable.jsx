@@ -1190,7 +1190,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                 const locked = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation'].includes(editing.status)
                 return (
                   <>
-                    {role === 'admin' && editing.id && editing.status !== 'Envoyé à la facturation' && (
+                    {role === 'admin' && editing.id && (
                       <button
                         onClick={async () => {
                           if (!confirm('Supprimer cette prestation ? Elle repassera au statut "À saisir" pour l\'utilisateur.')) return
