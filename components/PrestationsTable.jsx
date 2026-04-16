@@ -1042,6 +1042,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                         <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES RÉELLES</div>
                         <input type="number" value={editing.hours_actual ?? ''} onChange={e=>setEditing({...editing, hours_actual: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
                       </label>
+                      <label style={{display:'flex',flexDirection:'column'}}>
+                        <div style={{fontSize:12,color:'#f97316',fontWeight:600,marginBottom:6}}>HEURES SUPPLÉMENTAIRES</div>
+                        <input type="number" value={editing.overtime_hours ?? ''} onChange={e=>setEditing({...editing, overtime_hours: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #fed7aa',fontSize:14}} />
+                      </label>
                       {/* If not garde and not permanence and not APS, allow optional garde_hours input */}
                       {!editingIsPermanence && !editingIsAPS && (
                         <label style={{display:'flex',flexDirection:'column'}}>
