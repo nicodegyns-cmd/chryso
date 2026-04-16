@@ -228,7 +228,7 @@ export default async function handler(req, res) {
         invoiceDate,
         tableBodyHtml,
         grandTotal,
-        analyticRef: first.analytic_identifier || '',
+        analyticRef: [first.analytic_name, first.analytic_identifier, first.analytic_code, first.analytic_entite].filter(Boolean).join('-'),
         analyticAccount: first.analytic_account_number || '',
         dateMin,
         dateMax,
