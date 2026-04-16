@@ -5,6 +5,11 @@ export default async function handler(req, res){
   const { id } = req.query
   try{
     if (req.method === 'GET'){
+      // Ensure overtime columns exist (defensive migration)
+      await pool.query(`ALTER TABLE activities ADD COLUMN IF NOT EXISTS remuneration_sortie_infi NUMERIC DEFAULT 0`).catch(()=>{})
+      await pool.query(`ALTER TABLE activities ADD COLUMN IF NOT EXISTS remuneration_sortie_med NUMERIC DEFAULT 0`).catch(()=>{})
+      await pool.query(`ALTER TABLE activities ADD COLUMN IF NOT EXISTS remuneration_overtime_infi NUMERIC DEFAULT 0`).catch(()=>{})
+      await pool.query(`ALTER TABLE activities ADD COLUMN IF NOT EXISTS remuneration_overtime_med NUMERIC DEFAULT 0`).catch(()=>{})
       const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, created_at FROM activities WHERE id = $1', [id])
       if (!row) return res.status(404).json({ error: 'not found' })
       
