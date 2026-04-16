@@ -119,12 +119,7 @@ export default function UserValidation() {
   function getMissingFields(user) {
     const missing = []
     if (!user.first_name || !user.last_name) missing.push('Pr\u00e9nom/Nom')
-    const needsFinancialInfo = user.role === 'INFI' || user.role === 'MED'
-    if (needsFinancialInfo) {
-      if (!user.telephone) missing.push('T\u00e9l\u00e9phone')
-      if (!user.niss && !user.bce) missing.push('NISS ou BCE')
-      if (!user.account) missing.push('Compte bancaire')
-    }
+    if (!user.telephone) missing.push('T\u00e9l\u00e9phone')
     return missing
   }
 

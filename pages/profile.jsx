@@ -119,6 +119,17 @@ export default function ProfilePage(){
   async function save() {
     try {
       setSaveError(null)
+
+      // Validation obligatoire pendant l'onboarding
+      if (onboardingStep === 'profile') {
+        if (!form.firstName?.trim()) { setSaveError('Le prénom est requis'); return }
+        if (!form.lastName?.trim()) { setSaveError('Le nom est requis'); return }
+        if (!form.telephone?.trim()) { setSaveError('Le téléphone est requis'); return }
+        if (!form.ninami?.trim()) { setSaveError("Le numéro N'INAMI est requis"); return }
+        if (!form.niss?.trim() && !form.bce?.trim()) { setSaveError('Le NISS ou le numéro BCE est requis'); return }
+        if (!form.compte?.trim()) { setSaveError('Le compte bancaire est requis'); return }
+        if (!form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) { setSaveError("L'adresse complète est requise (rue, code postal, localité)"); return }
+      }
       
       const payload = {
         email: user.email,
@@ -358,27 +369,27 @@ export default function ProfilePage(){
               <form onSubmit={(e) => { e.preventDefault(); save() }}>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>PRÉNOM</div>
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>PRÉNOM *</div>
                     <input value={form.firstName} onChange={(e) => setForm({...form, firstName: e.target.value})} />
                   </label>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NOM</div>
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NOM *</div>
                     <input value={form.lastName} onChange={(e) => setForm({...form, lastName: e.target.value})} />
                   </label>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>TÉLÉPHONE</div>
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>TÉLÉPHONE *</div>
                     <input value={form.telephone} onChange={(e) => setForm({...form, telephone: e.target.value})} />
                   </label>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>N'INAMI</div>
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>N'INAMI *</div>
                     <input value={form.ninami} onChange={(e) => setForm({...form, ninami: e.target.value})} />
                   </label>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS</div>
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS *</div>
                     <input value={form.niss} onChange={(e) => setForm({...form, niss: fmtNiss(e.target.value)})} placeholder="94.05.06-421.50" />
                   </label>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE</div>
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE *</div>
                     <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} />
                   </label>
                   <label className="form-row">
@@ -387,11 +398,11 @@ export default function ProfilePage(){
                     <div style={{fontSize:12,color:'#fff',fontWeight:600,marginTop:6,padding:8,background:'#f97316',borderRadius:4,lineHeight:1.4}}>⚠️ Ne remplir uniquement si vous êtes en société (personne morale)</div>
                   </label>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE BANCAIRE</div>
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE BANCAIRE *</div>
                     <input value={form.compte} onChange={(e) => setForm({...form, compte: fmtIban(e.target.value)})} placeholder="BE88 0000 0000 0000" />
                   </label>
                   <label className="form-row" style={{gridColumn:'1 / -1'}}>
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>ADRESSE</div>
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>ADRESSE *</div>
                     <div style={{display:'grid',gridTemplateColumns:'80px 1fr 100px 1fr',gap:8}}>
                       <input value={form.adresseNum} onChange={(e) => setForm({...form, adresseNum: e.target.value})} placeholder="N°" />
                       <input value={form.adresseRue} onChange={(e) => setForm({...form, adresseRue: e.target.value})} placeholder="Rue / Avenue..." />

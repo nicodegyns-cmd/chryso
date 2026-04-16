@@ -70,6 +70,19 @@ export default function SignupPage() {
       return
     }
 
+    if (!form.telephone?.trim()) {
+      setError('Le numéro de téléphone est requis')
+      return
+    }
+    if (!form.address?.trim()) {
+      setError("L'adresse est requise")
+      return
+    }
+    if (!form.fonction?.trim()) {
+      setError('La fonction est requise')
+      return
+    }
+
     setSubmitting(true)
     try {
       const r = await fetch('/api/users/complete-signup', {
@@ -188,21 +201,23 @@ export default function SignupPage() {
                 </label>
               </div>
               <label style={{ display: 'flex', flexDirection: 'column', marginTop: 12 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Téléphone</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Téléphone *</span>
                 <input
                   type="tel"
                   value={form.telephone}
                   onChange={e => setForm({ ...form, telephone: e.target.value })}
                   style={{ padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                  required
                 />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', marginTop: 12 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Adresse</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Adresse *</span>
                 <input
                   type="text"
                   value={form.address}
                   onChange={e => setForm({ ...form, address: e.target.value })}
                   style={{ padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
+                  required
                 />
               </label>
             </div>
@@ -211,17 +226,18 @@ export default function SignupPage() {
             <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: 16 }}>
               <h3 style={{ margin: '0 0 12px 0', fontSize: 14, fontWeight: 700, color: '#1f2937' }}>💼 Informations professionnelles</h3>
               <label style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Fonction</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Fonction *</span>
                 <input
                   type="text"
                   value={form.fonction}
                   onChange={e => setForm({ ...form, fonction: e.target.value })}
                   style={{ padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}
                   placeholder="Ex: Infirmier, Médecin…"
+                  required
                 />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', marginTop: 12 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Entreprise</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>Entreprise <span style={{ fontWeight: 400, color: '#9ca3af' }}>(optionnel)</span></span>
                 <input
                   type="text"
                   value={form.company}
