@@ -337,6 +337,24 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                         <button disabled={!!savingIds[it.id]} onClick={()=>setRefusingId(it.id)} style={{padding:'6px 12px',borderRadius:6,border:'1px solid #fca5a5',background:'#fee2e2',color:'#991b1b',cursor: savingIds[it.id] ? 'not-allowed' : 'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s',opacity: savingIds[it.id] ? 0.5 : 1}}>✕ Refuser</button>
                       </>
                     )}
+                    <button
+                      disabled={!!savingIds[it.id]}
+                      onClick={async () => {
+                        if (!confirm('Supprimer cette prestation ? Elle repassera au statut "À saisir" pour l\'utilisateur.')) return
+                        setSavingIds(prev => ({...prev, [it.id]: true}))
+                        try {
+                          const r = await fetch(`/api/admin/prestations/${it.id}`, { method: 'DELETE' })
+                          if (r.ok) {
+                            setItems(prev => prev.filter(p => p.id !== it.id))
+                          } else {
+                            alert('Erreur lors de la suppression')
+                          }
+                        } finally {
+                          setSavingIds(prev => {const n={...prev}; delete n[it.id]; return n})
+                        }
+                      }}
+                      style={{padding:'6px 12px',borderRadius:6,border:'1px solid #fca5a5',background:'#fee2e2',color:'#991b1b',cursor: savingIds[it.id] ? 'not-allowed' : 'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s',opacity: savingIds[it.id] ? 0.5 : 1}}
+                    >🗑️ Supprimer</button>
                   </div>
                 </td>
               </tr>
