@@ -215,6 +215,9 @@ export default async function handler(req, res) {
 
       // HTML complet pour cet utilisateur
       const firstAnalytic = analyticMap.values().next().value
+      const prestDates = userPrestations.map(p => p.date).filter(Boolean).sort()
+      const dateMin = prestDates.length ? new Date(prestDates[0]).toLocaleDateString('fr-FR') : invoiceDate
+      const dateMax = prestDates.length ? new Date(prestDates[prestDates.length - 1]).toLocaleDateString('fr-FR') : invoiceDate
       const html = buildInvoiceHtml({
         logoDataUri: logoDataUri || fallbackLogo,
         userName,
@@ -227,6 +230,8 @@ export default async function handler(req, res) {
         grandTotal,
         analyticRef: first.analytic_identifier || '',
         analyticAccount: first.analytic_account_number || '',
+        dateMin,
+        dateMax,
       })
 
       // Rendu Puppeteer
@@ -291,7 +296,7 @@ function escHtml(str) {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-function buildInvoiceHtml({ logoDataUri, userName, userAddress, userBce, userAccount, invoiceNumber, invoiceDate, tableBodyHtml, grandTotal, analyticRef, analyticAccount }) {
+function buildInvoiceHtml({ logoDataUri, userName, userAddress, userBce, userAccount, invoiceNumber, invoiceDate, tableBodyHtml, grandTotal, analyticRef, analyticAccount, dateMin, dateMax }) {
   return `<!doctype html>
 <html>
   <head>
@@ -357,7 +362,7 @@ function buildInvoiceHtml({ logoDataUri, userName, userAddress, userBce, userAcc
     </div>
 
     <div class="objet">
-      <strong>Objet :</strong> Prestations médicales — ${invoiceDate}
+      <strong>Objet :</strong> Prestations période du ${dateMin}${dateMax && dateMax !== dateMin ? ` au ${dateMax}` : ''}
     </div>
 
     <table class="items">
