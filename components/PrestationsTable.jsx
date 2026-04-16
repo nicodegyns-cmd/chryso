@@ -1039,7 +1039,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   {!editingIsGarde && (
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                       <label style={{display:'flex',flexDirection:'column'}}>
-                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES RÉELLES</div>
+                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES</div>
                         <input type="number" value={editing.hours_actual ?? ''} onChange={e=>setEditing({...editing, hours_actual: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
                       </label>
                       <label style={{display:'flex',flexDirection:'column'}}>
