@@ -20,7 +20,19 @@ export default async function handler(req, res) {
         COALESCE(a.name, 'Non assigné') AS analytic_name,
         COALESCE(a.code, '') AS analytic_code,
         act.pay_type AS activity_type,
-        COALESCE(p.remuneration_infi, p.remuneration_med) AS remuneration,
+        COALESCE(p.remuneration_infi, p.remuneration_med) AS remuneration_base,
+        p.overtime_hours,
+        p.hours_actual,
+        p.garde_hours,
+        p.sortie_hours,
+        CASE
+          WHEN COALESCE(p.overtime_hours, 0) > 0 AND (COALESCE(p.hours_actual, 0) + COALESCE(p.garde_hours, 0) + COALESCE(p.sortie_hours, 0)) > 0
+          THEN COALESCE(p.remuneration_infi, p.remuneration_med, 0)
+               + (COALESCE(p.overtime_hours, 0)
+                  * (COALESCE(p.remuneration_infi, p.remuneration_med, 0)
+                     / (COALESCE(p.hours_actual, 0) + COALESCE(p.garde_hours, 0) + COALESCE(p.sortie_hours, 0))))
+          ELSE COALESCE(p.remuneration_infi, p.remuneration_med, 0)
+        END AS remuneration,
         p.date,
         p.status,
         p.created_at,
