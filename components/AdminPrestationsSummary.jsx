@@ -449,6 +449,12 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                       <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{viewing.sortie_hours}</div>
                     </div>
                   )}
+                  {viewing.overtime_hours > 0 && (
+                    <div>
+                      <div style={{fontSize:12,color:'#f97316',fontWeight:600,marginBottom:6}}>HEURES SUPPLÉMENTAIRES</div>
+                      <div style={{fontSize:15,color:'#f97316',fontWeight:500}}>{viewing.overtime_hours}</div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -508,10 +514,11 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                             </>
                           ) : (
                             <>
-                              <div>Infirmier: ({viewing.hours_actual || 0}h × {d.garde_infi}€)</div>
+                              <div>Infirmier: ({viewing.hours_actual || 0}h × {d.garde_infi}€){viewing.overtime_hours ? ` + (${viewing.overtime_hours}h × ${d.garde_infi}€)` : ''}</div>
                               <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {(() => {
                                 const total = (viewing.hours_actual || 0) * (d.garde_infi || 0)
-                                return Math.round((total + Number.EPSILON) * 100) / 100
+                                const ot = (viewing.overtime_hours || 0) * (d.garde_infi || 0)
+                                return Math.round((total + ot + Number.EPSILON) * 100) / 100
                               })()} €</div>
                             </>
                           )}
@@ -531,10 +538,11 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                             </>
                           ) : (
                             <>
-                              <div>Médecin: ({viewing.hours_actual || 0}h × {d.garde_med}€)</div>
+                              <div>Médecin: ({viewing.hours_actual || 0}h × {d.garde_med}€){viewing.overtime_hours ? ` + (${viewing.overtime_hours}h × ${d.garde_med}€)` : ''}</div>
                               <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {(() => {
                                 const total = (viewing.hours_actual || 0) * (d.garde_med || 0)
-                                return Math.round((total + Number.EPSILON) * 100) / 100
+                                const ot = (viewing.overtime_hours || 0) * (d.garde_med || 0)
+                                return Math.round((total + ot + Number.EPSILON) * 100) / 100
                               })()} €</div>
                             </>
                           )}
