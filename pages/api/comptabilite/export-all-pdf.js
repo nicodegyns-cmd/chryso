@@ -215,7 +215,7 @@ export default async function handler(req, res) {
 
       // HTML complet pour cet utilisateur
       const firstAnalytic = analyticMap.values().next().value
-      const prestDates = userPrestations.map(p => p.date).filter(Boolean).sort()
+      const prestDates = userPrestations.map(p => p.date).filter(Boolean).sort((a, b) => new Date(a) - new Date(b))
       const dateMin = prestDates.length ? new Date(prestDates[0]).toLocaleDateString('fr-FR') : invoiceDate
       const dateMax = prestDates.length ? new Date(prestDates[prestDates.length - 1]).toLocaleDateString('fr-FR') : invoiceDate
       const html = buildInvoiceHtml({
