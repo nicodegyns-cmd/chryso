@@ -1190,6 +1190,21 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                 const locked = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation'].includes(editing.status)
                 return (
                   <>
+                    {role === 'admin' && editing.id && editing.status !== 'Envoyé à la facturation' && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Supprimer cette prestation ? Elle repassera au statut "À saisir" pour l\'utilisateur.')) return
+                          const r = await fetch(`/api/admin/prestations/${editing.id}`, { method: 'DELETE' })
+                          if (r.ok) {
+                            setItems(prev => prev.filter(p => p.id !== editing.id))
+                            setEditing(null)
+                          } else {
+                            alert('Erreur lors de la suppression')
+                          }
+                        }}
+                        style={{marginRight:'auto',padding:'8px 14px',background:'#fee2e2',color:'#991b1b',border:'1px solid #fca5a5',borderRadius:6,cursor:'pointer',fontWeight:600,fontSize:13}}
+                      >🗑️ Supprimer</button>
+                    )}
                     <button onClick={handleCloseModal} disabled={saving}>{role === 'admin' || locked ? 'Fermer' : 'Annuler'}</button>
                     {role !== 'admin' && !locked && !confirmOpen && <button onClick={()=>saveEdit(false)} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer'}</button>}
                     {role !== 'admin' && !locked && confirmOpen && (

@@ -5,8 +5,15 @@ const { sendStatusChangeEmail } = require('../../../../services/emailService')
 export default async function handler(req, res){
   const pool = getPool()
   try{
+    if (req.method === 'DELETE'){
+      const { id } = req.query || {}
+      if (!id) return res.status(400).json({ error: 'missing id' })
+      await pool.query('DELETE FROM prestations WHERE id = $1', [id])
+      return res.status(200).json({ success: true })
+    }
+
     if (req.method !== 'PATCH'){
-      res.setHeader('Allow','PATCH')
+      res.setHeader('Allow','PATCH, DELETE')
       return res.status(405).end('Method Not Allowed')
     }
     const { id } = req.query || {}
