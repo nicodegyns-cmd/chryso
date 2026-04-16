@@ -192,10 +192,16 @@ export default async function handler(req, res) {
               analyticTotal += oAmt
             }
           } else {
-            const qty = Number(p.hours_actual || p.garde_hours || 1)
+            const baseH = Number(p.hours_actual || p.garde_hours || 0)
+            const qty = baseH || 1
             const lineAmt = +totalAmt.toFixed(2)
             tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>${qty}</td><td>${fmt(unitPrice)}€</td><td>${fmt(lineAmt)}€</td></tr>`
             analyticTotal += lineAmt
+            if (overtimeH > 0) {
+              const oAmt = +(unitPrice * overtimeH).toFixed(2)
+              tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(oAmt)}€</td></tr>`
+              analyticTotal += oAmt
+            }
           }
 
           if (expenses > 0) {
