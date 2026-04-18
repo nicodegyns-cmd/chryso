@@ -320,8 +320,25 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       
       if (existingPrestation && existingPrestation.id) {
         console.log('[openEdit] ✅ FOUND existing prestation in items (id=' + existingPrestation.id + ')')
+        
+        // For Garde types: migrate hours_actual to sortie_hours if needed
+        let migratedPrestation = {...existingPrestation}
+        const prestPayTypeLower = String(
+          existingPrestation.ebrigade_activity_type ||
+          existingPrestation.analytic_name ||
+          existingPrestation.pay_type ||
+          ''
+        ).toLowerCase()
+        
+        const isGarde = prestPayTypeLower.includes('garde')
+        if (isGarde && migratedPrestation.hours_actual && !migratedPrestation.sortie_hours) {
+          console.log('[openEdit] 🔄 Migrating hours_actual → sortie_hours for Garde')
+          migratedPrestation.sortie_hours = migratedPrestation.hours_actual
+          migratedPrestation.hours_actual = null
+        }
+        
         setEditing({
-          ...existingPrestation,
+          ...migratedPrestation,
           isActivity: true,
           isEBrigade: true
         })
@@ -788,13 +805,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
             {filtered.map((p) => (
               <div
                 key={p.id}
-                onClick={() => p.status !== "En attente d'envoie" && openEdit(p)}
+                onClick={() => (role !== 'admin' && p.status === "En attente d'envoie") ? null : openEdit(p)}
                 style={{
                   background:'#fff',
                   border:'2px solid #e5e7eb',
                   borderRadius:12,
                   padding:16,
-                  cursor:p.status === "En attente d'envoie" ? 'not-allowed' : 'pointer',
+                  cursor:(role !== 'admin' && p.status === "En attente d'envoie") ? 'not-allowed' : 'pointer',
                   transition:'all 0.3s ease',
                   display:'flex',
                   flexDirection:'column',
