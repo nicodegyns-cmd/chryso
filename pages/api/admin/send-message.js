@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { recipientType, recipientId, recipientRole, subject, message } = req.body
+    const { recipientType, recipientId, recipientRole, customEmail, subject, message } = req.body
     const pool = getPool()
 
     // Validation
@@ -28,6 +28,14 @@ export default async function handler(req, res) {
       } else {
         return res.status(404).json({ error: 'Utilisateur non trouvé' })
       }
+    } else if (recipientType === 'customEmail' && customEmail) {
+      // Custom email address (user not in system)
+      recipients.push({
+        id: null,
+        email: customEmail,
+        first_name: 'Utilisateur',
+        last_name: '',
+      })
     } else if (recipientType === 'role' && recipientRole) {
       // Get all users with the role
       const [users] = await pool.query(

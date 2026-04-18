@@ -15,12 +15,17 @@ export default function SendMessagePage() {
   const [error, setError] = useState(null)
   
   const [form, setForm] = useState({
-    recipientType: 'individual', // 'individual' ou 'role'
+    recipientType: 'individual', // 'individual', 'role' ou 'customEmail'
     selectedUser: '',
     selectedRole: '',
+    customEmail: '',
     subject: '',
     message: '',
   })
+
+  // Search/filter state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
 
   // Check role access
   useEffect(() => {
@@ -67,6 +72,14 @@ export default function SendMessagePage() {
         setError('Veuillez sélectionner un utilisateur')
         return
       }
+      if (form.recipientType === 'customEmail' && !form.customEmail?.trim()) {
+        setError('Veuillez entrer une adresse email')
+        return
+      }
+      if (form.recipientType === 'customEmail' && !form.customEmail.includes('@')) {
+        setError('Veuillez entrer une adresse email valide')
+        return
+      }
       if (form.recipientType === 'role' && !form.selectedRole) {
         setError('Veuillez sélectionner un rôle')
         return
@@ -79,6 +92,7 @@ export default function SendMessagePage() {
           recipientType: form.recipientType,
           recipientId: form.recipientType === 'individual' ? form.selectedUser : undefined,
           recipientRole: form.recipientType === 'role' ? form.selectedRole : undefined,
+          customEmail: form.recipientType === 'customEmail' ? form.customEmail : undefined,
           subject: form.subject,
           message: form.message,
         }),
@@ -91,7 +105,8 @@ export default function SendMessagePage() {
 
       const data = await res.json()
       setSuccess(true)
-      setForm({ recipientType: 'individual', selectedUser: '', selectedRole: '', subject: '', message: '' })
+      setForm({ recipientType: 'individual', selectedUser: '', selectedRole: '', customEmail: '', subject: '', message: '' })
+      setSearchQuery('')
       
       setTimeout(() => {
         setSuccess(false)
@@ -106,6 +121,18 @@ export default function SendMessagePage() {
 
   // Get unique roles from users
   const roles = [...new Set(users.flatMap(u => Array.isArray(u.role) ? u.role : [u.role]).filter(Boolean))]
+
+  // Filter users based on search query
+  const filteredUsers = users.filter(user => {
+    if (!searchQuery.trim()) return true
+    const query = searchQuery.toLowerCase()
+    const fullName = `${user.first_name || user.firstName || ''} ${user.last_name || user.lastName || ''}`.toLowerCase()
+    const email = (user.email || '').toLowerCase()
+    return fullName.includes(query) || email.includes(query)
+  })
+
+  // Get selected user data
+  const selectedUserData = form.selectedUser ? users.find(u => String(u.id) === String(form.selectedUser)) : null
 
   if (loading) {
     return (
@@ -166,14 +193,14 @@ export default function SendMessagePage() {
             {/* Recipient Type Selection */}
             <label style={{ display: 'flex', flexDirection: 'column', marginBottom: 20 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Type de destinataire</span>
-              <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                   <input
                     type="radio"
                     name="recipientType"
                     value="individual"
                     checked={form.recipientType === 'individual'}
-                    onChange={(e) => setForm({ ...form, recipientType: e.target.value, selectedUser: '', selectedRole: '' })}
+                    onChange={(e) => setForm({ ...form, recipientType: e.target.value, selectedUser: '', selectedRole: '', customEmail: '' })}
                   />
                   <span style={{ fontSize: 14 }}>Utilisateur</span>
                 </label>
@@ -181,22 +208,139 @@ export default function SendMessagePage() {
                   <input
                     type="radio"
                     name="recipientType"
+                    value="customEmail"
+                    checked={form.recipientType === 'customEmail'}
+                    onChange={(e) => setForm({ ...form, recipientType: e.target.value, selectedUser: '', selectedRole: '', customEmail: '' })}
+                  />
+                  <span style={{ fontSize: 14 }}>Adresse email personnalisée</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="recipientType"
                     value="role"
                     checked={form.recipientType === 'role'}
-                    onChange={(e) => setForm({ ...form, recipientType: e.target.value, selectedUser: '', selectedRole: '' })}
+                    onChange={(e) => setForm({ ...form, recipientType: e.target.value, selectedUser: '', selectedRole: '', customEmail: '' })}
                   />
                   <span style={{ fontSize: 14 }}>Par rôle</span>
                 </label>
               </div>
             </label>
 
-            {/* Individual User Selection */}
+            {/* Individual User Selection - SEARCHABLE */}
             {form.recipientType === 'individual' && (
               <label style={{ display: 'flex', flexDirection: 'column', marginBottom: 20 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Sélectionner un utilisateur</span>
-                <select
-                  value={form.selectedUser}
-                  onChange={(e) => setForm({ ...form, selectedUser: e.target.value })}
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                  Sélectionner un utilisateur
+                  {selectedUserData && (
+                    <span style={{ fontSize: 12, fontWeight: 400, color: '#6b7280', marginLeft: 8 }}>
+                      ✓ {selectedUserData.email}
+                    </span>
+                  )}
+                </span>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value)
+                      setShowDropdown(true)
+                    }}
+                    onFocus={() => setShowDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                    placeholder="Tapez un nom ou email pour chercher..."
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: 6,
+                      fontSize: 14,
+                      fontFamily: 'inherit',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  
+                  {/* Dropdown suggestions */}
+                  {showDropdown && searchQuery.trim() && filteredUsers.length > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: '#fff',
+                      border: '1px solid #d1d5db',
+                      borderTop: 'none',
+                      borderRadius: '0 0 6px 6px',
+                      maxHeight: 300,
+                      overflowY: 'auto',
+                      zIndex: 10,
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    }}>
+                      {filteredUsers.slice(0, 10).map(user => (
+                        <div
+                          key={user.id}
+                          onClick={() => {
+                            setForm({ ...form, selectedUser: String(user.id) })
+                            setSearchQuery('')
+                            setShowDropdown(false)
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = String(user.id) === String(form.selectedUser) ? '#f3f4f6' : '#fff'}
+                          style={{
+                            padding: '10px 12px',
+                            borderBottom: '1px solid #f3f4f6',
+                            cursor: 'pointer',
+                            background: String(user.id) === String(form.selectedUser) ? '#f3f4f6' : '#fff',
+                            transition: 'background 0.15s',
+                          }}
+                        >
+                          <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>
+                            {user.first_name || user.firstName} {user.last_name || user.lastName}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#6b7280' }}>
+                            {user.email}
+                          </div>
+                        </div>
+                      ))}
+                      {filteredUsers.length > 10 && (
+                        <div style={{ padding: '8px 12px', fontSize: 12, color: '#9ca3af', textAlign: 'center' }}>
+                          ... et {filteredUsers.length - 10} autres
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {showDropdown && searchQuery.trim() && filteredUsers.length === 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: '#fff',
+                      border: '1px solid #d1d5db',
+                      borderTop: 'none',
+                      borderRadius: '0 0 6px 6px',
+                      padding: '12px',
+                      fontSize: 13,
+                      color: '#6b7280',
+                      textAlign: 'center',
+                    }}>
+                      Aucun utilisateur trouvé
+                    </div>
+                  )}
+                </div>
+              </label>
+            )}
+
+            {/* Custom Email Input */}
+            {form.recipientType === 'customEmail' && (
+              <label style={{ display: 'flex', flexDirection: 'column', marginBottom: 20 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Adresse email *</span>
+                <input
+                  type="email"
+                  value={form.customEmail}
+                  onChange={(e) => setForm({ ...form, customEmail: e.target.value })}
+                  placeholder="exemple@email.com"
                   style={{
                     padding: '10px 12px',
                     border: '1px solid #d1d5db',
@@ -204,14 +348,11 @@ export default function SendMessagePage() {
                     fontSize: 14,
                     fontFamily: 'inherit',
                   }}
-                >
-                  <option value="">-- Choisir un utilisateur --</option>
-                  {users.map(user => (
-                    <option key={user.id} value={user.id}>
-                      {user.first_name || user.firstName} {user.last_name || user.lastName} ({user.email})
-                    </option>
-                  ))}
-                </select>
+                  required
+                />
+                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>
+                  L'email sera envoyé à cette adresse même si l'utilisateur n'est pas enregistré
+                </div>
               </label>
             )}
 
