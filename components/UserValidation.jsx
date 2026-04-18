@@ -114,12 +114,12 @@ export default function UserValidation() {
 
   // Utilisateurs qui ont réellement complété leur inscription (connexion effective)
   const pending = useMemo(() => users.filter(u =>
-    !u.never_connected && u.onboarding_status === 'pending_validation'
+    !u.never_connected && u.onboarding_status === 'pending_validation' && !!u.telephone
   ), [users])
 
   // Utilisateurs invités par l'admin mais jamais connectés
   const invited = useMemo(() => users.filter(u =>
-    u.never_connected || u.onboarding_status === 'pending_signup'
+    u.never_connected || u.onboarding_status === 'pending_signup' || (u.onboarding_status === 'pending_validation' && !u.telephone)
   ), [users])
 
   function getMissingFields(user) {
@@ -241,7 +241,7 @@ export default function UserValidation() {
           <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#0369a1', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
             <span style={{ fontSize: 16 }}>ℹ️</span>
             <div>
-              <strong>{invited.length} invitation{invited.length > 1 ? 's' : ''} envoyée{invited.length > 1 ? 's' : ''}</strong> — Ces utilisateurs ont reçu un e-mail d&apos;invitation mais ne se sont <strong>pas encore connectés</strong>. Aucune action requise pour l&apos;instant.
+              <strong>{invited.length} invitation{invited.length > 1 ? 's' : ''} envoy\u00e9e{invited.length > 1 ? 's' : ''}</strong> &mdash; Ces utilisateurs n&apos;ont pas encore termin\u00e9 leur inscription. Aucune action requise pour l&apos;instant.
             </div>
           </div>
           {invited.length === 0 ? (
@@ -257,7 +257,7 @@ export default function UserValidation() {
                 <div style={{ flex: 1, padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color: '#6b7280' }}>{user.first_name || '—'} {user.last_name || ''}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4, background: '#f3f4f6', color: '#6b7280' }}>Pas encore connecté</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4, background: '#f3f4f6', color: '#6b7280' }}>{user.telephone ? 'Pas encore connect\u00e9' : (user.onboarding_status === 'pending_validation' ? 'Onboarding incomplet' : 'Pas encore connect\u00e9')}</span>
                     {user.role && <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: '#ede9fe', color: '#6d28d9', fontWeight: 600 }}>{user.role}</span>}
                   </div>
                   <div style={{ fontSize: 12, color: '#9ca3af' }}>{user.email}</div>
