@@ -125,7 +125,7 @@ export default function ProfilePage(){
       if (!form.lastName?.trim()) { setSaveError('Le nom est requis'); return }
       if (!form.telephone?.trim()) { setSaveError('Le téléphone est requis'); return }
       if (!form.ninami?.trim()) { setSaveError("Le numéro N'INAMI est requis"); return }
-      if (!form.niss?.trim() && !form.bce?.trim()) { setSaveError('Le NISS ou le numéro BCE est requis'); return }
+      if (!form.niss?.trim() || !form.bce?.trim()) { setSaveError('Le NISS et le numéro BCE sont tous les deux requis'); return }
       if (!form.compte?.trim()) { setSaveError('Le compte bancaire est requis'); return }
       if (!form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) { setSaveError("L'adresse complète est requise (rue, code postal, localité)"); return }
       
@@ -312,12 +312,12 @@ export default function ProfilePage(){
                         <input value={form.ninami} onChange={(e) => setForm({...form, ninami: e.target.value})} required />
                       </label>
                       <label className="form-row">
-                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS * (ou BCE)</div>
-                        <input value={form.niss} onChange={(e) => setForm({...form, niss: fmtNiss(e.target.value)})} placeholder="94.05.06-421.50 OU remplir BCE ci-dessous" />
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS *</div>
+                        <input value={form.niss} onChange={(e) => setForm({...form, niss: fmtNiss(e.target.value)})} placeholder="94.05.06-421.50" required />
                       </label>
                       <label className="form-row">
-                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE * (ou NISS)</div>
-                        <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} placeholder="Remplir NISS ou BCE" />
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE *</div>
+                        <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} placeholder="Numéro BCE" required />
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>SOCIÉTÉ (optionnel)</div>
@@ -348,8 +348,8 @@ export default function ProfilePage(){
                       <button 
                         className="primary" 
                         type="submit"
-                        disabled={!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || (!form.niss?.trim() && !form.bce?.trim()) || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()}
-                        style={{opacity: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || (!form.niss?.trim() && !form.bce?.trim()) || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 0.5 : 1, cursor: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || (!form.niss?.trim() && !form.bce?.trim()) || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 'not-allowed' : 'pointer'}}
+                        disabled={!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || !form.niss?.trim() || !form.bce?.trim() || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()}
+                        style={{opacity: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || !form.niss?.trim() || !form.bce?.trim() || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 0.5 : 1, cursor: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || !form.niss?.trim() || !form.bce?.trim() || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 'not-allowed' : 'pointer'}}
                       >
                         Enregistrer
                       </button>
@@ -390,12 +390,12 @@ export default function ProfilePage(){
                     <input value={form.ninami} onChange={(e) => setForm({...form, ninami: e.target.value})} required />
                   </label>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS * (ou BCE)</div>
-                    <input value={form.niss} onChange={(e) => setForm({...form, niss: fmtNiss(e.target.value)})} placeholder="94.05.06-421.50 OU remplir BCE ci-dessous" />
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS *</div>
+                    <input value={form.niss} onChange={(e) => setForm({...form, niss: fmtNiss(e.target.value)})} placeholder="94.05.06-421.50" required />
                   </label>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE * (ou NISS)</div>
-                    <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} placeholder="Remplir NISS ou BCE" />
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>BCE *</div>
+                    <input value={form.bce} onChange={(e) => setForm({...form, bce: e.target.value})} placeholder="Numéro BCE" required />
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>SOCIÉTÉ (optionnel)</div>
@@ -421,8 +421,8 @@ export default function ProfilePage(){
                   <button 
                     type="submit" 
                     className="primary"
-                    disabled={!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || (!form.niss?.trim() && !form.bce?.trim()) || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()}
-                    style={{opacity: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || (!form.niss?.trim() && !form.bce?.trim()) || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 0.5 : 1, cursor: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || (!form.niss?.trim() && !form.bce?.trim()) || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 'not-allowed' : 'pointer'}}
+                    disabled={!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || !form.niss?.trim() || !form.bce?.trim() || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()}
+                    style={{opacity: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || !form.niss?.trim() || !form.bce?.trim() || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 0.5 : 1, cursor: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || !form.niss?.trim() || !form.bce?.trim() || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 'not-allowed' : 'pointer'}}
                   >
                     Continuer →
                   </button>
