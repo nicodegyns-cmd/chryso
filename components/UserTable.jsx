@@ -76,6 +76,19 @@ export default function UserTable() {
       })
   }
 
+  async function handleToggleBlock(u) {
+    const isBlocked = u.is_active == 0 && u.onboarding_status === 'blocked'
+    const action = isBlocked ? 'débloquer' : 'bloquer'
+    if (!window.confirm(`Êtes-vous sûr de vouloir ${action} ${u.email} ?`)) return
+    try {
+      const r = await fetch(`/api/admin/users/${u.id}/toggle-block`, { method: 'POST' })
+      if (!r.ok) throw new Error('Erreur serveur')
+      loadUsers()
+    } catch (e) {
+      alert('Erreur : ' + e.message)
+    }
+  }
+
   function handleDeleteUser(userId, userEmail) {
     if (window.confirm(`Êtes-vous sûr de vouloir supprimer ${userEmail} ? Cette action est irréversible.`)) {
       setLoading(true)
@@ -243,7 +256,11 @@ export default function UserTable() {
                     )}
                   </td>
                   <td style={{padding:'16px',textAlign:'center'}}>
-                    <div style={{display:'flex',gap:8,justifyContent:'center'}}>
+                    <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap'}}>
+                      {/* Indicateur de statut */}
+                      {u.is_active == 0 && u.onboarding_status === 'blocked' && (
+                        <span style={{display:'inline-block',padding:'4px 8px',background:'#fee2e2',color:'#991b1b',borderRadius:4,fontSize:11,fontWeight:700}}>🔒 Bloqué</span>
+                      )}
                       <button 
                         onClick={async () => {
                           try {
@@ -294,6 +311,22 @@ export default function UserTable() {
                         onMouseLeave={(e) => e.target.style.background = '#ef4444'}
                       >
                         🗑️ Supprimer
+                      </button>
+                      <button
+                        onClick={() => handleToggleBlock(u)}
+                        style={{
+                          padding:'8px 16px',
+                          background: u.is_active == 0 && u.onboarding_status === 'blocked' ? '#10b981' : '#f59e0b',
+                          color:'white',
+                          border:'none',
+                          borderRadius:6,
+                          fontSize:12,
+                          fontWeight:600,
+                          cursor:'pointer',
+                          transition:'all 0.2s'
+                        }}
+                      >
+                        {u.is_active == 0 && u.onboarding_status === 'blocked' ? '✅ Débloquer' : '🔒 Bloquer'}
                       </button>
                     </div>
                   </td>
