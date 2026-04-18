@@ -885,10 +885,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
               </div>
             )}
 
-            {role === 'admin' && !editing.isActivity || editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation' ? (
-              // Admin read-only view OR blocked prestation: show submitted values with styled sections
+            {(editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation') && role !== 'admin' ? (
+              // User read-only view for blocked prestations: show submitted values with styled sections
               <div className="edit-grid" style={{gridTemplateColumns:'1fr',gap:16}}>
-                {console.log('[PrestationsTable] Rendering ADMIN/READ-ONLY view. role:', role, 'isActivity:', editing.isActivity)}
+                {console.log('[PrestationsTable] Rendering READ-ONLY view for blocked prestation. role:', role)}
                 {/* User & Document Info */}
                 <div style={{padding:12,border:'1px solid #e5e7eb',borderRadius:8,background:'#f9fafb'}}>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
