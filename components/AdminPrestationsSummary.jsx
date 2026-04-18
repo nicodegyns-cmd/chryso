@@ -474,6 +474,12 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                 const isInfi = rc.includes('INFI')
                 const isMed = rc.includes('MED') && !isInfi
                 const d = activityRates[viewing.id].detailed || {}
+                // Determine which role calc to show when role_codes is unknown
+                const storedInfi = Number(viewing.remuneration_infi) || 0
+                const storedMed = Number(viewing.remuneration_med) || 0
+                const hasRole = rc.length > 0
+                const showInfiDetail = hasRole ? !isMed : (storedMed > 0 && storedInfi <= 0 ? false : true)
+                const showMedDetail = hasRole ? !isInfi : (storedMed > 0 && storedInfi <= 0 ? true : false)
                 return (
                 <div style={{padding:12,border:'1px solid #d97706',borderRadius:8,background:'#fffbeb',marginBottom:16}}>
                   <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>📍 Tarifs de l'activité locale</div>
@@ -508,7 +514,7 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                   {(viewing.garde_hours || viewing.sortie_hours || viewing.hours_actual) && d && (
                     <div style={{fontSize:11,color:'#92400e',padding:10,background:'#fff',borderRadius:6,border:'1px solid #fcd34d',fontFamily:'monospace',lineHeight:'1.6'}}>
                       <div style={{fontWeight:700,marginBottom:8,color:'#b45309'}}>Calcul détaillé:</div>
-                      {!isMed && d.garde_infi != null && (
+                      {showInfiDetail && d.garde_infi != null && (
                         <div>
                           {viewing.garde_hours || viewing.sortie_hours ? (
                             <>
@@ -532,7 +538,7 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                           )}
                         </div>
                       )}
-                      {!isInfi && d.garde_med != null && (
+                      {showMedDetail && d.garde_med != null && (
                         <div style={{marginTop:6}}>
                           {viewing.garde_hours || viewing.sortie_hours ? (
                             <>

@@ -30,6 +30,7 @@ export default async function handler(req, res) {
           const where = whereClauses.length ? 'WHERE ' + whereClauses.join(' AND ') : ''
           q = await pool.query(
             `SELECT p.*, u.email AS user_email, u.first_name AS user_firstname, u.last_name AS user_lastname, an.name AS analytic_name, an.code AS analytic_code,
+             (SELECT string_agg(r.code, ',') FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = u.id) AS role_codes,
              p.validated_at, p.validated_by_id, p.validated_by_email,
              vuser.first_name AS validated_by_first_name, vuser.last_name AS validated_by_last_name
              FROM prestations p
