@@ -101,13 +101,24 @@ export default function UserTable() {
   const displayed = users.filter((u) => {
     const q = query.trim().toLowerCase()
     if (!q) return true
-    const name = ((u.firstName || '') + ' ' + (u.lastName || '')).toLowerCase()
+    const firstName = (u.first_name || u.firstName || '').toLowerCase()
+    const lastName = (u.last_name || u.lastName || '').toLowerCase()
+    const fullName = (firstName + ' ' + lastName).trim()
+    const fullNameRev = (lastName + ' ' + firstName).trim()
     const roles = Array.isArray(u.role) ? u.role.join(' ') : (u.role || '')
+    const liaison = String(u.liaison_ebrigade_id || u.liaisonId || '')
+    const telephone = (u.telephone || '').toLowerCase()
+    const company = (u.company || '').toLowerCase()
     return (
       (u.email || '').toLowerCase().includes(q) ||
-      name.includes(q) ||
+      fullName.includes(q) ||
+      fullNameRev.includes(q) ||
+      firstName.includes(q) ||
+      lastName.includes(q) ||
       roles.toLowerCase().includes(q) ||
-      String(u.liaisonId || '').toLowerCase().includes(q)
+      liaison.includes(q) ||
+      telephone.includes(q) ||
+      company.includes(q)
     )
   })
 
