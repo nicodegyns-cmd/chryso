@@ -91,16 +91,12 @@ export default function ManualHourEntry() {
     setSaving(true); setSaveError(''); setSaveSuccess('')
     try {
       const ptSubmit = (selectedCard?.pay_type || '').toLowerCase()
-      const isGardeSubmit = ptSubmit.includes('garde') && (ptSubmit.includes('nuit') || ptSubmit.includes('week') || ptSubmit.includes('medecin') || ptSubmit.includes('médecin'))
+      // Simple: only check pay_type, NOT ebrigade_activity_type (API can set that for Permanence too)
+      const isGardeSubmit = ptSubmit.includes('garde')
       console.log('[ManualHourEntry] 🔍 SUBMIT GUARD DETECTION:', { 
         pay_type: selectedCard?.pay_type,
         ptSubmit_lower: ptSubmit,
-        has_garde: ptSubmit.includes('garde'),
-        has_nuit: ptSubmit.includes('nuit'),
-        has_week: ptSubmit.includes('week'),
-        has_medecin: ptSubmit.includes('medecin') || ptSubmit.includes('médecin'),
-        isGardeSubmit,
-        ebrigade_activity_type: selectedCard?.ebrigade_activity_type
+        isGardeSubmit
       })
       const ebrigadeDurSubmit = selectedCard?.duration ? parseFloat(selectedCard.duration) : null
       const sortieHoursSubmit = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
@@ -277,19 +273,15 @@ export default function ManualHourEntry() {
                   <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 14, color: '#1f2937' }}>📊 Heures de travail</div>
                   {(() => {
                     const pt = (selectedCard?.pay_type || '').toLowerCase()
-                    const isGarde = pt.includes('garde') && (pt.includes('nuit') || pt.includes('week') || pt.includes('medecin') || pt.includes('médecin'))
+                    // Simple: only check pay_type, NOT ebrigade_activity_type (API can set that for Permanence too)
+                    const isGarde = pt.includes('garde')
                     const ebrigadeDuration = selectedCard?.duration ? parseFloat(selectedCard.duration) : null
                     const sortieVal = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
                     console.log('[ManualHourEntry] 🔍 GARDE DETECTION:', { 
                       pay_type: selectedCard?.pay_type,
                       pt_lower: pt,
-                      has_garde: pt.includes('garde'),
-                      has_nuit: pt.includes('nuit'),
-                      has_week: pt.includes('week'),
-                      has_medecin: pt.includes('medecin') || pt.includes('médecin'),
                       isGarde,
                       ebrigade_activity_type: selectedCard?.ebrigade_activity_type,
-                      full_card: selectedCard
                     })
                     return isGarde ? (
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
