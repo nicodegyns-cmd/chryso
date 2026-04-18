@@ -470,16 +470,21 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
 
               {/* Section Tarifs & Calcul de l'activité locale */}
               {activityRates[viewing.id] && (() => {
-                const rc = (viewing.role_codes || '').toUpperCase()
+                // Combine role_codes (from user_roles table) and user_role (from users.role column)
+                const roleSrc = viewing.role_codes || ''
+                const userRoleSrc = (() => {
+                  const r = viewing.user_role || ''
+                  if (Array.isArray(r)) return r.join(',')
+                  try { const p = JSON.parse(r); return Array.isArray(p) ? p.join(',') : r } catch { return r }
+                })()
+                const rc = (roleSrc + ',' + userRoleSrc).toUpperCase()
                 const isInfi = rc.includes('INFI')
                 const isMed = rc.includes('MED') && !isInfi
                 const d = activityRates[viewing.id].detailed || {}
-                // Determine which role calc to show when role_codes is unknown
-                const storedInfi = Number(viewing.remuneration_infi) || 0
-                const storedMed = Number(viewing.remuneration_med) || 0
-                const hasRole = rc.length > 0
-                const showInfiDetail = hasRole ? !isMed : (storedMed > 0 && storedInfi <= 0 ? false : true)
-                const showMedDetail = hasRole ? !isInfi : (storedMed > 0 && storedInfi <= 0 ? true : false)
+                const hasRole = isInfi || isMed
+                // If role is known: show only that role's calc; if unknown: show both
+                const showInfiDetail = !hasRole || !isMed
+                const showMedDetail = !hasRole || !isInfi
                 return (
                 <div style={{padding:12,border:'1px solid #d97706',borderRadius:8,background:'#fffbeb',marginBottom:16}}>
                   <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>📍 Tarifs de l'activité locale</div>
