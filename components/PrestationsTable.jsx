@@ -77,9 +77,20 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     : ''
   
   // Check if it's a Garde type that requires sortie_hours
-  // Only "Garde NUIT", "Garde WEEK-END", or "Garde MEDECIN" trigger sortie_hours
+  // Detects garde types more broadly:
+  // - Contains "garde" and includes specific type like "nuit", "week", "medecin"
+  // - OR has ebrigade_duration_hours (indicates eBrigade activity, usually garde)
+  // - OR has sortie_hours already populated (existing garde prestation)
   const editingIsGarde = editing
-    ? (_editPayTypeLower.includes('garde') && (_editPayTypeLower.includes('nuit') || _editPayTypeLower.includes('week') || _editPayTypeLower.includes('medecin')))
+    ? _editPayTypeLower.includes('garde') && (
+        _editPayTypeLower.includes('nuit') || 
+        _editPayTypeLower.includes('week') || 
+        _editPayTypeLower.includes('médecin') ||
+        _editPayTypeLower.includes('medecin') ||
+        editing.ebrigade_duration_hours ||
+        editing.ebrigade_activity_type ||
+        editing.sortie_hours != null
+      )
     : false
   const editingIsPermanence = _editPayTypeLower.includes('permanence')
   const editingIsAPS = _editPayTypeLower.includes('aps')
