@@ -20,7 +20,7 @@ export default async function handler(req, res){
     if (!id) return res.status(400).json({ error: 'missing id' })
 
     // apply allowed updates (Postgres placeholders $n)
-    const allowed = ['hours_actual','garde_hours','sortie_hours','overtime_hours','comments','proof_image','remuneration_infi','remuneration_med','remuneration_sortie_infi','remuneration_sortie_med','status','expense_amount','expense_comment']
+    const allowed = ['hours_actual','garde_hours','sortie_hours','overtime_hours','comments','proof_image','remuneration_infi','remuneration_med','remuneration_sortie_infi','remuneration_sortie_med','status','expense_amount','expense_comment','validated_by_id','validated_by_email']
     const updates = []
     const params = []
     let paramIndex = 1
@@ -29,6 +29,10 @@ export default async function handler(req, res){
         updates.push(`${k} = $${paramIndex++}`)
         params.push(req.body[k])
       }
+    }
+    // Auto-set validated_at when status becomes "Envoyé à la facturation"
+    if (req.body.status === "Envoyé à la facturation" && req.body.validated_by_id) {
+      updates.push(`validated_at = NOW()`)
     }
     if (updates.length === 0) return res.status(400).json({ error: 'nothing to update' })
 
@@ -39,10 +43,12 @@ export default async function handler(req, res){
 
     // fetch refreshed row (include user and analytic info for rich invoice template)
     const [[updatedRow]] = await pool.query(
-      `SELECT p.*, u.email AS user_email, u.role AS user_role, u.first_name AS user_first_name, u.last_name AS user_last_name, u.telephone AS user_phone, u.address AS user_address, u.bce AS user_bce, u.company AS company_name, u.account AS user_account, an.name AS analytic_name, an.code AS analytic_code, an.entite AS analytic_entite, an.description AS analytic_description, an.analytic_type AS analytic_identifier, an.account_number AS analytic_account_number
+      `SELECT p.*, u.email AS user_email, u.role AS user_role, u.first_name AS user_first_name, u.last_name AS user_last_name, u.telephone AS user_phone, u.address AS user_address, u.bce AS user_bce, u.company AS company_name, u.account AS user_account, an.name AS analytic_name, an.code AS analytic_code, an.entite AS analytic_entite, an.description AS analytic_description, an.analytic_type AS analytic_identifier, an.account_number AS analytic_account_number,
+       vuser.first_name AS validated_by_first_name, vuser.last_name AS validated_by_last_name
        FROM prestations p
        LEFT JOIN users u ON p.user_id = u.id
        LEFT JOIN analytics an ON p.analytic_id = an.id
+       LEFT JOIN users vuser ON p.validated_by_id = vuser.id
        WHERE p.id = $1 LIMIT 1`, [id]
     )
     if (!updatedRow) return res.status(404).json({ error: 'not found' })
