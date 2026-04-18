@@ -358,7 +358,7 @@ export default function UserValidation() {
                   </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>BCE</span>
-                    <input type="text" value={form.bce} onChange={e => setForm({ ...form, bce: e.target.value })} style={{ padding: '9px 12px', border: `1px solid ${form.bce ? '#10b981' : '#d1d5db'}`, borderRadius: 6, fontSize: 14 }} placeholder="Num\u00e9ro BCE" />
+                    <input type="text" value={form.bce} onChange={e => setForm({ ...form, bce: e.target.value })} style={{ padding: '9px 12px', border: `1px solid ${form.bce ? '#10b981' : '#d1d5db'}`, borderRadius: 6, fontSize: 14 }} placeholder="Numéro BCE" />
                   </label>
                 </div>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
