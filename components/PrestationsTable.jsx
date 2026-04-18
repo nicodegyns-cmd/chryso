@@ -234,6 +234,17 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   })
 
   async function openEdit(p){
+    console.log('[openEdit] Clicked on prestation:', p)
+    console.log('[openEdit] Current role:', role, clientRole)
+    console.log('[openEdit] Prestation data:', {
+      id: p.id,
+      pay_type: p.pay_type,
+      analytic_name: p.analytic_name,
+      ebrigade_activity_type: p.ebrigade_activity_type,
+      sortie_hours: p.sortie_hours,
+      garde_hours: p.garde_hours,
+      isActivity: p.isActivity,
+    })
     console.log('[openEdit] called with:', p, 'items count:', items.length)
     
     // If this is an activity (not a prestation), look for existing prestation or create new one
@@ -871,6 +882,22 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
       {/* Edit / View modal */}
       {editing && (
+        <>
+          {console.log('[Modal] OPENED - editing state:', {
+            id: editing.id,
+            pay_type: editing.pay_type,
+            analytic_name: editing.analytic_name,
+            ebrigade_activity_type: editing.ebrigade_activity_type,
+            sortie_hours: editing.sortie_hours,
+            role: role,
+            isActivity: editing.isActivity,
+          })}
+          {console.log('[Modal] Detection results:', {
+            payTypeLower: _editPayTypeLower,
+            editingIsGarde: editingIsGarde,
+            editingIsPermanence: editingIsPermanence,
+            editingIsAPS: editingIsAPS,
+          })}
         <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.4)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:20}}>
           <div style={{width:'100%',maxWidth:800,background:'#fff',borderRadius:12,boxShadow:'0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',overflow:'auto',maxHeight:'90vh'}}>
             <div style={{padding:24,borderBottom:'1px solid #e5e7eb'}}>
@@ -1246,6 +1273,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
             </div>
           </div>
         </div>
+        </>
       )}
     </div>
   )
