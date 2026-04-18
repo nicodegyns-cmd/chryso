@@ -1,4 +1,4 @@
-import db from '../../../lib/db'
+import { getPool } from '../../../services/db'
 import { sendEmail } from '../../../services/emailService'
 
 export default async function handler(req, res) {
@@ -8,6 +8,7 @@ export default async function handler(req, res) {
 
   try {
     const { recipientType, recipientId, recipientRole, subject, message } = req.body
+    const pool = getPool()
 
     // Validation
     if (!subject?.trim() || !message?.trim()) {
@@ -18,27 +19,27 @@ export default async function handler(req, res) {
 
     if (recipientType === 'individual' && recipientId) {
       // Get single user
-      const user = await db.query(
+      const [user] = await pool.query(
         'SELECT id, email, first_name, last_name FROM users WHERE id = ?',
         [recipientId]
       )
-      if (user.length > 0) {
+      if (user && user.length > 0) {
         recipients.push(user[0])
       } else {
         return res.status(404).json({ error: 'Utilisateur non trouvé' })
       }
     } else if (recipientType === 'role' && recipientRole) {
       // Get all users with the role
-      const users = await db.query(
-        `SELECT id, email, first_name, last_name, role FROM users 
-         WHERE role LIKE ? OR role LIKE ?`,
-        [`%"${recipientRole}"%`, `%${recipientRole}%`]
+      const [users] = await pool.query(
+        `SELECT id, email, first_name, last_name, role FROM users`
       )
       recipients = users.filter(u => {
-        const roles = Array.isArray(u.role)
-          ? u.role
-          : (typeof u.role === 'string' ? JSON.parse(u.role) : [u.role])
-        return roles.includes(recipientRole)
+        try {
+          const roles = typeof u.role === 'string' ? JSON.parse(u.role) : (Array.isArray(u.role) ? u.role : [u.role])
+          return roles.includes(recipientRole)
+        } catch (e) {
+          return u.role === recipientRole
+        }
       })
     } else {
       return res.status(400).json({ error: 'Type de destinataire ou sélection invalide' })
