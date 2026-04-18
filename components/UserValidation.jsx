@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react'
+﻿import React, { useEffect, useState, useMemo } from 'react'
 
 function fmtNiss(v) {
   const d = (v||'').replace(/\D/g,'').slice(0,11)
@@ -74,7 +74,7 @@ export default function UserValidation() {
   }
 
   async function handleValidate(userId) {
-    if (!form.role) { alert('Veuillez s\u00e9lectionner un r\u00f4le'); return }
+    if (!form.role) { alert('Veuillez sélectionner un rôle'); return }
     if (validating[userId]) return
     setValidating(prev => ({ ...prev, [userId]: true }))
     try {
@@ -90,7 +90,7 @@ export default function UserValidation() {
       }
       setUsers(prev => prev.filter(u => u.id !== userId))
       setViewing(null)
-      alert('Utilisateur valid\u00e9 et activ\u00e9 avec succ\u00e8s !')
+      alert('Utilisateur validé et activé avec succès !')
     } catch (e) {
       console.error('validate failed', e)
       alert(`Erreur: ${e.message}`)
@@ -100,7 +100,7 @@ export default function UserValidation() {
   }
 
   async function handleReject(userId) {
-    if (!confirm('Rejeter cet utilisateur ? Son compte sera supprim\u00e9.')) return
+    if (!confirm('Rejeter cet utilisateur ? Son compte sera supprimé.')) return
     try {
       const r = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' })
       if (!r.ok) throw new Error('delete failed')
@@ -124,8 +124,8 @@ export default function UserValidation() {
 
   function getMissingFields(user) {
     const missing = []
-    if (!user.first_name || !user.last_name) missing.push('Pr\u00e9nom/Nom')
-    if (!user.telephone) missing.push('T\u00e9l\u00e9phone')
+    if (!user.first_name || !user.last_name) missing.push('Prénom/Nom')
+    if (!user.telephone) missing.push('Téléphone')
     return missing
   }
 
@@ -151,13 +151,13 @@ export default function UserValidation() {
   }, [pending, filterTab])
 
   const catStyle = {
-    ready:      { border: '#10b981', bg: '#f0fdf4', badge: '#d1fae5', badgeText: '#065f46', label: 'Pr\u00eat \u00e0 valider' },
+    ready:      { border: '#10b981', bg: '#f0fdf4', badge: '#d1fae5', badgeText: '#065f46', label: 'Prêt à valider' },
     incomplete: { border: '#f59e0b', bg: '#fffbeb', badge: '#fef3c7', badgeText: '#b45309', label: 'Infos manquantes' },
   }
 
   const tabs = [
     { key: 'all',        label: 'Tous',                    count: counts.all },
-    { key: 'ready',      label: 'Pr\u00eats \u00e0 valider', count: counts.ready },
+    { key: 'ready',      label: 'Prêts à valider', count: counts.ready },
     { key: 'incomplete', label: 'Infos manquantes',         count: counts.incomplete },
   ]
 
@@ -241,7 +241,7 @@ export default function UserValidation() {
           <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#0369a1', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
             <span style={{ fontSize: 16 }}>ℹ️</span>
             <div>
-              <strong>{invited.length} invitation{invited.length > 1 ? 's' : ''} envoy\u00e9e{invited.length > 1 ? 's' : ''}</strong> &mdash; Ces utilisateurs n&apos;ont pas encore termin\u00e9 leur inscription. Aucune action requise pour l&apos;instant.
+              <strong>{invited.length} invitation{invited.length > 1 ? 's' : ''} envoyée{invited.length > 1 ? 's' : ''}</strong> &mdash; Ces utilisateurs n&apos;ont pas encore terminé leur inscription. Aucune action requise pour l&apos;instant.
             </div>
           </div>
           {invited.length === 0 ? (
@@ -257,7 +257,7 @@ export default function UserValidation() {
                 <div style={{ flex: 1, padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color: '#6b7280' }}>{user.first_name || '—'} {user.last_name || ''}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4, background: '#f3f4f6', color: '#6b7280' }}>{user.telephone ? 'Pas encore connect\u00e9' : (user.onboarding_status === 'pending_validation' ? 'Onboarding incomplet' : 'Pas encore connect\u00e9')}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4, background: '#f3f4f6', color: '#6b7280' }}>{user.telephone ? 'Pas encore connecté' : (user.onboarding_status === 'pending_validation' ? 'Onboarding incomplet' : 'Pas encore connecté')}</span>
                     {user.role && <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: '#ede9fe', color: '#6d28d9', fontWeight: 600 }}>{user.role}</span>}
                   </div>
                   <div style={{ fontSize: 12, color: '#9ca3af' }}>{user.email}</div>
