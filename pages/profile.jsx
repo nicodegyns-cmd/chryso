@@ -345,7 +345,14 @@ export default function ProfilePage(){
                     {saveError && <div style={{color:'#d32f2f',fontSize:13,marginTop:12}}>{saveError}</div>}
                     <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:16}}>
                       <button type="button" className="secondary" onClick={() => { setEditing(false); setSaveError(null) }}>Abandonner</button>
-                      <button className="primary" type="submit">Enregistrer</button>
+                      <button 
+                        className="primary" 
+                        type="submit"
+                        disabled={!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || (!form.niss?.trim() && !form.bce?.trim()) || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()}
+                        style={{opacity: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || (!form.niss?.trim() && !form.bce?.trim()) || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 0.5 : 1, cursor: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || (!form.niss?.trim() && !form.bce?.trim()) || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 'not-allowed' : 'pointer'}}
+                      >
+                        Enregistrer
+                      </button>
                     </div>
                   </form>
                 )}
@@ -411,7 +418,14 @@ export default function ProfilePage(){
                 </div>
                 {saveError && <div style={{color:'#d32f2f',fontSize:13,marginTop:12}}>{saveError}</div>}
                 <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:16}}>
-                  <button type="submit" className="primary">Continuer →</button>
+                  <button 
+                    type="submit" 
+                    className="primary"
+                    disabled={!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || (!form.niss?.trim() && !form.bce?.trim()) || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()}
+                    style={{opacity: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || (!form.niss?.trim() && !form.bce?.trim()) || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 0.5 : 1, cursor: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || (!form.niss?.trim() && !form.bce?.trim()) || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 'not-allowed' : 'pointer'}}
+                  >
+                    Continuer →
+                  </button>
                 </div>
               </form>
             </div>
