@@ -290,8 +290,25 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
             const fullResp = await fetch(`/api/prestations/${existingFromApi.id}`)
             if (fullResp.ok) {
               const fullData = await fullResp.json()
+              
+              // For Garde types: migrate hours_actual to sortie_hours if needed
+              let migratedData = {...fullData}
+              const apiPayTypeLower = String(
+                fullData.ebrigade_activity_type ||
+                fullData.analytic_name ||
+                fullData.pay_type ||
+                ''
+              ).toLowerCase()
+              
+              const isGardeApi = apiPayTypeLower.includes('garde')
+              if (isGardeApi && migratedData.hours_actual && !migratedData.sortie_hours) {
+                console.log('[openEdit] 🔄 Migrating hours_actual → sortie_hours for Garde (API path)')
+                migratedData.sortie_hours = migratedData.hours_actual
+                migratedData.hours_actual = null
+              }
+              
               setEditing({
-                ...fullData,
+                ...migratedData,
                 isActivity: true,
                 isEBrigade: true
               })
