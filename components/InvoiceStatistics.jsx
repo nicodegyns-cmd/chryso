@@ -65,8 +65,23 @@ export default function InvoiceStatistics() {
     const byRole = { INFI: { amount: 0, count: 0, hours: 0 }, MED: { amount: 0, count: 0, hours: 0 } }
 
     rows.forEach(p => {
-      const amount = parseFloat(p.remuneration_infi || 0) + parseFloat(p.remuneration_med || 0)
-      const hours = parseFloat(p.hours_actual || 0) + parseFloat(p.garde_hours || 0) + parseFloat(p.sortie_hours || 0)
+      // Montant : prendre uniquement la rémunération du rôle de l'utilisateur
+      const role = p.user_role
+      let amount = 0
+      if (role === 'MED') {
+        amount = parseFloat(p.remuneration_med || 0)
+      } else if (role === 'INFI') {
+        amount = parseFloat(p.remuneration_infi || 0)
+      } else {
+        // Rôle inconnu : prendre le max (évite le double-comptage)
+        amount = Math.max(parseFloat(p.remuneration_infi || 0), parseFloat(p.remuneration_med || 0))
+      }
+
+      // Heures : si garde/sortie existent → ce sont LES heures réelles (pas hours_actual en plus)
+      const gardeH = parseFloat(p.garde_hours || 0)
+      const sortieH = parseFloat(p.sortie_hours || 0)
+      const hasGardeBreakdown = gardeH > 0 || sortieH > 0
+      const hours = hasGardeBreakdown ? gardeH + sortieH : parseFloat(p.hours_actual || 0)
       totalAmount += amount
       totalHours += hours
 
