@@ -111,7 +111,6 @@ export default function InvoiceStatistics() {
       byStatus[st].amount += amount
 
       // By role
-      const role = p.user_role
       if (role === 'INFI' || role === 'MED') {
         byRole[role].amount += amount
         byRole[role].count += 1
