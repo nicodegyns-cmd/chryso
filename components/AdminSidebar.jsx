@@ -41,11 +41,6 @@ export default function AdminSidebar({ onNavigate }) {
             </Link>
           </li>
           <li>
-            <Link href="/admin/generate-send" className={`sidebar-btn ${isActive('/admin/generate-send') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('generate-send')}>
-              Générer & Envoyer
-            </Link>
-          </li>
-          <li>
             <Link href="/admin/send-message" className={`sidebar-btn ${isActive('/admin/send-message') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('send-message')}>
               📧 Envoyer un message
             </Link>
