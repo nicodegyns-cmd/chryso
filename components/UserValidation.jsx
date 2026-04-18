@@ -112,8 +112,14 @@ export default function UserValidation() {
     }
   }
 
+  // Utilisateurs qui ont réellement complété leur inscription (connexion effective)
   const pending = useMemo(() => users.filter(u =>
-    u.onboarding_status === 'pending_signup' || u.onboarding_status === 'pending_validation'
+    u.onboarding_status === 'pending_validation'
+  ), [users])
+
+  // Utilisateurs invités par l'admin mais jamais connectés
+  const invited = useMemo(() => users.filter(u =>
+    u.onboarding_status === 'pending_signup'
   ), [users])
 
   function getMissingFields(user) {
@@ -124,7 +130,6 @@ export default function UserValidation() {
   }
 
   function getUserCategory(user) {
-    if (user.onboarding_status === 'pending_signup') return 'waiting'
     if (getMissingFields(user).length === 0) return 'ready'
     return 'incomplete'
   }
@@ -133,14 +138,13 @@ export default function UserValidation() {
     all: pending.length,
     ready: pending.filter(u => getUserCategory(u) === 'ready').length,
     incomplete: pending.filter(u => getUserCategory(u) === 'incomplete').length,
-    waiting: pending.filter(u => getUserCategory(u) === 'waiting').length,
   }), [pending])
 
   const displayed = useMemo(() => {
     let list = [...pending]
     list.sort((a, b) => {
-      const order = { ready: 0, incomplete: 1, waiting: 2 }
-      return order[getUserCategory(a)] - order[getUserCategory(b)]
+      const order = { ready: 0, incomplete: 1 }
+      return (order[getUserCategory(a)] ?? 9) - (order[getUserCategory(b)] ?? 9)
     })
     if (filterTab !== 'all') list = list.filter(u => getUserCategory(u) === filterTab)
     return list
@@ -149,14 +153,12 @@ export default function UserValidation() {
   const catStyle = {
     ready:      { border: '#10b981', bg: '#f0fdf4', badge: '#d1fae5', badgeText: '#065f46', label: 'Pr\u00eat \u00e0 valider' },
     incomplete: { border: '#f59e0b', bg: '#fffbeb', badge: '#fef3c7', badgeText: '#b45309', label: 'Infos manquantes' },
-    waiting:    { border: '#6b7280', bg: '#f9fafb', badge: '#f3f4f6', badgeText: '#374151', label: 'Invitation en attente' },
   }
 
   const tabs = [
     { key: 'all',        label: 'Tous',                    count: counts.all },
     { key: 'ready',      label: 'Pr\u00eats \u00e0 valider', count: counts.ready },
     { key: 'incomplete', label: 'Infos manquantes',         count: counts.incomplete },
-    { key: 'waiting',    label: 'Invitation seule',         count: counts.waiting },
   ]
 
   if (loading && mainTab === 'pending') return <div style={{ padding: 24, color: '#6b7280' }}>Chargement...</div>
@@ -164,7 +166,7 @@ export default function UserValidation() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-      {/* Main tabs: Pending / History */}
+      {/* Main tabs: Pending / Invitations / History */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e5e7eb', marginBottom: 4 }}>
         <button onClick={() => setMainTab('pending')} style={{
           padding: '10px 20px', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700,
@@ -172,7 +174,20 @@ export default function UserValidation() {
           color: mainTab === 'pending' ? '#1d4ed8' : '#6b7280',
           borderBottom: mainTab === 'pending' ? '2px solid #1d4ed8' : '2px solid transparent',
           marginBottom: -2
-        }}>En attente</button>
+        }}>
+          À valider
+          {pending.length > 0 && <span style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 10, background: '#dbeafe', color: '#1d4ed8', fontSize: 11, fontWeight: 700 }}>{pending.length}</span>}
+        </button>
+        <button onClick={() => setMainTab('invited')} style={{
+          padding: '10px 20px', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700,
+          background: mainTab === 'invited' ? '#fff' : 'transparent',
+          color: mainTab === 'invited' ? '#6b7280' : '#6b7280',
+          borderBottom: mainTab === 'invited' ? '2px solid #6b7280' : '2px solid transparent',
+          marginBottom: -2
+        }}>
+          Invitations envoyées
+          {invited.length > 0 && <span style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 10, background: '#f3f4f6', color: '#374151', fontSize: 11, fontWeight: 700 }}>{invited.length}</span>}
+        </button>
         <button onClick={() => { setMainTab('history'); if (!history.length) fetchHistory() }} style={{
           padding: '10px 20px', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700,
           background: mainTab === 'history' ? '#fff' : 'transparent',
@@ -220,10 +235,47 @@ export default function UserValidation() {
         </div>
       )}
 
+      {/* Invitations envoyées tab */}
+      {mainTab === 'invited' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#0369a1', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>ℹ️</span>
+            <div>
+              <strong>{invited.length} invitation{invited.length > 1 ? 's' : ''} envoyée{invited.length > 1 ? 's' : ''}</strong> — Ces utilisateurs ont reçu un e-mail d&apos;invitation mais ne se sont <strong>pas encore connectés</strong>. Aucune action requise pour l&apos;instant.
+            </div>
+          </div>
+          {invited.length === 0 ? (
+            <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af' }}>Aucune invitation en attente</div>
+          ) : (
+            invited.map(user => (
+              <div key={user.id} style={{
+                display: 'flex', alignItems: 'center',
+                background: '#f9fafb', border: '1px solid #e5e7eb',
+                borderLeft: '4px solid #9ca3af',
+                borderRadius: 8, overflow: 'hidden'
+              }}>
+                <div style={{ flex: 1, padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#6b7280' }}>{user.first_name || '—'} {user.last_name || ''}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4, background: '#f3f4f6', color: '#6b7280' }}>Pas encore connecté</span>
+                    {user.role && <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: '#ede9fe', color: '#6d28d9', fontWeight: 600 }}>{user.role}</span>}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#9ca3af' }}>{user.email}</div>
+                </div>
+                <button onClick={() => handleReject(user.id)} style={{
+                  margin: '0 16px', padding: '6px 12px', background: '#fee2e2', color: '#991b1b',
+                  border: '1px solid #fca5a5', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap'
+                }}>Annuler l&apos;invitation</button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
       {mainTab === 'pending' && (<>
 
       {/* Stats bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
         <div style={{ padding: '14px 16px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0', textAlign: 'center' }}>
           <div style={{ fontSize: 24, fontWeight: 700, color: '#15803d' }}>{counts.ready}</div>
           <div style={{ fontSize: 12, color: '#16a34a', marginTop: 2 }}>Prêts à valider</div>
@@ -231,10 +283,6 @@ export default function UserValidation() {
         <div style={{ padding: '14px 16px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fde68a', textAlign: 'center' }}>
           <div style={{ fontSize: 24, fontWeight: 700, color: '#b45309' }}>{counts.incomplete}</div>
           <div style={{ fontSize: 12, color: '#d97706', marginTop: 2 }}>Infos manquantes</div>
-        </div>
-        <div style={{ padding: '14px 16px', background: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb', textAlign: 'center' }}>
-          <div style={{ fontSize: 24, fontWeight: 700, color: '#374151' }}>{counts.waiting}</div>
-          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Invitation envoyée</div>
         </div>
       </div>
 
