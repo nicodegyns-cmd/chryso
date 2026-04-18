@@ -77,21 +77,31 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     : ''
   
   // Check if it's a Garde type that requires sortie_hours
-  // Detects garde types more broadly:
-  // - Contains "garde" and includes specific type like "nuit", "week", "medecin"
-  // - OR has ebrigade_duration_hours (indicates eBrigade activity, usually garde)
-  // - OR has sortie_hours already populated (existing garde prestation)
+  // Simpler: if it has ANY of these indicators, it's a garde
   const editingIsGarde = editing
-    ? _editPayTypeLower.includes('garde') && (
-        _editPayTypeLower.includes('nuit') || 
-        _editPayTypeLower.includes('week') || 
-        _editPayTypeLower.includes('médecin') ||
-        _editPayTypeLower.includes('medecin') ||
+    ? (
+        _editPayTypeLower.includes('garde') ||
         editing.ebrigade_duration_hours ||
         editing.ebrigade_activity_type ||
         editing.sortie_hours != null
       )
     : false
+  
+  // DEBUG: Log guard detection
+  useEffect(() => {
+    if (editing) {
+      console.log('[PrestationsTable] GARDE DETECTION DEBUG:', {
+        payTypeLower: _editPayTypeLower,
+        ebrigade_activity_type: editing.ebrigade_activity_type,
+        analytic_name: editing.analytic_name,
+        pay_type: editing.pay_type,
+        ebrigade_duration_hours: editing.ebrigade_duration_hours,
+        sortie_hours: editing.sortie_hours,
+        editingIsGarde,
+        hasGardeKeyword: _editPayTypeLower.includes('garde'),
+      })
+    }
+  }, [editing])
   const editingIsPermanence = _editPayTypeLower.includes('permanence')
   const editingIsAPS = _editPayTypeLower.includes('aps')
   const editingIsRMP = _editPayTypeLower.includes('rmp')
@@ -1019,7 +1029,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   {/* For Garde activities: show eBrigade calculated hours and user inputs */}
                   {editingIsGarde && (
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                      {/* Read-only: Total hours from eBrigade */}
+                      {/* Read-only: Total hours from eBrigade - only if available */}
                       {editing.ebrigade_duration_hours && (
                         <div style={{padding:10,background:'#eff6ff',borderRadius:6,border:'1px solid #bfdbfe'}}>
                           <div style={{fontSize:12,color:'#0366d6',fontWeight:600,marginBottom:6}}>📅 HEURES TOTALES (eBrigade)</div>
@@ -1028,14 +1038,14 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                         </div>
                       )}
                       
-                      {/* User inputs */}
+                      {/* User inputs for sortie hours - always show for garde */}
                       <label style={{display:'flex',flexDirection:'column'}}>
                         <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SORTIE</div>
                         <input type="number" value={editing.sortie_hours ?? ''} onChange={e=>{ setEditing({...editing, sortie_hours: e.target.value ? Number(e.target.value) : null}); }} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
                         <div style={{fontSize:11,color:'#10b981',marginTop:6,fontWeight:600}}>💰 {ratePreview && ratePreview.rates && ratePreview.rates.detailed ? (ratePreview.rates.detailed.sortie_infi ? ratePreview.rates.detailed.sortie_infi+' €/h (infi) • '+ratePreview.rates.detailed.sortie_med+' €/h (med)' : ratePreview.rates.infi+' €/h • '+ratePreview.rates.med+' €/h') : '—'}</div>
                       </label>
                       
-                      {/* Auto-calculated garde hours - shows even when sortie_hours=0 */}
+                      {/* Auto-calculated garde hours - shows if we have ebrigade_duration_hours */}
                       {editing.ebrigade_duration_hours && editing.sortie_hours !== null && editing.sortie_hours !== undefined && (
                         <div style={{padding:10,background:'#f0fdf4',borderRadius:6,border:'1px solid #bbf7d0'}}>
                           <div style={{fontSize:12,color:'#15803d',fontWeight:600,marginBottom:6}}>🧮 HEURES GARDE (Calculées)</div>
