@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
   if (method === 'GET') {
     try {
-      const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids FROM users WHERE id = $1', [id])
+      const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids, onboarding_status, is_active, invitation_token FROM users WHERE id = $1', [id])
       const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
       if (!rows || rows.length === 0) return res.status(404).json({ error: 'not_found' })
       const u = rows[0]
@@ -137,7 +137,7 @@ export default async function handler(req, res) {
       const sql = `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramIdx}`
       await pool.query(sql, params)
       
-      const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids FROM users WHERE id = $1', [id])
+      const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids, onboarding_status, is_active, invitation_token FROM users WHERE id = $1', [id])
       const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
       const updatedUser = rows[0]
 
@@ -166,7 +166,7 @@ export default async function handler(req, res) {
           }
         }
 
-      const finalQ = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids FROM users WHERE id = $1', [id])
+      const finalQ = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids, onboarding_status, is_active, invitation_token FROM users WHERE id = $1', [id])
       const finalRows = (finalQ && finalQ.rows) ? finalQ.rows : Array.isArray(finalQ) ? finalQ[0] : []
       return res.status(200).json({ user: finalRows[0] })
     } catch (err) {

@@ -62,6 +62,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   const [emailSent, setEmailSent] = useState(false)
   const [linkingEbrigade, setLinkingEbrigade] = useState(false)
   const [ebrigadeLinked, setEbrigadeLinked] = useState(false)
+  const [validating, setValidating] = useState(false)
 
   // Fetch analytics list once on mount
   useEffect(() => {
@@ -306,6 +307,40 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
 
   const isEdit = initial && (initial.id || initial.id === 0)
 
+  // Determine if account is pending validation (connected but not yet validated)
+  const isPendingValidation = isEdit && initial &&
+    initial.onboarding_status === 'pending_validation' && !initial.is_active &&
+    !initial.invitation_token
+
+  async function handleValidateAccount() {
+    if (!initial || !initial.id) return
+    if (!window.confirm('Valider et activer ce compte ?')) return
+    setValidating(true)
+    try {
+      const adminEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : null
+      const r = await fetch(`/api/admin/users/${initial.id}/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: Array.isArray(role) ? role.join(',') : role,
+          liaison_ebrigade_id: liaisonId === 'none' ? null : liaisonId,
+          niss, bce, account: compte,
+          admin_email: adminEmail
+        })
+      })
+      if (!r.ok) {
+        const d = await r.json()
+        throw new Error(d.error || 'Erreur lors de la validation')
+      }
+      alert('Compte validé et activé avec succès !')
+      onClose()
+    } catch (e) {
+      alert('Erreur : ' + e.message)
+    } finally {
+      setValidating(false)
+    }
+  }
+
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" style={{backdropFilter:'blur(4px)'}}>
       <div className="modal create-user-modal" style={{maxWidth:'600px',maxHeight:'90vh',overflow:'auto'}}>
@@ -325,6 +360,43 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
         <div className="modal-body" style={{padding:'24px'}}>
           <form className="create-user-form" onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:24}}>
             
+            {/* Section: Statut du compte (visible seulement en édition si compte en attente) */}
+            {isEdit && initial && initial.onboarding_status && !initial.is_active && (
+              <div style={{
+                borderRadius: 8,
+                padding: '14px 16px',
+                background: isPendingValidation ? '#f0fdf4' : '#f0f9ff',
+                border: `1px solid ${isPendingValidation ? '#86efac' : '#bae6fd'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12
+              }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: isPendingValidation ? '#15803d' : '#0369a1', marginBottom: 2 }}>
+                    {isPendingValidation ? '✅ Prêt à valider' : '⏳ Invitation en attente'}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>
+                    {isPendingValidation
+                      ? "L'utilisateur a complété son inscription et attend la validation admin."
+                      : "L'utilisateur n'a pas encore complété son inscription."}
+                  </div>
+                </div>
+                {isPendingValidation && (
+                  <button
+                    type="button"
+                    onClick={handleValidateAccount}
+                    disabled={validating}
+                    style={{
+                      flexShrink: 0, padding: '8px 16px',
+                      background: validating ? '#86efac' : '#10b981',
+                      color: 'white', border: 'none', borderRadius: 6,
+                      fontSize: 13, fontWeight: 700, cursor: validating ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {validating ? '⏳ Validation...' : '✔ Valider le compte'}
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Section: Login */}
             <div style={{borderLeft:'3px solid #667eea',paddingLeft:16}}>
               <label style={{display:'block',marginBottom:12}}>
