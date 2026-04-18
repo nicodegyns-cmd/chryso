@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-export default function AdminSidebar({ onNavigate }) {
+export default function AdminSidebar({ onNavigate, open: openProp, onClose }) {
+  const [openInternal, setOpenInternal] = useState(false)
   const router = useRouter()
   const path = router && (router.pathname || router.asPath || '')
   const isActive = (href) => {
@@ -11,8 +12,28 @@ export default function AdminSidebar({ onNavigate }) {
     return path === href || path.startsWith(href)
   }
 
+  // If open/onClose props are provided (controlled), use them; otherwise use internal state + custom event
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp : openInternal
+  const close = isControlled ? onClose : () => setOpenInternal(false)
+
+  useEffect(() => {
+    if (isControlled) return
+    const handler = () => setOpenInternal(v => !v)
+    window.addEventListener('toggle-admin-sidebar', handler)
+    return () => window.removeEventListener('toggle-admin-sidebar', handler)
+  }, [isControlled])
+
+  // Close sidebar when navigating
+  useEffect(() => {
+    close?.()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path])
+
   return (
-    <aside className="admin-sidebar" role="navigation" aria-label="Admin navigation">
+    <>
+      {open && <div className="sidebar-overlay" onClick={() => close?.()} />}
+      <aside className={`admin-sidebar${open ? ' open' : ''}`} role="navigation" aria-label="Admin navigation">
       <nav>
         <ul className="sidebar-list">
           <li>
@@ -83,5 +104,6 @@ export default function AdminSidebar({ onNavigate }) {
         </ul>
       </nav>
     </aside>
+    </>
   )
 }

@@ -7,7 +7,7 @@ export default function AdminHeader({ logoSrc, onToggleSidebar }) {
     <div className="admin-topbar">
       <div className="admin-topbar-inner">
         <div className="admin-topbar-left">
-          <button className="hamburger-btn" aria-label="Ouvrir le menu" onClick={() => onToggleSidebar?.()}>
+          <button className="hamburger-btn" aria-label="Ouvrir le menu" onClick={() => { onToggleSidebar?.(); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('toggle-admin-sidebar')) }}>
             <span style={{display:'block',width:20,height:2,background:'#111',marginBottom:4}}></span>
             <span style={{display:'block',width:16,height:2,background:'#111',marginBottom:4}}></span>
             <span style={{display:'block',width:20,height:2,background:'#111'}}></span>
