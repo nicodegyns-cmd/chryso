@@ -81,10 +81,13 @@ export default function InvoiceStatistics() {
       // By analytic
       const aid = String(p.analytic_id || 'sans')
       const aname = p.analytic_name || 'Sans analytique'
-      if (!byAnalytic[aid]) byAnalytic[aid] = { name: aname, code: p.analytic_code || '', amount: 0, count: 0, hours: 0 }
+      const overtime = parseFloat(p.overtime_hours || 0)
+      if (!byAnalytic[aid]) byAnalytic[aid] = { name: aname, code: p.analytic_code || '', amount: 0, count: 0, hours: 0, overtime: 0, overtimeCount: 0 }
       byAnalytic[aid].amount += amount
       byAnalytic[aid].count += 1
       byAnalytic[aid].hours += hours
+      byAnalytic[aid].overtime += overtime
+      if (overtime > 0) byAnalytic[aid].overtimeCount += 1
 
       // By status
       const st = p.status || 'Inconnu'
@@ -101,12 +104,16 @@ export default function InvoiceStatistics() {
       }
     })
 
+    const analyticList = Object.values(byAnalytic).sort((a, b) => b.amount - a.amount)
+    const totalOvertime = analyticList.reduce((s, a) => s + a.overtime, 0)
+
     return {
       totalAmount,
       totalHours,
+      totalOvertime,
       totalPrestations: rows.length,
       byUser: Object.values(byUser).sort((a, b) => b.amount - a.amount),
-      byAnalytic: Object.values(byAnalytic).sort((a, b) => b.amount - a.amount),
+      byAnalytic: analyticList,
       byStatus,
       byRole
     }
@@ -308,6 +315,59 @@ export default function InvoiceStatistics() {
                       <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#10b981' }}>{fmt(a.amount)}</td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* OVERTIME BY ANALYTIC */}
+          {stats.byAnalytic.some(a => a.overtime > 0) && (
+            <div style={{ padding: 20, background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1f2937' }}>
+                  Heures supplémentaires par activité
+                </h3>
+                <span style={{ padding: '3px 10px', borderRadius: 20, background: '#fef3c7', color: '#92400e', fontSize: 12, fontWeight: 700 }}>
+                  Total : {fmtH(stats.totalOvertime)}
+                </span>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#fffbeb', borderBottom: '2px solid #fde68a' }}>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#1f2937' }}>Activité</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#1f2937' }}>Prestations avec HS</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#1f2937' }}>Heures sup</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#1f2937' }}>Moy. / prestation</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#1f2937' }}>% des HS totales</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.byAnalytic.filter(a => a.overtime > 0).map((a, i) => {
+                    const pct = stats.totalOvertime > 0 ? (a.overtime / stats.totalOvertime * 100) : 0
+                    const avg = a.overtimeCount > 0 ? a.overtime / a.overtimeCount : 0
+                    return (
+                      <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#fffbeb', borderBottom: '1px solid #fde68a' }}>
+                        <td style={{ padding: '10px 12px', color: '#1f2937', fontWeight: 500 }}>
+                          {a.name}
+                          {a.code && <span style={{ marginLeft: 8, fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>{a.code}</span>}
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: '#6b7280' }}>
+                          {a.overtimeCount}
+                          <span style={{ fontSize: 11, color: '#d1d5db', marginLeft: 4 }}>/ {a.count}</span>
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#d97706' }}>{fmtH(a.overtime)}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: '#6b7280' }}>{fmtH(avg)}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+                            <div style={{ width: 60, height: 6, background: '#fde68a', borderRadius: 4, overflow: 'hidden' }}>
+                              <div style={{ width: pct + '%', height: '100%', background: '#f59e0b', borderRadius: 4 }} />
+                            </div>
+                            <span style={{ color: '#92400e', fontWeight: 600, fontSize: 12 }}>{pct.toFixed(1)}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
