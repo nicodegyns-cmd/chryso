@@ -10,7 +10,8 @@ export default async function handler(req, res) {
     // - Not active yet (is_active = 0)
     // - AND either haven't completed signup yet (pending_signup) OR completed signup but not validated (pending_validation)
     const result = await query(
-      `SELECT id, email, first_name, last_name, telephone, address, fonction, company, role, liaison_ebrigade_id, niss, bce, account, is_active, onboarding_status
+      `SELECT id, email, first_name, last_name, telephone, address, fonction, company, role, liaison_ebrigade_id, niss, bce, account, is_active, onboarding_status,
+              (invitation_token IS NOT NULL) AS never_connected
        FROM users
        WHERE is_active = 0
          AND onboarding_status IN ('pending_signup', 'pending_validation')
@@ -35,7 +36,8 @@ export default async function handler(req, res) {
         niss: row.niss,
         bce: row.bce,
         account: row.account,
-        onboarding_status: row.onboarding_status
+        onboarding_status: row.onboarding_status,
+        never_connected: row.never_connected === true || row.never_connected === 1
       }))
     })
   } catch (error) {

@@ -114,12 +114,12 @@ export default function UserValidation() {
 
   // Utilisateurs qui ont réellement complété leur inscription (connexion effective)
   const pending = useMemo(() => users.filter(u =>
-    u.onboarding_status === 'pending_validation'
+    !u.never_connected && u.onboarding_status === 'pending_validation'
   ), [users])
 
   // Utilisateurs invités par l'admin mais jamais connectés
   const invited = useMemo(() => users.filter(u =>
-    u.onboarding_status === 'pending_signup'
+    u.never_connected || u.onboarding_status === 'pending_signup'
   ), [users])
 
   function getMissingFields(user) {
