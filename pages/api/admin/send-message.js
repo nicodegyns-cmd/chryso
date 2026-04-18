@@ -1,5 +1,5 @@
 import { getPool } from '../../../services/db'
-import { sendEmail } from '../../../services/emailService'
+import { send } from '../../../services/emailService'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
           </div>
         `
 
-        const result = await sendEmail({
+        const result = await send({
           to: recipient.email,
           subject: subject,
           html: emailBody,
