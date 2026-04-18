@@ -13,6 +13,8 @@ export default function InvoiceStatistics() {
     userId: '',
     analyticId: ''
   })
+  const [userSearch, setUserSearch] = useState('')
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
 
   // Load users and analytics for filter dropdowns
   useEffect(() => {
@@ -210,15 +212,60 @@ export default function InvoiceStatistics() {
             </select>
           </label>
 
-          <label style={labelStyle}>
+          <div style={labelStyle}>
             <span style={labelTextStyle}>Utilisateur</span>
-            <select value={filters.userId}
-              onChange={e => setFilters({ ...filters, userId: e.target.value })}
-              style={selectStyle}>
-              <option value="">Tous</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
-            </select>
-          </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="Rechercher un nom…"
+                value={userSearch}
+                onChange={e => {
+                  setUserSearch(e.target.value)
+                  setUserDropdownOpen(true)
+                  if (!e.target.value) { setFilters({ ...filters, userId: '' }) }
+                }}
+                onFocus={() => setUserDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setUserDropdownOpen(false), 150)}
+                style={{ ...selectStyle, width: '100%', boxSizing: 'border-box' }}
+              />
+              {userDropdownOpen && (() => {
+                const q = userSearch.toLowerCase()
+                const filtered = users.filter(u =>
+                  !q || (u.first_name + ' ' + u.last_name).toLowerCase().includes(q)
+                )
+                return filtered.length > 0 ? (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                    background: '#fff', border: '1px solid #d1d5db', borderRadius: 6,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 220, overflowY: 'auto'
+                  }}>
+                    <div
+                      onMouseDown={() => { setFilters({ ...filters, userId: '' }); setUserSearch(''); setUserDropdownOpen(false) }}
+                      style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', color: '#6b7280', borderBottom: '1px solid #f3f4f6' }}
+                    >Tous</div>
+                    {filtered.map(u => (
+                      <div
+                        key={u.id}
+                        onMouseDown={() => {
+                          setFilters({ ...filters, userId: u.id })
+                          setUserSearch(u.first_name + ' ' + u.last_name)
+                          setUserDropdownOpen(false)
+                        }}
+                        style={{
+                          padding: '8px 12px', fontSize: 13, cursor: 'pointer',
+                          background: filters.userId === String(u.id) ? '#eff6ff' : '#fff',
+                          color: filters.userId === String(u.id) ? '#1d4ed8' : '#1f2937',
+                          borderBottom: '1px solid #f3f4f6'
+                        }}
+                      >
+                        {u.first_name} {u.last_name}
+                      </div>
+                    ))}
+                  </div>
+                ) : null
+              })()}
+            </div>
+          </div>
 
         </div>
       </div>
