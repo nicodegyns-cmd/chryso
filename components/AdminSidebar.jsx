@@ -46,6 +46,11 @@ export default function AdminSidebar({ onNavigate }) {
             </Link>
           </li>
           <li>
+            <Link href="/admin/send-message" className={`sidebar-btn ${isActive('/admin/send-message') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('send-message')}>
+              📧 Envoyer un message
+            </Link>
+          </li>
+          <li>
             <Link href="/admin/prestations" className={`sidebar-btn ${isActive('/admin/prestations') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('prestations')}>
               Prestations
             </Link>
