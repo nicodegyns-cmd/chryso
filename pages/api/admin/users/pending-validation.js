@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     // - AND either haven't completed signup yet (pending_signup) OR completed signup but not validated (pending_validation)
     const result = await query(
       `SELECT id, email, first_name, last_name, telephone, address, fonction, company, role, liaison_ebrigade_id, niss, bce, account, is_active, onboarding_status,
-              (invitation_token IS NOT NULL) AS never_connected
+              (invitation_token IS NOT NULL AND (telephone IS NULL OR telephone = '')) AS never_connected
        FROM users
        WHERE is_active = 0
          AND onboarding_status IN ('pending_signup', 'pending_validation')

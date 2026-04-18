@@ -310,7 +310,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   // Determine if account is pending validation (connected but not yet validated)
   const isPendingValidation = isEdit && initial &&
     initial.onboarding_status === 'pending_validation' && !initial.is_active &&
-    !initial.invitation_token
+    !!initial.telephone
 
   async function handleValidateAccount() {
     if (!initial || !initial.id) return
