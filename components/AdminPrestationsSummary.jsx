@@ -230,6 +230,7 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
               <th style={{textAlign:'left',padding:12,fontWeight:700,color:'#1f2937',fontSize:14}}>Utilisateur</th>
               <th style={{textAlign:'left',padding:12,fontWeight:700,color:'#1f2937',fontSize:14}}>Date</th>
               <th style={{textAlign:'left',padding:12,fontWeight:700,color:'#1f2937',fontSize:14}}>Type</th>
+              <th style={{textAlign:'left',padding:12,fontWeight:700,color:'#1f2937',fontSize:14}}>Analytique</th>
               <th style={{textAlign:'left',padding:12,fontWeight:700,color:'#1f2937',fontSize:14}}>Montant</th>
               <th style={{textAlign:'left',padding:12,fontWeight:700,color:'#1f2937',fontSize:14}}>Statut</th>
               <th style={{textAlign:'left',padding:12,fontWeight:700,color:'#1f2937',fontSize:14}}>Validé par</th>
@@ -238,7 +239,7 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
           </thead>
           <tbody>
             {displayed.length === 0 && (
-              <tr><td colSpan={8} style={{padding:24,textAlign:'center',background:'#f9fafb',borderBottom:'1px solid #e5e7eb'}}>
+              <tr><td colSpan={9} style={{padding:24,textAlign:'center',background:'#f9fafb',borderBottom:'1px solid #e5e7eb'}}>
                 <div style={{color:'#6b7280',marginBottom:10}}>
                   {statusFilter || dateFrom || dateTo || userFilter
                     ? `Aucune demande pour le filtre actuel.`
@@ -271,6 +272,13 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                 </td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>{formatDate(it.date)}</td>
                 <td style={{padding:12,fontSize:14,color:'#1f2937'}}>{it.pay_type || '-'}</td>
+                <td style={{padding:12,fontSize:14}}>
+                  {(it.analytic_name || it.ebrigade_activity_name || it.ebrigade_activity_type || it.analytic_code) ? (
+                    <span style={{display:'inline-block',padding:'3px 8px',borderRadius:4,background:'#ede9fe',color:'#5b21b6',fontWeight:600,fontSize:12}}>
+                      {it.analytic_name || it.ebrigade_activity_name || it.ebrigade_activity_type || it.analytic_code}
+                    </span>
+                  ) : <span style={{color:'#d1d5db'}}>-</span>}
+                </td>
                 <td style={{padding:12,fontSize:14,fontWeight:600,color:'#10b981'}}>
                   {(() => {
                     const rc = (it.role_codes || '').toUpperCase()
