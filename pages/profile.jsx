@@ -368,19 +368,19 @@ export default function ProfilePage(){
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>PRÉNOM *</div>
-                    <input value={form.firstName} onChange={(e) => setForm({...form, firstName: e.target.value})} />
+                    <input value={form.firstName} onChange={(e) => setForm({...form, firstName: e.target.value})} required />
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NOM *</div>
-                    <input value={form.lastName} onChange={(e) => setForm({...form, lastName: e.target.value})} />
+                    <input value={form.lastName} onChange={(e) => setForm({...form, lastName: e.target.value})} required />
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>TÉLÉPHONE *</div>
-                    <input value={form.telephone} onChange={(e) => setForm({...form, telephone: e.target.value})} />
+                    <input value={form.telephone} onChange={(e) => setForm({...form, telephone: e.target.value})} required />
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>N'INAMI *</div>
-                    <input value={form.ninami} onChange={(e) => setForm({...form, ninami: e.target.value})} />
+                    <input value={form.ninami} onChange={(e) => setForm({...form, ninami: e.target.value})} required />
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS * (ou BCE)</div>
@@ -397,7 +397,7 @@ export default function ProfilePage(){
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE BANCAIRE *</div>
-                    <input value={form.compte} onChange={(e) => setForm({...form, compte: fmtIban(e.target.value)})} placeholder="BE88 0000 0000 0000" />
+                    <input value={form.compte} onChange={(e) => setForm({...form, compte: fmtIban(e.target.value)})} placeholder="BE88 0000 0000 0000" required />
                   </label>
                   <label className="form-row" style={{gridColumn:'1 / -1'}}>
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>ADRESSE *</div>
