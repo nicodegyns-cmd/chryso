@@ -92,6 +92,16 @@ export default function ManualHourEntry() {
     try {
       const ptSubmit = (selectedCard?.pay_type || '').toLowerCase()
       const isGardeSubmit = ptSubmit.includes('garde') && (ptSubmit.includes('nuit') || ptSubmit.includes('week') || ptSubmit.includes('medecin') || ptSubmit.includes('médecin'))
+      console.log('[ManualHourEntry] 🔍 SUBMIT GUARD DETECTION:', { 
+        pay_type: selectedCard?.pay_type,
+        ptSubmit_lower: ptSubmit,
+        has_garde: ptSubmit.includes('garde'),
+        has_nuit: ptSubmit.includes('nuit'),
+        has_week: ptSubmit.includes('week'),
+        has_medecin: ptSubmit.includes('medecin') || ptSubmit.includes('médecin'),
+        isGardeSubmit,
+        ebrigade_activity_type: selectedCard?.ebrigade_activity_type
+      })
       const ebrigadeDurSubmit = selectedCard?.duration ? parseFloat(selectedCard.duration) : null
       const sortieHoursSubmit = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
       const gardeHoursSubmit = isGardeSubmit && ebrigadeDurSubmit !== null && sortieHoursSubmit !== null
@@ -270,6 +280,17 @@ export default function ManualHourEntry() {
                     const isGarde = pt.includes('garde') && (pt.includes('nuit') || pt.includes('week') || pt.includes('medecin') || pt.includes('médecin'))
                     const ebrigadeDuration = selectedCard?.duration ? parseFloat(selectedCard.duration) : null
                     const sortieVal = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
+                    console.log('[ManualHourEntry] 🔍 GARDE DETECTION:', { 
+                      pay_type: selectedCard?.pay_type,
+                      pt_lower: pt,
+                      has_garde: pt.includes('garde'),
+                      has_nuit: pt.includes('nuit'),
+                      has_week: pt.includes('week'),
+                      has_medecin: pt.includes('medecin') || pt.includes('médecin'),
+                      isGarde,
+                      ebrigade_activity_type: selectedCard?.ebrigade_activity_type,
+                      full_card: selectedCard
+                    })
                     return isGarde ? (
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         {/* Read-only: Total hours from eBrigade */}
