@@ -90,18 +90,24 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   // DEBUG: Log guard detection
   useEffect(() => {
     if (editing) {
-      console.log('[PrestationsTable] GARDE DETECTION DEBUG:', {
+      console.log('[PrestationsTable] 🔍 GARDE DETECTION DEBUG:', {
+        full_editing: editing,
         payTypeLower: _editPayTypeLower,
         ebrigade_activity_type: editing.ebrigade_activity_type,
         analytic_name: editing.analytic_name,
         pay_type: editing.pay_type,
         ebrigade_duration_hours: editing.ebrigade_duration_hours,
         sortie_hours: editing.sortie_hours,
+        hours_actual: editing.hours_actual,
+        garde_hours: editing.garde_hours,
+        condition1_gardeKeyword: _editPayTypeLower.includes('garde'),
+        condition2_ebrigadeDuration: !!editing.ebrigade_duration_hours,
+        condition3_ebrigadeActivityType: !!editing.ebrigade_activity_type,
+        condition4_sortieHoursNotNull: editing.sortie_hours != null,
         editingIsGarde,
-        hasGardeKeyword: _editPayTypeLower.includes('garde'),
       })
     }
-  }, [editing])
+  }, [editing, editingIsGarde])
   const editingIsPermanence = _editPayTypeLower.includes('permanence')
   const editingIsAPS = _editPayTypeLower.includes('aps')
   const editingIsRMP = _editPayTypeLower.includes('rmp')
