@@ -30,6 +30,21 @@ function buildAdresse(f) {
   const loc = [f.adresseCP, f.adresseVille].filter(Boolean).join(' ')
   return [rue, loc].filter(Boolean).join(', ')
 }
+function isProfileFormValid(form) {
+  // Tous les champs sauf SOCIÉTÉ sont obligatoires
+  return !!(
+    form.firstName?.trim() &&
+    form.lastName?.trim() &&
+    form.telephone?.trim() &&
+    form.ninami?.trim() &&
+    form.niss?.trim() &&
+    form.bce?.trim() &&
+    form.compte?.trim() &&
+    form.adresseRue?.trim() &&
+    form.adresseCP?.trim() &&
+    form.adresseVille?.trim()
+  )
+}
 
 export default function ProfilePage(){
   const router = useRouter()
@@ -37,7 +52,25 @@ export default function ProfilePage(){
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState({})
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    telephone: '',
+    adresseNum: '',
+    adresseRue: '',
+    adresseCP: '',
+    adresseVille: '',
+    fonction: '',
+    ninami: '',
+    niss: '',
+    bce: '',
+    societe: '',
+    compte: '',
+    email: '',
+    liaisonId: '',
+    acceptedCgu: false,
+    acceptedPrivacy: false,
+  })
   const [saveError, setSaveError] = useState(null)
   
   // Onboarding flow: 'profile' → 'acceptance' → 'password' → null
@@ -348,8 +381,8 @@ export default function ProfilePage(){
                       <button 
                         className="primary" 
                         type="submit"
-                        disabled={!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || !form.niss?.trim() || !form.bce?.trim() || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()}
-                        style={{opacity: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || !form.niss?.trim() || !form.bce?.trim() || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 0.5 : 1, cursor: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || !form.niss?.trim() || !form.bce?.trim() || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 'not-allowed' : 'pointer'}}
+                        disabled={!isProfileFormValid(form)}
+                        style={{opacity: !isProfileFormValid(form) ? 0.5 : 1, cursor: !isProfileFormValid(form) ? 'not-allowed' : 'pointer'}}
                       >
                         Enregistrer
                       </button>
@@ -421,8 +454,8 @@ export default function ProfilePage(){
                   <button 
                     type="submit" 
                     className="primary"
-                    disabled={!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || !form.niss?.trim() || !form.bce?.trim() || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()}
-                    style={{opacity: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || !form.niss?.trim() || !form.bce?.trim() || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 0.5 : 1, cursor: (!form.firstName?.trim() || !form.lastName?.trim() || !form.telephone?.trim() || !form.ninami?.trim() || !form.niss?.trim() || !form.bce?.trim() || !form.compte?.trim() || !form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) ? 'not-allowed' : 'pointer'}}
+                    disabled={!isProfileFormValid(form)}
+                    style={{opacity: !isProfileFormValid(form) ? 0.5 : 1, cursor: !isProfileFormValid(form) ? 'not-allowed' : 'pointer'}}
                   >
                     Continuer →
                   </button>
