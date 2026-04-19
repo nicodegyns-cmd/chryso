@@ -30,7 +30,7 @@ function buildAdresse(f) {
   const loc = [f.adresseCP, f.adresseVille].filter(Boolean).join(' ')
   return [rue, loc].filter(Boolean).join(', ')
 }
-function isProfileFormValid(form, isInfi) {
+function isProfileFormValid(form, isMed) {
   // Tous les champs sauf SOCIÉTÉ sont obligatoires
   return !!(
     form.firstName?.trim() &&
