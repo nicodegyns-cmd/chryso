@@ -36,7 +36,7 @@ function isProfileFormValid(form, isInfi) {
     form.firstName?.trim() &&
     form.lastName?.trim() &&
     form.telephone?.trim() &&
-    (!isInfi || form.ninami?.trim()) &&
+    (!isMed || form.ninami?.trim()) &&
     form.niss?.trim() &&
     form.bce?.trim() &&
     form.compte?.trim() &&
@@ -85,7 +85,7 @@ export default function ProfilePage(){
   const [acceptanceError, setAcceptanceError] = useState(null)
   const [acceptanceLoading, setAcceptanceLoading] = useState(false)
 
-  const isInfi = !!(user?.role && ['INFI', 'infirmier'].some(r => user.role.includes(r)))
+  const isMed = !!(user?.role && ['MED', 'medecin'].some(r => user.role.includes(r)))
 
   useEffect(() => {
     const email = typeof window !== 'undefined' ? localStorage.getItem('email') : null
@@ -159,7 +159,7 @@ export default function ProfilePage(){
       if (!form.firstName?.trim()) { setSaveError('Le prénom est requis'); return }
       if (!form.lastName?.trim()) { setSaveError('Le nom est requis'); return }
       if (!form.telephone?.trim()) { setSaveError('Le téléphone est requis'); return }
-      if (isInfi && !form.ninami?.trim()) { setSaveError("Le numéro N'INAMI est requis"); return }
+      if (isMed && !form.ninami?.trim()) { setSaveError("Le numéro N'INAMI est requis"); return }
       if (!form.niss?.trim() || !form.bce?.trim()) { setSaveError('Le NISS et le numéro BCE sont tous les deux requis'); return }
       if (!form.compte?.trim()) { setSaveError('Le compte bancaire est requis'); return }
       if (!form.adresseRue?.trim() || !form.adresseCP?.trim() || !form.adresseVille?.trim()) { setSaveError("L'adresse complète est requise (rue, code postal, localité)"); return }
@@ -343,8 +343,8 @@ export default function ProfilePage(){
                         <input value={form.telephone} onChange={(e) => setForm({...form, telephone: e.target.value})} required />
                       </label>
                       <label className="form-row">
-                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>N'INAMI {isInfi ? '*' : '(optionnel)'}</div>
-                        <input value={form.ninami} onChange={(e) => setForm({...form, ninami: e.target.value})} required={isInfi} />
+                        <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>N'INAMI {isMed ? '*' : '(optionnel)'}</div>
+                        <input value={form.ninami} onChange={(e) => setForm({...form, ninami: e.target.value})} required={isMed} />
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS *</div>
@@ -383,8 +383,8 @@ export default function ProfilePage(){
                       <button 
                         className="primary" 
                         type="submit"
-                        disabled={!isProfileFormValid(form, isInfi)}
-                        style={{opacity: !isProfileFormValid(form, isInfi) ? 0.5 : 1, cursor: !isProfileFormValid(form, isInfi) ? 'not-allowed' : 'pointer'}}
+                        disabled={!isProfileFormValid(form, isMed)}
+                        style={{opacity: !isProfileFormValid(form, isMed) ? 0.5 : 1, cursor: !isProfileFormValid(form, isMed) ? 'not-allowed' : 'pointer'}}
                       >
                         Enregistrer
                       </button>
@@ -421,8 +421,8 @@ export default function ProfilePage(){
                     <input value={form.telephone} onChange={(e) => setForm({...form, telephone: e.target.value})} required />
                   </label>
                   <label className="form-row">
-                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>N'INAMI {isInfi ? '*' : '(optionnel)'}</div>
-                    <input value={form.ninami} onChange={(e) => setForm({...form, ninami: e.target.value})} required={isInfi} />
+                    <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>N'INAMI {isMed ? '*' : '(optionnel)'}</div>
+                    <input value={form.ninami} onChange={(e) => setForm({...form, ninami: e.target.value})} required={isMed} />
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NISS *</div>
@@ -456,8 +456,8 @@ export default function ProfilePage(){
                   <button 
                     type="submit" 
                     className="primary"
-                    disabled={!isProfileFormValid(form, isInfi)}
-                    style={{opacity: !isProfileFormValid(form, isInfi) ? 0.5 : 1, cursor: !isProfileFormValid(form, isInfi) ? 'not-allowed' : 'pointer'}}
+                    disabled={!isProfileFormValid(form, isMed)}
+                    style={{opacity: !isProfileFormValid(form, isMed) ? 0.5 : 1, cursor: !isProfileFormValid(form, isMed) ? 'not-allowed' : 'pointer'}}
                   >
                     Continuer →
                   </button>
