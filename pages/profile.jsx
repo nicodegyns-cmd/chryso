@@ -30,6 +30,10 @@ function buildAdresse(f) {
   const loc = [f.adresseCP, f.adresseVille].filter(Boolean).join(' ')
   return [rue, loc].filter(Boolean).join(', ')
 }
+function capitalizeFirst(str) {
+  if (!str) return str
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
 function isProfileFormValid(form, isMed) {
   // Tous les champs sauf SOCIÉTÉ sont obligatoires
   return !!(
@@ -332,11 +336,11 @@ export default function ProfilePage(){
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>PRÉNOM *</div>
-                        <input value={form.firstName} onChange={(e) => setForm({...form, firstName: e.target.value})} required />
+                        <input value={form.firstName} onChange={(e) => setForm({...form, firstName: capitalizeFirst(e.target.value)})} required />
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NOM *</div>
-                        <input value={form.lastName} onChange={(e) => setForm({...form, lastName: e.target.value})} required />
+                        <input value={form.lastName} onChange={(e) => setForm({...form, lastName: capitalizeFirst(e.target.value)})} required />
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>TÉLÉPHONE *</div>
@@ -410,11 +414,11 @@ export default function ProfilePage(){
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>PRÉNOM *</div>
-                    <input value={form.firstName} onChange={(e) => setForm({...form, firstName: e.target.value})} required />
+                    <input value={form.firstName} onChange={(e) => setForm({...form, firstName: capitalizeFirst(e.target.value)})} required />
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>NOM *</div>
-                    <input value={form.lastName} onChange={(e) => setForm({...form, lastName: e.target.value})} required />
+                    <input value={form.lastName} onChange={(e) => setForm({...form, lastName: capitalizeFirst(e.target.value)})} required />
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>TÉLÉPHONE *</div>
