@@ -312,7 +312,6 @@ export default function ProfilePage(){
                       <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>PRÉNOM</div><div style={{fontSize:15,fontWeight:600,color:'#111'}}>{user.first_name || user.firstName || '—'}</div></div>
                       <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>NOM</div><div style={{fontSize:15,fontWeight:600,color:'#111'}}>{user.last_name || user.lastName || '—'}</div></div>
                       <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>TÉLÉPHONE</div><div style={{fontSize:14,color:'#222'}}>{user.telephone || '—'}</div></div>
-                      <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>FONCTION</div><div style={{fontSize:14,color:'#222'}}>{user.fonction || '—'}</div></div>
                       <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>N'INAMI</div><div style={{fontSize:14,color:'#222'}}>{user.ninami || '—'}</div></div>
                       <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>NISS</div><div style={{fontSize:14,color:'#222'}}>{user.niss || '—'}</div></div>
                       <div><div style={{fontSize:12,color:'#888',marginBottom:4}}>BCE</div><div style={{fontSize:14,color:'#222'}}>{user.bce || '—'}</div></div>
