@@ -53,8 +53,10 @@ export default async function handler(req, res) {
     console.log(`[SERVE] File read successfully: ${fileContent.length} bytes`)
 
     // Set response headers
+    const safeName = document.name.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '\\"')
+    const encodedName = encodeURIComponent(document.name)
     res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `inline; filename="${document.name}"`)
+    res.setHeader('Content-Disposition', `inline; filename="${safeName}"; filename*=UTF-8''${encodedName}`)
     res.setHeader('Content-Length', fileContent.length)
 
     res.write(fileContent)
