@@ -36,7 +36,7 @@ export default function AdminSidebar({ onNavigate, open: openProp, onClose }) {
   useEffect(() => {
     fetch('/api/admin/users/pending-validation')
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setPendingUsers((d.items || []).length) })
+      .then(d => { if (d) setPendingUsers((d.items || []).filter(u => u.onboarding_status === 'pending_validation').length) })
       .catch(() => {})
     fetch('/api/admin/documents/pending')
       .then(r => r.ok ? r.json() : null)
