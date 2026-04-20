@@ -77,14 +77,16 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     : ''
   
   // Check if it's a Garde type that requires sortie_hours
-  // Simpler: if it has ANY of these indicators, it's a garde
+  // hour_entry_type (from activity config) takes precedence over auto-detection
   const editingIsGarde = editing
-    ? (
-        _editPayTypeLower.includes('garde') ||
-        editing.ebrigade_duration_hours ||
-        editing.ebrigade_activity_type ||
-        editing.sortie_hours != null
-      )
+    ? editing.hour_entry_type === 'simple' ? false
+      : editing.hour_entry_type === 'garde' ? true
+      : (
+          _editPayTypeLower.includes('garde') ||
+          editing.ebrigade_duration_hours ||
+          editing.ebrigade_activity_type ||
+          editing.sortie_hours != null
+        )
     : false
   
   // DEBUG: Log guard detection
@@ -393,6 +395,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         ebrigade_id: p.ebrigade_id || null,
         ebrigade_activity_name: p.ebrigade_activity_name || null,
         ebrigade_activity_type: p.ebrigade_activity_type || null,
+        hour_entry_type: p.hour_entry_type || null,
         ebrigade_personnel_id: p.ebrigade_personnel_id || null,
         ebrigade_personnel_name: p.ebrigade_personnel_name || null,
         status: 'À saisir',
