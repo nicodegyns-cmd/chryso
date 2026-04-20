@@ -30,6 +30,7 @@ export default function ManualHourEntry() {
   const [cardsError, setCardsError] = useState('')
   const [selectedCard, setSelectedCard] = useState(null)
   const [formData, setFormData] = useState(emptyForm())
+  const [modalTypeOverride, setModalTypeOverride] = useState(null) // null=auto, 'garde', 'simple'
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState('')
@@ -74,13 +75,13 @@ export default function ManualHourEntry() {
   }
 
   const handleCardClick = (card) => {
-    setSelectedCard(card); setSaveError(''); setSaveSuccess('')
+    setSelectedCard(card); setSaveError(''); setSaveSuccess(''); setModalTypeOverride(null)
     setFormData({ hours_actual: card.duration ? String(card.duration) : '', garde_hours: '', sortie_hours: '', overtime_hours: '', comments: '' })
   }
 
   const handleCloseModal = () => {
     if (saving) return
-    setSelectedCard(null); setFormData(emptyForm()); setSaveError('')
+    setSelectedCard(null); setFormData(emptyForm()); setSaveError(''); setModalTypeOverride(null)
   }
 
   const handleFormChange = (e) => { const { name, value } = e.target; setFormData(prev => ({ ...prev, [name]: value })) }
@@ -94,7 +95,8 @@ export default function ManualHourEntry() {
       // RMP analytics always use simple layout (heures réelles + sup), not the garde/sortie split
       const isRMPSubmit = (selectedCard?.analytic_name || '').toUpperCase().includes('RMP')
       // Simple: only check pay_type, NOT ebrigade_activity_type (API can set that for Permanence too)
-      const isGardeSubmit = !isRMPSubmit && ptSubmit.includes('garde')
+      const isGardeAutoSubmit = !isRMPSubmit && ptSubmit.includes('garde')
+      const isGardeSubmit = modalTypeOverride === 'garde' ? true : modalTypeOverride === 'simple' ? false : isGardeAutoSubmit
       console.log('[ManualHourEntry] 🔍 SUBMIT GUARD DETECTION:', { 
         pay_type: selectedCard?.pay_type,
         ptSubmit_lower: ptSubmit,
@@ -272,13 +274,38 @@ export default function ManualHourEntry() {
 
                 {/* Heures de travail */}
                 <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
-                  <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 14, color: '#1f2937' }}>📊 Heures de travail</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1f2937' }}>📊 Heures de travail</div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button type="button" onClick={() => setModalTypeOverride('garde')}
+                        style={{ padding: '3px 10px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid', cursor: 'pointer',
+                          background: modalTypeOverride === 'garde' ? '#dc2626' : '#fff',
+                          color: modalTypeOverride === 'garde' ? '#fff' : '#6b7280',
+                          borderColor: modalTypeOverride === 'garde' ? '#dc2626' : '#d1d5db' }}>
+                        Garde
+                      </button>
+                      <button type="button" onClick={() => setModalTypeOverride('simple')}
+                        style={{ padding: '3px 10px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid', cursor: 'pointer',
+                          background: modalTypeOverride === 'simple' ? '#7c3aed' : '#fff',
+                          color: modalTypeOverride === 'simple' ? '#fff' : '#6b7280',
+                          borderColor: modalTypeOverride === 'simple' ? '#7c3aed' : '#d1d5db' }}>
+                        Simple
+                      </button>
+                      {modalTypeOverride !== null && (
+                        <button type="button" onClick={() => setModalTypeOverride(null)}
+                          style={{ padding: '3px 8px', fontSize: 11, fontWeight: 600, borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: '#f3f4f6', color: '#6b7280' }}>
+                          Auto
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   {(() => {
                     const pt = (selectedCard?.pay_type || '').toLowerCase()
                     // RMP analytics always use simple layout (heures réelles + sup), not the garde/sortie split
                     const isRMP = (selectedCard?.analytic_name || '').toUpperCase().includes('RMP')
                     // Simple: only check pay_type, NOT ebrigade_activity_type (API can set that for Permanence too)
-                    const isGarde = !isRMP && pt.includes('garde')
+                    const isGardeAuto = !isRMP && pt.includes('garde')
+                    const isGarde = modalTypeOverride === 'garde' ? true : modalTypeOverride === 'simple' ? false : isGardeAuto
                     const ebrigadeDuration = selectedCard?.duration ? parseFloat(selectedCard.duration) : null
                     const sortieVal = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
                     console.log('[ManualHourEntry] 🔍 GARDE DETECTION:', { 
