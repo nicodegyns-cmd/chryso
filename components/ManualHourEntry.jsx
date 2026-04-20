@@ -276,28 +276,15 @@ export default function ManualHourEntry() {
                 <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: '#1f2937' }}>📊 Heures de travail</div>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button type="button" onClick={() => setModalTypeOverride('garde')}
-                        style={{ padding: '3px 10px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid', cursor: 'pointer',
-                          background: modalTypeOverride === 'garde' ? '#dc2626' : '#fff',
-                          color: modalTypeOverride === 'garde' ? '#fff' : '#6b7280',
-                          borderColor: modalTypeOverride === 'garde' ? '#dc2626' : '#d1d5db' }}>
-                        Garde
-                      </button>
-                      <button type="button" onClick={() => setModalTypeOverride('simple')}
-                        style={{ padding: '3px 10px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid', cursor: 'pointer',
-                          background: modalTypeOverride === 'simple' ? '#7c3aed' : '#fff',
-                          color: modalTypeOverride === 'simple' ? '#fff' : '#6b7280',
-                          borderColor: modalTypeOverride === 'simple' ? '#7c3aed' : '#d1d5db' }}>
-                        Simple
-                      </button>
-                      {modalTypeOverride !== null && (
-                        <button type="button" onClick={() => setModalTypeOverride(null)}
-                          style={{ padding: '3px 8px', fontSize: 11, fontWeight: 600, borderRadius: 6, border: '1px solid #d1d5db', cursor: 'pointer', background: '#f3f4f6', color: '#6b7280' }}>
-                          Auto
-                        </button>
-                      )}
-                    </div>
+                    <select
+                      value={modalTypeOverride || 'auto'}
+                      onChange={e => setModalTypeOverride(e.target.value === 'auto' ? null : e.target.value)}
+                      style={{ fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid #d1d5db', padding: '3px 8px', cursor: 'pointer', background: '#fff', color: '#374151' }}
+                    >
+                      <option value="auto">Auto</option>
+                      <option value="garde">Garde</option>
+                      <option value="simple">Simple</option>
+                    </select>
                   </div>
                   {(() => {
                     const pt = (selectedCard?.pay_type || '').toLowerCase()
