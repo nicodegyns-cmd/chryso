@@ -509,7 +509,7 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                   </div>
 
                   {/* Detailed calculation breakdown - only for user's role */}
-                  {(viewing.garde_hours || viewing.sortie_hours || viewing.hours_actual) && d && (
+                  {(viewing.garde_hours || viewing.sortie_hours || viewing.hours_actual || viewing.expense_amount) && d && (
                     <div style={{fontSize:11,color:'#92400e',padding:10,background:'#fff',borderRadius:6,border:'1px solid #fcd34d',fontFamily:'monospace',lineHeight:'1.6'}}>
                       <div style={{fontWeight:700,marginBottom:8,color:'#b45309'}}>Calcul détaillé:</div>
                       {showInfiDetail && d.garde_infi != null && (
@@ -558,6 +558,38 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                               })()} €</div>
                             </>
                           )}
+                        </div>
+                      )}
+                      {viewing.expense_amount > 0 && (
+                        <div style={{marginTop:6,paddingTop:6,borderTop:'1px dashed #fcd34d'}}>
+                          <div>Note de frais: {Number(viewing.expense_amount)} €{viewing.expense_comment ? ` (${viewing.expense_comment})` : ''}</div>
+                          <div style={{fontWeight:700,color:'#b45309',marginTop:4,borderTop:'1px solid #fcd34d',paddingTop:4}}>= Total: {(() => {
+                            const exp = Number(viewing.expense_amount || 0)
+                            if (showInfiDetail && d.garde_infi != null) {
+                              if (viewing.garde_hours || viewing.sortie_hours) {
+                                const garde = (viewing.garde_hours || 0) * (d.garde_infi || 0)
+                                const sortie = (viewing.sortie_hours || 0) * (d.sortie_infi || 0)
+                                const ot = (viewing.overtime_hours || 0) * (d.garde_infi || 0)
+                                return Math.round((garde + sortie + ot + exp + Number.EPSILON) * 100) / 100
+                              } else {
+                                const total = (viewing.hours_actual || 0) * (d.garde_infi || 0)
+                                const ot = (viewing.overtime_hours || 0) * (d.garde_infi || 0)
+                                return Math.round((total + ot + exp + Number.EPSILON) * 100) / 100
+                              }
+                            } else if (showMedDetail && d.garde_med != null) {
+                              if (viewing.garde_hours || viewing.sortie_hours) {
+                                const garde = (viewing.garde_hours || 0) * (d.garde_med || 0)
+                                const sortie = (viewing.sortie_hours || 0) * (d.sortie_med || 0)
+                                const ot = (viewing.overtime_hours || 0) * (d.garde_med || 0)
+                                return Math.round((garde + sortie + ot + exp + Number.EPSILON) * 100) / 100
+                              } else {
+                                const total = (viewing.hours_actual || 0) * (d.garde_med || 0)
+                                const ot = (viewing.overtime_hours || 0) * (d.garde_med || 0)
+                                return Math.round((total + ot + exp + Number.EPSILON) * 100) / 100
+                              }
+                            }
+                            return exp
+                          })()} €</div>
                         </div>
                       )}
                     </div>
