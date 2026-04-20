@@ -1300,9 +1300,31 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                         style={{marginRight:'auto',padding:'8px 14px',background:'#fee2e2',color:'#991b1b',border:'1px solid #fca5a5',borderRadius:6,cursor:'pointer',fontWeight:600,fontSize:13}}
                       >🗑️ Supprimer</button>
                     )}
-                    <button onClick={handleCloseModal} disabled={saving}>{role === 'admin' || locked ? 'Fermer' : 'Annuler'}</button>
-                    {role !== 'admin' && !locked && !confirmOpen && <button onClick={()=>saveEdit(false)} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer'}</button>}
-                    {role !== 'admin' && !locked && confirmOpen && (
+                    <button onClick={handleCloseModal} disabled={saving}>{role === 'admin' || role === 'moderator' || locked ? 'Fermer' : 'Annuler'}</button>
+                    {(role === 'admin' || role === 'moderator') && editing.id && editing.status === "En attente d'approbation" && (
+                      <button
+                        disabled={saving}
+                        onClick={async () => {
+                          if (!confirm('Valider cette prestation ? Elle passera en "En attente d\'envoie".')) return
+                          setSaving(true)
+                          try {
+                            const r = await fetch(`/api/admin/prestations/${editing.id}`, {
+                              method: 'PATCH',
+                              headers: {'Content-Type':'application/json'},
+                              body: JSON.stringify({ status: "En attente d'envoie" })
+                            })
+                            if (!r.ok) throw new Error('Erreur validation')
+                            window.location.reload()
+                          } catch(e) {
+                            alert(e.message || 'Erreur')
+                            setSaving(false)
+                          }
+                        }}
+                        style={{padding:'8px 16px',background:'#d1fae5',color:'#065f46',border:'1px solid #6ee7b7',borderRadius:6,cursor:'pointer',fontWeight:700,fontSize:13}}
+                      >✅ Valider</button>
+                    )}
+                    {role !== 'admin' && role !== 'moderator' && !locked && !confirmOpen && <button onClick={()=>saveEdit(false)} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer'}</button>}
+                    {role !== 'admin' && role !== 'moderator' && !locked && confirmOpen && (
                       <>
                         <button onClick={()=>{ setConfirmOpen(false); setConfirmPreview(null); }} disabled={saving}>Modifier</button>
                         <button onClick={confirmAndSave} disabled={saving}>{saving ? 'Enregistrement...' : 'Confirmer'}</button>

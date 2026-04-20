@@ -127,10 +127,6 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
       if (status === "Envoyé à la facturation") {
         alert(`✅ Prestation envoyée à la comptabilité!\nFacture: ${updated.invoice_number || 'N/A'}\nLa comptabilité peut maintenant traiter le dossier.`)
       }
-      // If current filter hides the updated item, switch to "all" to avoid surprising empty list
-      if (statusFilter && status !== statusFilter) {
-        setStatusFilter('')
-      }
     }catch(e){ console.error('update status failed', e); alert('Erreur lors de la mise à jour') }
     finally{ setSavingIds(prev => { const c = {...prev}; delete c[id]; return c }) }
   }
@@ -145,9 +141,6 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
       setItems(prev => prev.map(p => p.id === updated.id ? updated : p))
       setRefusingId(null)
       setRefusalReason('')
-      if (statusFilter && 'Annulé' !== statusFilter) {
-        setStatusFilter('')
-      }
     }catch(e){ console.error('refuse prestation failed', e); alert('Erreur lors du refus') }
     finally{ setSavingIds(prev => { const c = {...prev}; delete c[id]; return c }) }
   }
