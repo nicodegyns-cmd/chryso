@@ -276,11 +276,8 @@ export default function ManualHourEntry() {
                 <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: '#1f2937' }}>📊 Heures de travail</div>
-                    <select
-                      value={modalTypeOverride || 'auto'}
-                      onChange={e => setModalTypeOverride(e.target.value === 'auto' ? null : e.target.value)}
-                      style={{ fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid #d1d5db', padding: '3px 8px', cursor: 'pointer', background: '#fff', color: '#374151' }}
-                    >
+                    <select value={modalTypeOverride || 'auto'} onChange={e => setModalTypeOverride(e.target.value === 'auto' ? null : e.target.value)}
+                      style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#374151', cursor: 'pointer' }}>
                       <option value="auto">Auto</option>
                       <option value="garde">Garde</option>
                       <option value="simple">Simple</option>
