@@ -35,7 +35,6 @@ export default async function handler(req, res){
       if (typeof analytic_name !== 'undefined') { updates.push(`analytic_name = $${paramIndex++}`); params.push(analytic_name) }
       if (typeof analytic_code !== 'undefined') { updates.push(`analytic_code = $${paramIndex++}`); params.push(analytic_code) }
       if (typeof pay_type !== 'undefined') { updates.push(`pay_type = $${paramIndex++}`); params.push(pay_type) }
-      if (typeof hour_entry_type !== 'undefined') { updates.push(`hour_entry_type = $${paramIndex++}`); params.push(hour_entry_type) }
       if (typeof date !== 'undefined') { updates.push(`date = $${paramIndex++}`); params.push(date) }
       if (typeof remuneration_infi !== 'undefined') { updates.push(`remuneration_infi = $${paramIndex++}`); params.push(remuneration_infi) }
       if (typeof remuneration_med !== 'undefined') { updates.push(`remuneration_med = $${paramIndex++}`); params.push(remuneration_med) }
@@ -43,6 +42,7 @@ export default async function handler(req, res){
       if (typeof remuneration_sortie_med !== 'undefined') { updates.push(`remuneration_sortie_med = $${paramIndex++}`); params.push(remuneration_sortie_med) }
       if (typeof remuneration_overtime_infi !== 'undefined') { updates.push(`remuneration_overtime_infi = $${paramIndex++}`); params.push(remuneration_overtime_infi) }
       if (typeof remuneration_overtime_med !== 'undefined') { updates.push(`remuneration_overtime_med = $${paramIndex++}`); params.push(remuneration_overtime_med) }
+      if (typeof hour_entry_type !== 'undefined') { updates.push(`hour_entry_type = $${paramIndex++}`); params.push(hour_entry_type) }
 
       if (updates.length === 0 && (!Array.isArray(ebrigade_analytics))) return res.status(400).json({ error: 'no fields' })
       
@@ -88,7 +88,7 @@ export default async function handler(req, res){
         }
       }
       
-      const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, created_at FROM activities WHERE id = $1', [id])
+      const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, hour_entry_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, created_at FROM activities WHERE id = $1', [id])
       
       // Get eBrigade mappings for response
       let ebrigade_analytics_resp = []

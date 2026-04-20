@@ -29,7 +29,7 @@ export default async function handler(req, res){
           nam.activity_id as local_activity_id,
           a.id,
           a.analytic_id as activity_analytic_id,
-          a.hour_entry_type as activity_hour_entry_type
+          a.hour_entry_type
         FROM activity_ebrigade_name_mappings nam
         LEFT JOIN activities a ON nam.activity_id = a.id
       `)
@@ -144,7 +144,7 @@ export default async function handler(req, res){
         analytic_id: mapping?.activity_analytic_id || null,  // ID from analytics table (3,4,5,6,7) - NOT activity id
         activity: p.E_LIBELLE,
         pay_type: p.TE_LIBELLE || 'Garde',
-        activity_hour_entry_type: mapping?.activity_hour_entry_type || null,
+        hour_entry_type: mapping?.hour_entry_type || null,  // Configured layout override from activity
         status: 'À saisir',
         isActivity: true,
         ebrigade_analytic_name: p.E_LIBELLE,
