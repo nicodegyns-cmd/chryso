@@ -1081,7 +1081,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                       {editing.proof_image && (
                         <div>
                           <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>📸 JUSTIFICATIF</div>
-                          <img src={editing.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:250,border:'2px solid #fcd34d',borderRadius:6,display:'block'}} />
+                          <a href={editing.proof_image} target="_blank" rel="noopener noreferrer">
+                            <img src={editing.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:250,border:'2px solid #fcd34d',borderRadius:6,display:'block',cursor:'pointer'}} />
+                          </a>
                         </div>
                       )}
                     </div>
