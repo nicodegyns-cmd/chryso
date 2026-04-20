@@ -246,7 +246,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
               </label>
             </div>
 
-            {/* Section: Rémunération */
+            {/* Section: Rémunération */}
             <div style={{borderLeft:'3px solid #f59e0b',paddingLeft:16}}>
               <strong style={{display:'block',marginBottom:12,color:'#1f2937',fontSize:14}}>💰 Rémunération</strong>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
