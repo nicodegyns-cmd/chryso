@@ -91,8 +91,10 @@ export default function ManualHourEntry() {
     setSaving(true); setSaveError(''); setSaveSuccess('')
     try {
       const ptSubmit = (selectedCard?.pay_type || '').toLowerCase()
+      // RMP analytics always use simple layout (heures réelles + sup), not the garde/sortie split
+      const isRMPSubmit = (selectedCard?.analytic_name || '').toUpperCase().includes('RMP')
       // Simple: only check pay_type, NOT ebrigade_activity_type (API can set that for Permanence too)
-      const isGardeSubmit = ptSubmit.includes('garde')
+      const isGardeSubmit = !isRMPSubmit && ptSubmit.includes('garde')
       console.log('[ManualHourEntry] 🔍 SUBMIT GUARD DETECTION:', { 
         pay_type: selectedCard?.pay_type,
         ptSubmit_lower: ptSubmit,
@@ -273,8 +275,10 @@ export default function ManualHourEntry() {
                   <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 14, color: '#1f2937' }}>📊 Heures de travail</div>
                   {(() => {
                     const pt = (selectedCard?.pay_type || '').toLowerCase()
+                    // RMP analytics always use simple layout (heures réelles + sup), not the garde/sortie split
+                    const isRMP = (selectedCard?.analytic_name || '').toUpperCase().includes('RMP')
                     // Simple: only check pay_type, NOT ebrigade_activity_type (API can set that for Permanence too)
-                    const isGarde = pt.includes('garde')
+                    const isGarde = !isRMP && pt.includes('garde')
                     const ebrigadeDuration = selectedCard?.duration ? parseFloat(selectedCard.duration) : null
                     const sortieVal = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
                     console.log('[ManualHourEntry] 🔍 GARDE DETECTION:', { 
