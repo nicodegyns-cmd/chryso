@@ -598,7 +598,6 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                           <img src={viewing.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:250,border:'2px solid #fcd34d',borderRadius:6,display:'block',cursor:'pointer'}} />
                         </a>
                       </div>
-                      </div>
                     )}
                   </div>
                 </div>
