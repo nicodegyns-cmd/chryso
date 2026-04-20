@@ -36,7 +36,16 @@ export default function AdminSidebar({ onNavigate, open: openProp, onClose }) {
   useEffect(() => {
     fetch('/api/admin/users/pending-validation')
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setPendingUsers((d.items || []).filter(u => u.onboarding_status === 'pending_validation').length) })
+      .then(d => {
+        if (d) {
+          // Only count pending_validation users who have completed their profile (have telephone)
+          // Users with pending_validation but no telephone appear in "Invitations envoyées" on the page
+          const readyCount = (d.items || []).filter(u =>
+            u.onboarding_status === 'pending_validation' && u.telephone?.trim()
+          ).length
+          setPendingUsers(readyCount)
+        }
+      })
       .catch(() => {})
     fetch('/api/admin/documents/pending')
       .then(r => r.ok ? r.json() : null)
