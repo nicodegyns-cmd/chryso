@@ -30,7 +30,6 @@ export default function ManualHourEntry() {
   const [cardsError, setCardsError] = useState('')
   const [selectedCard, setSelectedCard] = useState(null)
   const [formData, setFormData] = useState(emptyForm())
-  const [modalTypeOverride, setModalTypeOverride] = useState(null) // null=auto, 'garde', 'simple'
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState('')
@@ -75,13 +74,13 @@ export default function ManualHourEntry() {
   }
 
   const handleCardClick = (card) => {
-    setSelectedCard(card); setSaveError(''); setSaveSuccess(''); setModalTypeOverride(null)
+    setSelectedCard(card); setSaveError(''); setSaveSuccess('')
     setFormData({ hours_actual: card.duration ? String(card.duration) : '', garde_hours: '', sortie_hours: '', overtime_hours: '', comments: '' })
   }
 
   const handleCloseModal = () => {
     if (saving) return
-    setSelectedCard(null); setFormData(emptyForm()); setSaveError(''); setModalTypeOverride(null)
+    setSelectedCard(null); setFormData(emptyForm()); setSaveError('')
   }
 
   const handleFormChange = (e) => { const { name, value } = e.target; setFormData(prev => ({ ...prev, [name]: value })) }
@@ -94,9 +93,10 @@ export default function ManualHourEntry() {
       const ptSubmit = (selectedCard?.pay_type || '').toLowerCase()
       // RMP analytics always use simple layout (heures réelles + sup), not the garde/sortie split
       const isRMPSubmit = (selectedCard?.analytic_name || '').toUpperCase().includes('RMP')
-      // Simple: only check pay_type, NOT ebrigade_activity_type (API can set that for Permanence too)
+      // Use activity-level hour_entry_type if set, otherwise auto-detect from pay_type
+      const activityEntryType = selectedCard?.activity_hour_entry_type
       const isGardeAutoSubmit = !isRMPSubmit && ptSubmit.includes('garde')
-      const isGardeSubmit = modalTypeOverride === 'garde' ? true : modalTypeOverride === 'simple' ? false : isGardeAutoSubmit
+      const isGardeSubmit = activityEntryType === 'garde' ? true : activityEntryType === 'simple' ? false : isGardeAutoSubmit
       console.log('[ManualHourEntry] 🔍 SUBMIT GUARD DETECTION:', { 
         pay_type: selectedCard?.pay_type,
         ptSubmit_lower: ptSubmit,
@@ -276,20 +276,14 @@ export default function ManualHourEntry() {
                 <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: '#1f2937' }}>📊 Heures de travail</div>
-                    <select value={modalTypeOverride || 'auto'} onChange={e => setModalTypeOverride(e.target.value === 'auto' ? null : e.target.value)}
-                      style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#374151', cursor: 'pointer' }}>
-                      <option value="auto">Auto</option>
-                      <option value="garde">Garde</option>
-                      <option value="simple">Simple</option>
-                    </select>
                   </div>
                   {(() => {
                     const pt = (selectedCard?.pay_type || '').toLowerCase()
                     // RMP analytics always use simple layout (heures réelles + sup), not the garde/sortie split
                     const isRMP = (selectedCard?.analytic_name || '').toUpperCase().includes('RMP')
-                    // Simple: only check pay_type, NOT ebrigade_activity_type (API can set that for Permanence too)
+                    const activityEntryType = selectedCard?.activity_hour_entry_type
                     const isGardeAuto = !isRMP && pt.includes('garde')
-                    const isGarde = modalTypeOverride === 'garde' ? true : modalTypeOverride === 'simple' ? false : isGardeAuto
+                    const isGarde = activityEntryType === 'garde' ? true : activityEntryType === 'simple' ? false : isGardeAuto
                     const ebrigadeDuration = selectedCard?.duration ? parseFloat(selectedCard.duration) : null
                     const sortieVal = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
                     console.log('[ManualHourEntry] 🔍 GARDE DETECTION:', { 

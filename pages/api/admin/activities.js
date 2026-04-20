@@ -82,7 +82,7 @@ export default async function handler(req, res){
 
     if (req.method === 'POST'){
       try {
-        const { analytic_id, analytic_name, analytic_code, pay_type, ebrigade_activity_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, ebrigade_analytics } = req.body || {}
+        const { analytic_id, analytic_name, analytic_code, pay_type, ebrigade_activity_type, hour_entry_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, ebrigade_analytics } = req.body || {}
         if (!analytic_id) return res.status(400).json({ error: 'analytic_id required' })
         
         // Use ebrigade_activity_type if provided, otherwise use pay_type
@@ -118,13 +118,14 @@ export default async function handler(req, res){
         try { await pool.query("ALTER TABLE activities ADD COLUMN IF NOT EXISTS remuneration_sortie_med NUMERIC(10,2) DEFAULT NULL") } catch(e) {}
         try { await pool.query("ALTER TABLE activities ADD COLUMN IF NOT EXISTS remuneration_overtime_infi NUMERIC(10,2) DEFAULT NULL") } catch(e) {}
         try { await pool.query("ALTER TABLE activities ADD COLUMN IF NOT EXISTS remuneration_overtime_med NUMERIC(10,2) DEFAULT NULL") } catch(e) {}
+        try { await pool.query("ALTER TABLE activities ADD COLUMN IF NOT EXISTS hour_entry_type VARCHAR(20) DEFAULT NULL") } catch(e) {}
 
         // Try to save with both fields if column exists
         let insertId
         try {
           const insertQ = await pool.query(
-            'INSERT INTO activities (analytic_id, analytic_name, analytic_code, pay_type, ebrigade_activity_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id',
-            [analytic_id, analytic_name||null, analytic_code||null, typeToSave||null, typeToSave||null, date||null,
+            'INSERT INTO activities (analytic_id, analytic_name, analytic_code, pay_type, ebrigade_activity_type, hour_entry_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id',
+            [analytic_id, analytic_name||null, analytic_code||null, typeToSave||null, typeToSave||null, hour_entry_type||null, date||null,
               (typeof remuneration_infi !== 'undefined' ? remuneration_infi : null),
               (typeof remuneration_med !== 'undefined' ? remuneration_med : null),
               (typeof remuneration_sortie_infi !== 'undefined' ? remuneration_sortie_infi : null),

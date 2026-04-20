@@ -10,7 +10,8 @@ export default async function handler(req, res){
       await pool.query(`ALTER TABLE activities ADD COLUMN IF NOT EXISTS remuneration_sortie_med NUMERIC DEFAULT 0`).catch(()=>{})
       await pool.query(`ALTER TABLE activities ADD COLUMN IF NOT EXISTS remuneration_overtime_infi NUMERIC DEFAULT 0`).catch(()=>{})
       await pool.query(`ALTER TABLE activities ADD COLUMN IF NOT EXISTS remuneration_overtime_med NUMERIC DEFAULT 0`).catch(()=>{})
-      const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, created_at FROM activities WHERE id = $1', [id])
+      await pool.query(`ALTER TABLE activities ADD COLUMN IF NOT EXISTS hour_entry_type VARCHAR(20) DEFAULT NULL`).catch(()=>{})
+      const [[row]] = await pool.query('SELECT id, analytic_id, analytic_name, analytic_code, pay_type, hour_entry_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, created_at FROM activities WHERE id = $1', [id])
       if (!row) return res.status(404).json({ error: 'not found' })
       
       // Get eBrigade name mappings
@@ -26,7 +27,7 @@ export default async function handler(req, res){
     }
 
     if (req.method === 'PUT' || req.method === 'PATCH'){
-      const { analytic_id, analytic_name, analytic_code, pay_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, ebrigade_analytics } = req.body || {}
+      const { analytic_id, analytic_name, analytic_code, pay_type, hour_entry_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, ebrigade_analytics } = req.body || {}
       const updates = []
       const params = []
       let paramIndex = 1
@@ -34,6 +35,7 @@ export default async function handler(req, res){
       if (typeof analytic_name !== 'undefined') { updates.push(`analytic_name = $${paramIndex++}`); params.push(analytic_name) }
       if (typeof analytic_code !== 'undefined') { updates.push(`analytic_code = $${paramIndex++}`); params.push(analytic_code) }
       if (typeof pay_type !== 'undefined') { updates.push(`pay_type = $${paramIndex++}`); params.push(pay_type) }
+      if (typeof hour_entry_type !== 'undefined') { updates.push(`hour_entry_type = $${paramIndex++}`); params.push(hour_entry_type) }
       if (typeof date !== 'undefined') { updates.push(`date = $${paramIndex++}`); params.push(date) }
       if (typeof remuneration_infi !== 'undefined') { updates.push(`remuneration_infi = $${paramIndex++}`); params.push(remuneration_infi) }
       if (typeof remuneration_med !== 'undefined') { updates.push(`remuneration_med = $${paramIndex++}`); params.push(remuneration_med) }

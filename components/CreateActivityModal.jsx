@@ -8,6 +8,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
   const [ebrigadePatternInput, setEbrigadePatternInput] = useState('') // Input for adding new patterns
   const [payType, setPayType] = useState('Permanence')
   const [ebrigadeType, setEbrigadeType] = useState('Permanence')  // Activity type selector
+  const [hourEntryType, setHourEntryType] = useState('') // '' = auto, 'garde', 'simple'
   const [date, setDate] = useState('')
   const [remuInfi, setRemuInfi] = useState('')
   const [remuMed, setRemuMed] = useState('')
@@ -27,6 +28,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       setAnalyticId(initial.analytic_id ? String(initial.analytic_id) : (initial.analytic_id === 0 ? '0' : ''))
       setPayType(initial.pay_type || 'Permanence')
       setEbrigadeType(initial.ebrigade_activity_type || initial.pay_type || 'Permanence')
+      setHourEntryType(initial.hour_entry_type || '')
       setDate(initial.date || '')
       setRemuInfi(typeof initial.remuneration_infi !== 'undefined' && initial.remuneration_infi !== null ? String(initial.remuneration_infi) : '')
       setRemuMed(typeof initial.remuneration_med !== 'undefined' && initial.remuneration_med !== null ? String(initial.remuneration_med) : '')
@@ -41,6 +43,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
       setAnalyticId('')
       setPayType('Permanence')
       setEbrigadeType('Permanence')
+      setHourEntryType('')
       setDate('')
       setRemuInfi('')
       setRemuMed('')
@@ -98,6 +101,7 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
         analytic_code: selected ? selected.code : '',
         pay_type: payType,
         ebrigade_activity_type: ebrigadeType,
+        hour_entry_type: hourEntryType || null,
         date: date || null,
         remuneration_infi: infi,
         remuneration_med: med,
@@ -222,6 +226,19 @@ export default function CreateActivityModal({ open, onClose, onCreate, initial, 
                   {EBRIGADE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <small style={{display:'block',marginTop:6,color:'#6b7280'}}>Détermine le type de prestation et les champs de saisie</small>
+              </label>
+              <label style={{display:'block',marginTop:12}}>
+                <strong style={{display:'block',marginBottom:4,color:'#1f2937',fontSize:14}}>⌨️ Type de saisie des heures</strong>
+                <select
+                  value={hourEntryType}
+                  onChange={e => setHourEntryType(e.target.value)}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}
+                >
+                  <option value="">Auto (basé sur le Type d'Activité)</option>
+                  <option value="garde">Garde (Heures totales eBrigade + Heures sortie)</option>
+                  <option value="simple">Simple (Heures réelles + Heures supplémentaires)</option>
+                </select>
+                <small style={{display:'block',marginTop:6,color:'#6b7280'}}>Détermine le formulaire affiché lors de la saisie des heures</small>
               </label>
             </div>
 
