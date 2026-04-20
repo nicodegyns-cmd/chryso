@@ -4,6 +4,8 @@ import { useRouter } from 'next/router'
 
 export default function AdminSidebar({ onNavigate, open: openProp, onClose }) {
   const [openInternal, setOpenInternal] = useState(false)
+  const [pendingUsers, setPendingUsers] = useState(null)
+  const [pendingRibs, setPendingRibs] = useState(null)
   const router = useRouter()
   const path = router && (router.pathname || router.asPath || '')
   const isActive = (href) => {
@@ -30,6 +32,18 @@ export default function AdminSidebar({ onNavigate, open: openProp, onClose }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path])
 
+  // Fetch pending counts
+  useEffect(() => {
+    fetch('/api/admin/users/pending-validation')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setPendingUsers((d.items || []).length) })
+      .catch(() => {})
+    fetch('/api/admin/documents/pending')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setPendingRibs((d.documents || []).length) })
+      .catch(() => {})
+  }, [])
+
   return (
     <>
       {open && <div className="sidebar-overlay" onClick={() => close?.()} />}
@@ -48,7 +62,12 @@ export default function AdminSidebar({ onNavigate, open: openProp, onClose }) {
           </li>
           <li>
             <Link href="/admin/validation" className={`sidebar-btn ${isActive('/admin/validation') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('validation')}>
-              Validation utilisateurs
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <span>Validation utilisateurs</span>
+                {pendingUsers > 0 && (
+                  <span style={{ background: '#dc2626', color: '#fff', borderRadius: 999, fontSize: 11, fontWeight: 700, padding: '1px 7px', minWidth: 20, textAlign: 'center', lineHeight: '18px' }}>{pendingUsers}</span>
+                )}
+              </span>
             </Link>
           </li>
           <li>
@@ -83,7 +102,12 @@ export default function AdminSidebar({ onNavigate, open: openProp, onClose }) {
           </li>
           <li>
             <Link href="/admin/rib-validation" className={`sidebar-btn ${isActive('/admin/rib-validation') ? 'active' : ''}`} onClick={() => onNavigate && onNavigate('rib-validation')}>
-              Validation des RIB
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <span>Validation des RIB</span>
+                {pendingRibs > 0 && (
+                  <span style={{ background: '#dc2626', color: '#fff', borderRadius: 999, fontSize: 11, fontWeight: 700, padding: '1px 7px', minWidth: 20, textAlign: 'center', lineHeight: '18px' }}>{pendingRibs}</span>
+                )}
+              </span>
             </Link>
           </li>
           <li>
