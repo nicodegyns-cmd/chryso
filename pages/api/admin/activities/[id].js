@@ -28,6 +28,8 @@ export default async function handler(req, res){
 
     if (req.method === 'PUT' || req.method === 'PATCH'){
       const { analytic_id, analytic_name, analytic_code, pay_type, hour_entry_type, date, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, ebrigade_analytics } = req.body || {}
+      // Ensure column exists before updating
+      await pool.query(`ALTER TABLE activities ADD COLUMN IF NOT EXISTS hour_entry_type VARCHAR(20) DEFAULT NULL`).catch(()=>{})
       const updates = []
       const params = []
       let paramIndex = 1

@@ -44,18 +44,19 @@ export default async function handler(req, res){
           
           // Try to get ebrigade_activity_type for each activity
           try {
-            const q3sql = 'SELECT id, ebrigade_activity_type FROM activities'
+            const q3sql = 'SELECT id, ebrigade_activity_type, hour_entry_type FROM activities'
             console.log('[SQL DEBUG] admin/activities types', q3sql, [])
             const q3 = await pool.query(q3sql)
             const activitiesWithTypes = (q3 && q3.rows) ? q3.rows : Array.isArray(q3) ? q3[0] : []
             const typesMap = {}
             if (Array.isArray(activitiesWithTypes)) {
-              activitiesWithTypes.forEach(a => typesMap[a.id] = a.ebrigade_activity_type)
+              activitiesWithTypes.forEach(a => { typesMap[a.id] = { ebrigade_activity_type: a.ebrigade_activity_type, hour_entry_type: a.hour_entry_type } })
             }
             
             result = rows.map(row => ({
               ...row,
-              ebrigade_activity_type: typesMap[row.id] || null,
+              ebrigade_activity_type: typesMap[row.id]?.ebrigade_activity_type || null,
+              hour_entry_type: typesMap[row.id]?.hour_entry_type || null,
               ebrigade_analytics: ebrigadeMappings[row.id] || [],
               analytic_name: analyticsMap[row.analytic_id]?.name || null,
               analytic_code: analyticsMap[row.analytic_id]?.code || null
@@ -66,6 +67,7 @@ export default async function handler(req, res){
             result = rows.map(row => ({
               ...row,
               ebrigade_activity_type: null,
+              hour_entry_type: null,
               ebrigade_analytics: ebrigadeMappings[row.id] || [],
               analytic_name: analyticsMap[row.analytic_id]?.name || null,
               analytic_code: analyticsMap[row.analytic_id]?.code || null
