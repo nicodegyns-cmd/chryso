@@ -161,7 +161,8 @@ export default function PrestationChartsAnalytic() {
   }
   const isWeekend = (p) => {
     if (!p.date) return false
-    const d = new Date(p.date + 'T12:00:00')
+    const dateStr = String(p.date).split('T')[0]
+    const d = new Date(dateStr + 'T12:00:00')
     return d.getDay() === 0 || d.getDay() === 6
   }
 
