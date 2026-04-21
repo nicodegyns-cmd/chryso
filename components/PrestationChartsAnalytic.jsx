@@ -160,6 +160,9 @@ export default function PrestationChartsAnalytic() {
     return false
   }
   const isWeekend = (p) => {
+    const name = (p.ebrigade_activity_name || '').toLowerCase()
+    const type = (p.pay_type || '').toLowerCase()
+    if (name.includes('week-end') || name.includes('weekend') || type.includes('week-end') || type.includes('weekend')) return true
     if (!p.date) return false
     const dateStr = String(p.date).split('T')[0]
     const d = new Date(dateStr + 'T12:00:00')
