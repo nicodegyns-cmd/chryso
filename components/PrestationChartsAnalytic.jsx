@@ -380,96 +380,95 @@ export default function PrestationChartsAnalytic() {
       )}
       {/* ── VUE NUIT & WEEK-END ───────────────────────────────────────── */}
       {!loading && nightWeekendGrouped && viewMode === 'nightWeekend' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-          {/* Summary KPI cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-            {[
-              { label: 'Total prestations', value: nightWeekendGrouped.total.count, bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8', icon: '📋' },
-              { label: 'Nuit uniquement', value: nightWeekendGrouped.total.night, bg: '#f5f3ff', border: '#c4b5fd', color: '#6d28d9', icon: '🌙' },
-              { label: 'Week-end uniquement', value: nightWeekendGrouped.total.weekend, bg: '#fff7ed', border: '#fdba74', color: '#c2410c', icon: '📅' },
-              { label: 'Nuit + Week-end', value: nightWeekendGrouped.total.both, bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c', icon: '🌙📅' },
-              { label: 'Prestations normales', value: nightWeekendGrouped.total.normal, bg: '#f0fdf4', border: '#86efac', color: '#15803d', icon: '☀️' },
-            ].map(({ label, value, bg, border, color, icon }) => (
-              <div key={label} style={{ padding: '16px 20px', background: bg, border: `1px solid ${border}`, borderRadius: 12 }}>
-                <div style={{ fontSize: 22, marginBottom: 4 }}>{icon}</div>
-                <div style={{ fontSize: 28, fontWeight: 800, color }}>{value}</div>
-                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{label}</div>
-                {nightWeekendGrouped.total.count > 0 && (
-                  <div style={{ fontSize: 11, color, fontWeight: 600, marginTop: 4 }}>
-                    {Math.round(value / nightWeekendGrouped.total.count * 100)}%
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Per-user ranking */}
-          {nightWeekendGrouped.byUser.length === 0
-            ? <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Aucune prestation trouvée.</div>
-            : <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>Classement par personnel (gardes hors-norme)</div>
-                  {/* Legend */}
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    {[['#8b5cf6', '🌙 Nuit'], ['#f97316', '📅 WE'], ['#ef4444', '🌙📅 Nuit+WE']].map(([color, lbl]) => (
-                      <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <div style={{ width: 10, height: 10, borderRadius: 2, background: color }} />
-                        <span style={{ fontSize: 11, color: '#6b7280' }}>{lbl}</span>
+        nightWeekendGrouped.byUser.length === 0
+          ? <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Aucune prestation trouvée.</div>
+          : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(480px, 1fr))', gap: 16 }}>
+              {/* Card Nuit */}
+              {(() => {
+                const nightUsers = nightWeekendGrouped.byUser.filter(u => u.night + u.both > 0).sort((a, b) => (b.night + b.both) - (a.night + a.both))
+                const maxVal = Math.max(...nightUsers.map(u => u.night + u.both), 1)
+                return (
+                  <div style={{ padding: 20, background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>Gardes de nuit</div>
+                        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                          {nightUsers.length} prestataire(s) · total : <strong>{nightWeekendGrouped.total.night + nightWeekendGrouped.total.both}</strong>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-                {nightWeekendGrouped.byUser.map((u, rank) => {
-                  const special = u.night + u.weekend + u.both
-                  const maxSpecial = Math.max(...nightWeekendGrouped.byUser.map(x => x.night + x.weekend + x.both), 1)
-                  const pctNight = u.count > 0 ? Math.round(u.night / u.count * 100) : 0
-                  const pctWeekend = u.count > 0 ? Math.round(u.weekend / u.count * 100) : 0
-                  const pctBoth = u.count > 0 ? Math.round(u.both / u.count * 100) : 0
-                  const barWidth = Math.round(special / maxSpecial * 100)
-                  return (
-                    <div key={u.name} style={{ padding: '12px 16px', background: '#fff', borderRadius: 10, border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 14 }}>
-                      {/* Rank */}
-                      <div style={{ fontSize: 16, fontWeight: 800, color: rank === 0 ? '#f59e0b' : rank === 1 ? '#9ca3af' : rank === 2 ? '#92400e' : '#d1d5db', minWidth: 26, textAlign: 'center' }}>
-                        {rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : rank + 1}
-                      </div>
-                      {/* Role badge */}
-                      <span style={{
-                        display: 'inline-block', padding: '2px 7px', borderRadius: 4, fontSize: 10, fontWeight: 700, flexShrink: 0,
-                        background: u.role === 'INFI' ? '#dbeafe' : u.role === 'MED' ? '#fed7aa' : '#f3f4f6',
-                        color: u.role === 'INFI' ? '#1d4ed8' : u.role === 'MED' ? '#92400e' : '#374151',
-                      }}>{u.role || '?'}</span>
-                      {/* Name + bar */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#1f2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
-                          <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginLeft: 8 }}>
-                            <span style={{ fontSize: 12, color: '#6b7280' }}>Total: <strong>{u.count}</strong></span>
-                            {special > 0 && <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 700 }}>⚡ {special} hors-norme</span>}
-                          </div>
-                        </div>
-                        {/* Stacked bar */}
-                        <div style={{ height: 14, borderRadius: 7, overflow: 'hidden', display: 'flex', background: '#f3f4f6' }}>
-                          <div style={{ width: barWidth + '%', display: 'flex', overflow: 'hidden' }}>
-                            {u.night > 0 && <div style={{ flex: u.night, background: '#8b5cf6' }} title={`Nuit: ${u.night}`} />}
-                            {u.weekend > 0 && <div style={{ flex: u.weekend, background: '#f97316' }} title={`WE: ${u.weekend}`} />}
-                            {u.both > 0 && <div style={{ flex: u.both, background: '#ef4444' }} title={`Nuit+WE: ${u.both}`} />}
-                          </div>
-                        </div>
-                        {/* Detail tags */}
-                        <div style={{ display: 'flex', gap: 10, marginTop: 5, flexWrap: 'wrap' }}>
-                          {u.night > 0 && <span style={{ fontSize: 11, color: '#8b5cf6', fontWeight: 600 }}>🌙 {u.night} nuit ({pctNight}%)</span>}
-                          {u.weekend > 0 && <span style={{ fontSize: 11, color: '#f97316', fontWeight: 600 }}>📅 {u.weekend} WE ({pctWeekend}%)</span>}
-                          {u.both > 0 && <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 600 }}>🌙📅 {u.both} Nuit+WE ({pctBoth}%)</span>}
-                          {special === 0 && <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>✅ Aucune garde hors-norme</span>}
-                        </div>
+                      <div style={{ padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: '#f5f3ff', color: '#6d28d9' }}>
+                        {nightWeekendGrouped.total.night + nightWeekendGrouped.total.both} nuits
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-          }
-        </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {nightUsers.map((u, i) => {
+                        const val = u.night + u.both
+                        const pct = Math.round((val / maxVal) * 100)
+                        return (
+                          <div key={i}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                              <span style={{
+                                display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 700, flexShrink: 0,
+                                background: u.role === 'INFI' ? '#dbeafe' : u.role === 'MED' ? '#fed7aa' : '#f3f4f6',
+                                color: u.role === 'INFI' ? '#1d4ed8' : u.role === 'MED' ? '#92400e' : '#374151',
+                              }}>{u.role || '?'}</span>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: '#8b5cf6', flexShrink: 0 }}>{val}</span>
+                            </div>
+                            <div style={{ height: 10, background: '#f3f4f6', borderRadius: 5, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: pct + '%', background: '#8b5cf6', borderRadius: 5, transition: 'width 0.4s ease' }} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Card Week-end */}
+              {(() => {
+                const weUsers = nightWeekendGrouped.byUser.filter(u => u.weekend + u.both > 0).sort((a, b) => (b.weekend + b.both) - (a.weekend + a.both))
+                const maxVal = Math.max(...weUsers.map(u => u.weekend + u.both), 1)
+                return (
+                  <div style={{ padding: 20, background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>Gardes de week-end</div>
+                        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                          {weUsers.length} prestataire(s) · total : <strong>{nightWeekendGrouped.total.weekend + nightWeekendGrouped.total.both}</strong>
+                        </div>
+                      </div>
+                      <div style={{ padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: '#fff7ed', color: '#c2410c' }}>
+                        {nightWeekendGrouped.total.weekend + nightWeekendGrouped.total.both} WE
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {weUsers.map((u, i) => {
+                        const val = u.weekend + u.both
+                        const pct = Math.round((val / maxVal) * 100)
+                        return (
+                          <div key={i}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                              <span style={{
+                                display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 700, flexShrink: 0,
+                                background: u.role === 'INFI' ? '#dbeafe' : u.role === 'MED' ? '#fed7aa' : '#f3f4f6',
+                                color: u.role === 'INFI' ? '#1d4ed8' : u.role === 'MED' ? '#92400e' : '#374151',
+                              }}>{u.role || '?'}</span>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: '#f97316', flexShrink: 0 }}>{val}</span>
+                            </div>
+                            <div style={{ height: 10, background: '#f3f4f6', borderRadius: 5, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: pct + '%', background: '#f97316', borderRadius: 5, transition: 'width 0.4s ease' }} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
       )}
     </div>
   )
