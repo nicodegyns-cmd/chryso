@@ -50,8 +50,8 @@ async function createUser({ email, password, role = 'user' }) {
 async function verifyUser(email, password) {
   const pool = getPool()
   const normalized = (email || '').toLowerCase()
-  console.log('[DB DEBUG] verifyUser SQL', 'SELECT id, email, password_hash, role, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status FROM users WHERE email = $1', [normalized])
-  const q = await pool.query('SELECT id, email, password_hash, role, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status FROM users WHERE email = $1', [normalized])
+  console.log('[DB DEBUG] verifyUser SQL', 'SELECT id, email, password_hash, role, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status, can_view_statistics FROM users WHERE email = $1', [normalized])
+  const q = await pool.query('SELECT id, email, password_hash, role, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status, can_view_statistics FROM users WHERE email = $1', [normalized])
   console.log('[DB DEBUG] query result type:', typeof q, 'isArray:', Array.isArray(q), 'has rows prop:', !!q.rows)
   const rows = Array.isArray(q) && q.length > 0 ? q[0] : (q && q.rows ? q.rows : [])
   console.log('[DB DEBUG] rows type:', typeof rows, 'isArray:', Array.isArray(rows), 'length:', rows ? rows.length : 'N/A')
@@ -75,7 +75,8 @@ async function verifyUser(email, password) {
     accepted_cgu: user.accepted_cgu,
     accepted_privacy: user.accepted_privacy,
     is_active: user.is_active,
-    onboarding_status: user.onboarding_status
+    onboarding_status: user.onboarding_status,
+    can_view_statistics: user.can_view_statistics
   }
 }
 

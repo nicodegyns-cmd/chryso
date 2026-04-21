@@ -17,6 +17,7 @@ export default function UserSidebar({ open, onClose }) {
   }, [])
 
   const isCompta = role === 'comptabilite'
+  const canViewStatistics = typeof window !== 'undefined' ? localStorage.getItem('can_view_statistics') === '1' : false
 
   return (
     <>
@@ -37,6 +38,9 @@ export default function UserSidebar({ open, onClose }) {
                 <li><Link href="/invoices" className={`sidebar-btn ${path.startsWith('/invoices') ? 'active' : ''}`}>Mes factures</Link></li>
                 <li><Link href="/documents" className={`sidebar-btn ${path.startsWith('/documents') ? 'active' : ''}`}>Mes documents</Link></li>
               </>
+            )}
+            {canViewStatistics && (
+              <li><Link href="/admin/statistics" className={`sidebar-btn ${path.startsWith('/admin/statistics') ? 'active' : ''}`}>Statistiques</Link></li>
             )}
           </ul>
         </nav>

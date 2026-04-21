@@ -25,6 +25,8 @@ export default function LoginForm() {
       if (data.id) localStorage.setItem('userId', data.id)
       // store email for profile lookup
       localStorage.setItem('email', email)
+      // store statistics access flag
+      localStorage.setItem('can_view_statistics', data.can_view_statistics ? '1' : '0')
       // store role(s) for client-side guard
       // support `data.roles` (array) or `data.role` (single)
       const rawRoles = Array.isArray(data.roles) && data.roles.length > 0 ? data.roles : (data.role ? [data.role] : ['user'])

@@ -53,6 +53,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   const [fonction, setFonction] = useState('')
 
   const [moderatorAnalyticIds, setModeratorAnalyticIds] = useState([])
+  const [canViewStatistics, setCanViewStatistics] = useState(false)
   const [analyticsList, setAnalyticsList] = useState([])
 
   const [loading, setLoading] = useState(false)
@@ -188,6 +189,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       } else {
         setModeratorAnalyticIds([])
       }
+      setCanViewStatistics(!!initial.can_view_statistics)
     } else {
       // reset when creating new
       setEmail('')
@@ -207,6 +209,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       setLiaisonId('none')
       setFonction('')
       setModeratorAnalyticIds([])
+      setCanViewStatistics(false)
     }
   }, [initial])
 
@@ -233,6 +236,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       fonction,
       liaisonId: liaisonId === 'none' ? null : liaisonId,
       moderatorAnalyticIds: isModerator && moderatorAnalyticIds.length > 0 ? moderatorAnalyticIds.join(',') : null,
+      canViewStatistics,
     }
 
     // `onCreate` should return a Promise from the parent
@@ -659,6 +663,23 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
                 )}
               </div>
             )}
+
+            {/* Section: Accès statistiques */}
+            <div style={{borderLeft:'3px solid #8b5cf6',paddingLeft:16}}>
+              <strong style={{display:'block',marginBottom:8,color:'#1f2937',fontSize:14}}>📈 Accès statistiques</strong>
+              <label style={{display:'inline-flex',alignItems:'center',gap:10,cursor:'pointer',padding:'8px 12px',borderRadius:6,background: canViewStatistics ? '#f5f3ff' : 'transparent',border: canViewStatistics ? '1px solid #c4b5fd' : '1px solid #e5e7eb',transition:'all 0.15s'}}>
+                <input
+                  type="checkbox"
+                  checked={canViewStatistics}
+                  onChange={(e) => setCanViewStatistics(e.target.checked)}
+                  style={{width:18,height:18,cursor:'pointer'}}
+                />
+                <span style={{fontSize:13,color:'#374151'}}>
+                  Autoriser l'accès à la page des statistiques
+                  <span style={{display:'block',fontSize:11,color:'#6b7280',fontWeight:400}}>Permet à cet utilisateur de consulter les statistiques et graphiques</span>
+                </span>
+              </label>
+            </div>
 
             {error && (
               <div style={{padding:12,background:'#fee2e2',border:'1px solid #fecaca',color:'#991b1b',borderRadius:6,fontSize:13}}>

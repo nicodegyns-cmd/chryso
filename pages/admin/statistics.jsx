@@ -1,11 +1,27 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
 import AdminHeader from '../../components/AdminHeader'
 import AdminSidebar from '../../components/AdminSidebar'
+import UserSidebar from '../../components/UserSidebar'
 import InvoiceStatistics from '../../components/InvoiceStatistics'
 import PrestationChartsAnalytic from '../../components/PrestationChartsAnalytic'
 
 export default function AdminStatisticsPage() {
   const [activeTab, setActiveTab] = useState('invoices')
+  const [userRole, setUserRole] = useState(null)
+  const [canViewStats, setCanViewStats] = useState(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null
+    const flag = typeof window !== 'undefined' ? localStorage.getItem('can_view_statistics') : null
+    setUserRole(role)
+    setCanViewStats(flag === '1')
+    const isAdmin = role === 'admin' || role === 'moderateur' || role === 'moderator'
+    if (!isAdmin && flag !== '1') {
+      router.replace('/dashboard')
+    }
+  }, [])
 
   const tabStyle = (tab) => ({
     padding: '10px 20px',
@@ -21,10 +37,12 @@ export default function AdminStatisticsPage() {
     position: 'relative'
   })
 
+  const isAdmin = userRole === 'admin' || userRole === 'moderateur' || userRole === 'moderator'
+
   return (
     <div className="admin-page-root">
       <AdminHeader />
-      <AdminSidebar />
+      {isAdmin ? <AdminSidebar /> : <UserSidebar />}
       <main className="admin-content">
         <div className="admin-header">
           <h1>Statistiques</h1>

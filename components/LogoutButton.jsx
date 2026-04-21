@@ -9,6 +9,7 @@ export default function LogoutButton({ label = 'Déconnexion', small = false }){
         localStorage.removeItem('token')
         localStorage.removeItem('role')
         localStorage.removeItem('email')
+        localStorage.removeItem('can_view_statistics')
       }
     }catch(e){}
     // redirect to login

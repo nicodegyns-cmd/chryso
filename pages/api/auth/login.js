@@ -101,6 +101,7 @@ export default async function handler(req, res) {
       must_complete_profile: !!user.must_complete_profile,
       accepted_cgu: !!user.accepted_cgu,
       accepted_privacy: !!user.accepted_privacy,
+      can_view_statistics: !!user.can_view_statistics,
       message: 'Login successful'
     })
   } catch (err) {
