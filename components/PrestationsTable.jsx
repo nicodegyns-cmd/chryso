@@ -34,7 +34,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     setConfirmPreview(null)
   }
 
-  // Initialize date filters to show previous month, current month, and next month
+  // Initialize date filters to show previous month and current month
   useEffect(() => {
     const today = new Date()
     
@@ -42,9 +42,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
     const dateFromValue = prevMonth.toISOString().split('T')[0]
     
-    // Get last day of next month
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0)
-    const dateToValue = nextMonth.toISOString().split('T')[0]
+    // Get last day of current month (for users) or next month (for admin/moderator)
+    const currentRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null
+    const isPrivileged = currentRole === 'admin' || currentRole === 'moderateur'
+    const endMonth = isPrivileged
+      ? new Date(today.getFullYear(), today.getMonth() + 2, 0)
+      : new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    const dateToValue = endMonth.toISOString().split('T')[0]
     
     setDateFrom(dateFromValue)
     setDateTo(dateToValue)
@@ -803,10 +807,26 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     <div>
       <div style={{display:'flex',gap:12,alignItems:'center',marginBottom:12}}>
         <label style={{display:'flex',alignItems:'center',gap:6}}>Du
-          <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} />
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={e=>setDateFrom(e.target.value)}
+            {...(role !== 'admin' && role !== 'moderateur' ? {
+              min: (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split('T')[0] })(),
+              max: (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0] })()
+            } : {})}
+          />
         </label>
         <label style={{display:'flex',alignItems:'center',gap:6}}>Au
-          <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={e=>setDateTo(e.target.value)}
+            {...(role !== 'admin' && role !== 'moderateur' ? {
+              min: (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split('T')[0] })(),
+              max: (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0] })()
+            } : {})}
+          />
         </label>
         <label style={{display:'flex',alignItems:'center',gap:6}}>Statut
           <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{padding:6,borderRadius:6,border:'1px solid #d1d5db'}}>
