@@ -10,7 +10,7 @@ export default function PrestationChartsAnalytic() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [metric, setMetric] = useState('count') // 'count' | 'hours' | 'amount'
-  const [viewMode, setViewMode] = useState('byAnalytic') // 'byAnalytic' | 'byUser'
+  const [viewMode, setViewMode] = useState('byAnalytic') // 'byAnalytic' | 'byUser' | 'nightWeekend'
   const [filters, setFilters] = useState({
     startMonth: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'),
     endMonth: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'),
@@ -148,6 +148,49 @@ export default function PrestationChartsAnalytic() {
     return Object.values(users).sort((a, b) => b.total[metric] - a.total[metric])
   }, [rawData, metric])
 
+  // ── Night & Weekend detection ──────────────────────────────────────
+  const isNight = (p) => {
+    const name = (p.ebrigade_activity_name || p.analytic_name || '').toLowerCase()
+    const type = (p.pay_type || '').toLowerCase()
+    if (name.includes('nuit') || type.includes('nuit')) return true
+    if (p.ebrigade_start_time) {
+      const h = parseInt((p.ebrigade_start_time || '').split(':')[0] || '-1', 10)
+      if (!isNaN(h) && (h >= 22 || h < 6)) return true
+    }
+    return false
+  }
+  const isWeekend = (p) => {
+    if (!p.date) return false
+    const d = new Date(p.date + 'T12:00:00')
+    return d.getDay() === 0 || d.getDay() === 6
+  }
+
+  // ── Night & Weekend grouped stats ───────────────────────────────────
+  const nightWeekendGrouped = useMemo(() => {
+    if (!rawData) return null
+    const byAnalytic = {}
+    let totCount = 0, totNight = 0, totWeekend = 0, totBoth = 0
+
+    rawData.forEach(p => {
+      const aname = p.analytic_name || 'Sans analytique'
+      const night = isNight(p)
+      const weekend = isWeekend(p)
+      if (!byAnalytic[aname]) byAnalytic[aname] = { count: 0, night: 0, weekend: 0, both: 0, normal: 0 }
+      byAnalytic[aname].count++
+      totCount++
+      if (night && weekend) { byAnalytic[aname].both++; totBoth++ }
+      else if (night) { byAnalytic[aname].night++; totNight++ }
+      else if (weekend) { byAnalytic[aname].weekend++; totWeekend++ }
+      else { byAnalytic[aname].normal++ }
+    })
+
+    const sorted = Object.entries(byAnalytic)
+      .sort((a, b) => (b[1].night + b[1].weekend + b[1].both) - (a[1].night + a[1].weekend + a[1].both))
+      .map(([name, v]) => ({ name, ...v }))
+
+    return { total: { count: totCount, night: totNight, weekend: totWeekend, both: totBoth, normal: totCount - totNight - totWeekend - totBoth }, byAnalytic: sorted }
+  }, [rawData])
+
   const fmt = (n) => (typeof n === 'number' ? n : 0).toFixed(2) + ' €'
   const fmtH = (n) => (typeof n === 'number' ? n : 0).toFixed(1) + ' h'
   const fmtVal = (v) => metric === 'count' ? v : metric === 'hours' ? fmtH(v) : fmt(v)
@@ -200,12 +243,12 @@ export default function PrestationChartsAnalytic() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280' }}>Vue</span>
             <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d1d5db' }}>
-              {[['byAnalytic', 'Par analytique'], ['byUser', 'Par personnel']].map(([val, lbl]) => (
+              {[['byAnalytic', 'Par analytique'], ['byUser', 'Par personnel'], ['nightWeekend', '🌙 Nuit & WE']].map(([val, lbl], i, arr) => (
                 <button key={val} onClick={() => setViewMode(val)} style={{
                   padding: '7px 12px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
                   background: viewMode === val ? '#10b981' : '#fff',
                   color: viewMode === val ? '#fff' : '#374151',
-                  borderRight: val === 'byAnalytic' ? '1px solid #d1d5db' : 'none'
+                  borderRight: i < arr.length - 1 ? '1px solid #d1d5db' : 'none'
                 }}>{lbl}</button>
               ))}
             </div>
@@ -333,6 +376,81 @@ export default function PrestationChartsAnalytic() {
                 )
               })}
             </div>
+      )}
+      {/* ── VUE NUIT & WEEK-END ───────────────────────────────────────── */}
+      {!loading && nightWeekendGrouped && viewMode === 'nightWeekend' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* Summary KPI cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+            {[
+              { label: 'Total prestations', value: nightWeekendGrouped.total.count, bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8', icon: '📋' },
+              { label: 'Nuit uniquement', value: nightWeekendGrouped.total.night, bg: '#f5f3ff', border: '#c4b5fd', color: '#6d28d9', icon: '🌙' },
+              { label: 'Week-end uniquement', value: nightWeekendGrouped.total.weekend, bg: '#fff7ed', border: '#fdba74', color: '#c2410c', icon: '📅' },
+              { label: 'Nuit + Week-end', value: nightWeekendGrouped.total.both, bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c', icon: '🌙📅' },
+              { label: 'Prestations normales', value: nightWeekendGrouped.total.normal, bg: '#f0fdf4', border: '#86efac', color: '#15803d', icon: '☀️' },
+            ].map(({ label, value, bg, border, color, icon }) => (
+              <div key={label} style={{ padding: '16px 20px', background: bg, border: `1px solid ${border}`, borderRadius: 12 }}>
+                <div style={{ fontSize: 22, marginBottom: 4 }}>{icon}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color }}>{value}</div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{label}</div>
+                {nightWeekendGrouped.total.count > 0 && (
+                  <div style={{ fontSize: 11, color, fontWeight: 600, marginTop: 4 }}>
+                    {Math.round(value / nightWeekendGrouped.total.count * 100)}%
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Per-analytic stacked bars */}
+          {nightWeekendGrouped.byAnalytic.length === 0
+            ? <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Aucune prestation trouvée.</div>
+            : <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 4 }}>Répartition par analytique</div>
+                {/* Legend */}
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {[['#6366f1', 'Normale'], ['#8b5cf6', 'Nuit'], ['#f97316', 'Week-end'], ['#ef4444', 'Nuit + WE']].map(([color, lbl]) => (
+                    <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 12, height: 12, borderRadius: 3, background: color }} />
+                      <span style={{ fontSize: 12, color: '#6b7280' }}>{lbl}</span>
+                    </div>
+                  ))}
+                </div>
+                {nightWeekendGrouped.byAnalytic.map((a) => {
+                  const special = a.night + a.weekend + a.both
+                  const pctNormal = a.count > 0 ? Math.round(a.normal / a.count * 100) : 0
+                  const pctNight = a.count > 0 ? Math.round(a.night / a.count * 100) : 0
+                  const pctWeekend = a.count > 0 ? Math.round(a.weekend / a.count * 100) : 0
+                  const pctBoth = a.count > 0 ? Math.round(a.both / a.count * 100) : 0
+                  return (
+                    <div key={a.name} style={{ padding: '14px 18px', background: '#fff', borderRadius: 10, border: '1px solid #e5e7eb' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>{a.name}</div>
+                        <div style={{ display: 'flex', gap: 10, fontSize: 12, color: '#6b7280' }}>
+                          <span>Total: <strong style={{ color: '#1d4ed8' }}>{a.count}</strong></span>
+                          {special > 0 && <span style={{ color: '#dc2626', fontWeight: 700 }}>⚡ {special} hors-norm.</span>}
+                        </div>
+                      </div>
+                      {/* Stacked bar */}
+                      <div style={{ height: 18, borderRadius: 9, overflow: 'hidden', display: 'flex', background: '#f3f4f6' }}>
+                        {pctNormal > 0 && <div style={{ width: pctNormal + '%', background: '#6366f1', transition: 'width 0.4s' }} title={`Normal: ${a.normal}`} />}
+                        {pctNight > 0 && <div style={{ width: pctNight + '%', background: '#8b5cf6', transition: 'width 0.4s' }} title={`Nuit: ${a.night}`} />}
+                        {pctWeekend > 0 && <div style={{ width: pctWeekend + '%', background: '#f97316', transition: 'width 0.4s' }} title={`Week-end: ${a.weekend}`} />}
+                        {pctBoth > 0 && <div style={{ width: pctBoth + '%', background: '#ef4444', transition: 'width 0.4s' }} title={`Nuit+WE: ${a.both}`} />}
+                      </div>
+                      {/* Counts below bar */}
+                      <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+                        {[['#6366f1', 'Normale', a.normal, pctNormal], ['#8b5cf6', 'Nuit', a.night, pctNight], ['#f97316', 'Week-end', a.weekend, pctWeekend], ['#ef4444', 'Nuit+WE', a.both, pctBoth]].map(([color, lbl, count, pct]) => count > 0 && (
+                          <span key={lbl} style={{ fontSize: 11, color, fontWeight: 600 }}>{lbl}: {count} ({pct}%)</span>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+          }
+        </div>
       )}
     </div>
   )
