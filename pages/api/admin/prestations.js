@@ -261,8 +261,11 @@ export default async function handler(req, res) {
 
               if (gH > 0 || sH > 0) {
                 // Garde + Sortie breakdown
-                if (rateGardeInfi > 0) calculatedRemuneInfi = (gH * rateGardeInfi) + (sH * rateSortieInfi) + (oH * rateGardeInfi)
-                if (rateGardeMed > 0) calculatedRemuneMed = (gH * rateGardeMed) + (sH * rateSortieMed) + (oH * rateGardeMed)
+                // If garde_hours=0, overtime is excess sortie → use sortie rate
+                const otRateInfi = gH === 0 ? rateSortieInfi : rateGardeInfi
+                const otRateMed = gH === 0 ? rateSortieMed : rateGardeMed
+                if (rateGardeInfi > 0) calculatedRemuneInfi = (gH * rateGardeInfi) + (sH * rateSortieInfi) + (oH * otRateInfi)
+                if (rateGardeMed > 0) calculatedRemuneMed = (gH * rateGardeMed) + (sH * rateSortieMed) + (oH * otRateMed)
               } else if (totalH > 0) {
                 // Simple: base hours × rate only — overtime shown as separate line in PDF
                 if (rateGardeInfi > 0) calculatedRemuneInfi = totalH * rateGardeInfi
