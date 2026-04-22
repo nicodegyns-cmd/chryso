@@ -110,13 +110,19 @@ export default function ManualHourEntry() {
       const gardeHoursSubmit = isGardeSubmit && ebrigadeDurSubmit !== null && sortieHoursSubmit !== null
         ? Math.max(0, ebrigadeDurSubmit - sortieHoursSubmit)
         : (formData.garde_hours ? parseFloat(formData.garde_hours) : null)
+      // If sortie > ebrigade duration, the excess becomes overtime
+      const gardeExcessSubmit = isGardeSubmit && ebrigadeDurSubmit !== null && sortieHoursSubmit !== null && sortieHoursSubmit > ebrigadeDurSubmit
+        ? Math.round((sortieHoursSubmit - ebrigadeDurSubmit) * 100) / 100 : 0
+      const overtimeHoursSubmit = isGardeSubmit
+        ? (gardeExcessSubmit > 0 ? gardeExcessSubmit : null)
+        : (formData.overtime_hours ? parseFloat(formData.overtime_hours) : null)
       const payload = {
         user_email: selectedUser.email, email: selectedUser.email,
         date: selectedCard.date, pay_type: selectedCard.pay_type || 'Garde',
         hours_actual: isGardeSubmit ? null : (formData.hours_actual ? parseFloat(formData.hours_actual) : null),
         garde_hours: gardeHoursSubmit,
         sortie_hours: sortieHoursSubmit,
-        overtime_hours: !isGardeSubmit && formData.overtime_hours ? parseFloat(formData.overtime_hours) : null,
+        overtime_hours: overtimeHoursSubmit,
         comments: formData.comments || null,
         analytic_id: selectedCard.analytic_id || null, analytic_name: selectedCard.analytic_name || null,
         ebrigade_id: selectedCard.ebrigade_id || null,
@@ -321,11 +327,20 @@ export default function ManualHourEntry() {
                         </label>
                         {/* Auto-calculated garde hours */}
                         {ebrigadeDuration && sortieVal !== null && (
-                          <div style={{ padding: 10, background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0' }}>
-                            <div style={{ fontSize: 12, color: '#15803d', fontWeight: 600, marginBottom: 6 }}>🧮 HEURES GARDE (Calculées)</div>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: '#15803d' }}>{(ebrigadeDuration - sortieVal).toFixed(2)}h</div>
-                            <div style={{ fontSize: 11, color: '#15803d', marginTop: 4 }}>= {ebrigadeDuration}h (total) − {sortieVal}h (sortie)</div>
-                          </div>
+                          sortieVal <= ebrigadeDuration ? (
+                            <div style={{ padding: 10, background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0' }}>
+                              <div style={{ fontSize: 12, color: '#15803d', fontWeight: 600, marginBottom: 6 }}>🧮 HEURES GARDE (Calculées)</div>
+                              <div style={{ fontSize: 16, fontWeight: 700, color: '#15803d' }}>{(ebrigadeDuration - sortieVal).toFixed(2)}h</div>
+                              <div style={{ fontSize: 11, color: '#15803d', marginTop: 4 }}>= {ebrigadeDuration}h (total) − {sortieVal}h (sortie)</div>
+                            </div>
+                          ) : (
+                            <div style={{ padding: 10, background: '#fff7ed', borderRadius: 6, border: '1px solid #fed7aa' }}>
+                              <div style={{ fontSize: 12, color: '#c2410c', fontWeight: 600, marginBottom: 6 }}>⚠️ HEURES SUP (Auto)</div>
+                              <div style={{ fontSize: 13, color: '#c2410c' }}>Garde: 0h</div>
+                              <div style={{ fontSize: 15, fontWeight: 700, color: '#f97316', marginTop: 4 }}>Supp: +{(sortieVal - ebrigadeDuration).toFixed(2)}h</div>
+                              <div style={{ fontSize: 11, color: '#c2410c', marginTop: 2 }}>{sortieVal}h sortie − {ebrigadeDuration}h eBrigade</div>
+                            </div>
+                          )
                         )}
                       </div>
                     ) : (
