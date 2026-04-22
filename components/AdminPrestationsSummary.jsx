@@ -1,5 +1,74 @@
 import React, { useEffect, useState, useMemo } from 'react'
 
+function parseTimeToMinutes(value) {
+  if (!value) return null
+  const s = String(value).trim().toLowerCase()
+  const m = s.match(/(\d{1,2})(?:[:h](\d{2}))?/)
+  if (!m) return null
+  const h = Number(m[1])
+  const min = Number(m[2] || 0)
+  if (Number.isNaN(h) || Number.isNaN(min)) return null
+  return (h * 60) + min
+}
+
+function inferDurationHours(prestation) {
+  const explicit = Number(prestation?.ebrigade_duration_hours || 0)
+  if (explicit > 0) return explicit
+
+  const start = parseTimeToMinutes(prestation?.ebrigade_start_time)
+  const end = parseTimeToMinutes(prestation?.ebrigade_end_time)
+  if (start != null && end != null) {
+    const delta = end >= start ? (end - start) : ((end + 24 * 60) - start)
+    if (delta > 0) return delta / 60
+  }
+
+  const text = String(prestation?.ebrigade_activity_name || prestation?.analytic_name || '')
+  const tm = text.match(/(\d{1,2})(?:[:h](\d{2}))?\s*-\s*(\d{1,2})(?:[:h](\d{2}))?/i)
+  if (tm) {
+    const sh = Number(tm[1]); const sm = Number(tm[2] || 0)
+    const eh = Number(tm[3]); const em = Number(tm[4] || 0)
+    const s = (sh * 60) + sm
+    const e = (eh * 60) + em
+    const delta = e >= s ? (e - s) : ((e + 24 * 60) - s)
+    if (delta > 0) return delta / 60
+  }
+
+  return 0
+}
+
+function normalizeBreakdown(prestation) {
+  const duration = inferDurationHours(prestation)
+  const garde = Number(prestation?.garde_hours || 0)
+  const sortie = Number(prestation?.sortie_hours || 0)
+  const overtime = Number(prestation?.overtime_hours || 0)
+  const actual = Number(prestation?.hours_actual || 0)
+
+  if (duration > 0 && garde === 0 && sortie > duration) {
+    return {
+      garde_hours: 0,
+      sortie_hours: duration,
+      overtime_hours: Math.round((sortie - duration) * 100) / 100,
+      hours_actual: actual,
+    }
+  }
+
+  if (duration > 0 && garde === 0 && sortie === 0 && actual > duration) {
+    return {
+      garde_hours: 0,
+      sortie_hours: 0,
+      overtime_hours: Math.round((actual - duration) * 100) / 100,
+      hours_actual: duration,
+    }
+  }
+
+  return {
+    garde_hours: garde,
+    sortie_hours: sortie,
+    overtime_hours: overtime,
+    hours_actual: actual,
+  }
+}
+
 export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds = null }){
   const formatDate = (dateStr) => {
     if (!dateStr) return '-'
@@ -37,14 +106,18 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
 
   async function loadActivityRates(p) {
     try {
+      const normalized = normalizeBreakdown(p)
       const r = await fetch('/api/prestations/estimate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           hours_actual: p.hours_actual || 0,
-          garde_hours: p.garde_hours || 0,
-          sortie_hours: p.sortie_hours || 0,
-          overtime_hours: p.overtime_hours || 0,
+          garde_hours: normalized.garde_hours,
+          sortie_hours: normalized.sortie_hours,
+          overtime_hours: normalized.overtime_hours,
+          ebrigade_duration_hours: p.ebrigade_duration_hours || null,
+          ebrigade_start_time: p.ebrigade_start_time || null,
+          ebrigade_end_time: p.ebrigade_end_time || null,
           pay_type: p.pay_type,
           analytic_id: p.analytic_id,
           analytic_code: p.analytic_code || null,
@@ -69,14 +142,18 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
       prestations.forEach(async p => {
         if (!loadedIds.has(p.id)) {
           try {
+            const normalized = normalizeBreakdown(p)
             const r = await fetch('/api/prestations/estimate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 hours_actual: p.hours_actual || 0,
-                garde_hours: p.garde_hours || 0,
-                sortie_hours: p.sortie_hours || 0,
-                overtime_hours: p.overtime_hours || 0,
+                garde_hours: normalized.garde_hours,
+                sortie_hours: normalized.sortie_hours,
+                overtime_hours: normalized.overtime_hours,
+                ebrigade_duration_hours: p.ebrigade_duration_hours || null,
+                ebrigade_start_time: p.ebrigade_start_time || null,
+                ebrigade_end_time: p.ebrigade_end_time || null,
                 pay_type: p.pay_type,
                 analytic_id: p.analytic_id,
                 analytic_code: p.analytic_code || null,
@@ -435,25 +512,25 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                   {viewing.hours_actual !== null && viewing.hours_actual !== undefined && (
                     <div>
                       <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES RÉELLES</div>
-                      <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{viewing.hours_actual}</div>
+                      <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{normalizeBreakdown(viewing).hours_actual}</div>
                     </div>
                   )}
                   {viewing.pay_type !== 'APS' && viewing.garde_hours !== null && viewing.garde_hours !== undefined && (
                     <div>
                       <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES GARDE</div>
-                      <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{viewing.garde_hours}</div>
+                      <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{normalizeBreakdown(viewing).garde_hours}</div>
                     </div>
                   )}
                   {viewing.sortie_hours !== null && viewing.sortie_hours !== undefined && (
                     <div>
                       <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SORTIE</div>
-                      <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{viewing.sortie_hours}</div>
+                      <div style={{fontSize:15,color:'#1f2937',fontWeight:500}}>{normalizeBreakdown(viewing).sortie_hours}</div>
                     </div>
                   )}
-                  {viewing.overtime_hours > 0 && (
+                  {normalizeBreakdown(viewing).overtime_hours > 0 && (
                     <div>
                       <div style={{fontSize:12,color:'#f97316',fontWeight:600,marginBottom:6}}>HEURES SUPPLÉMENTAIRES</div>
-                      <div style={{fontSize:15,color:'#f97316',fontWeight:500}}>{viewing.overtime_hours}</div>
+                      <div style={{fontSize:15,color:'#f97316',fontWeight:500}}>{normalizeBreakdown(viewing).overtime_hours}</div>
                     </div>
                   )}
                 </div>
@@ -475,6 +552,7 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                 const isMed = rc.includes('MED') && !isInfi
                 const d = activityRates[viewing.id].detailed || {}
                 const hasRole = isInfi || isMed
+                const normalizedViewing = normalizeBreakdown(viewing)
                 // If role is known: show only that role's calc; if unknown: show both
                 const showInfiDetail = !hasRole || !isMed
                 const showMedDetail = !hasRole || !isInfi
@@ -509,28 +587,28 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                   </div>
 
                   {/* Detailed calculation breakdown - only for user's role */}
-                  {(viewing.garde_hours || viewing.sortie_hours || viewing.hours_actual || viewing.expense_amount) && d && (
+                  {(normalizedViewing.garde_hours || normalizedViewing.sortie_hours || normalizedViewing.hours_actual || viewing.expense_amount) && d && (
                     <div style={{fontSize:11,color:'#92400e',padding:10,background:'#fff',borderRadius:6,border:'1px solid #fcd34d',fontFamily:'monospace',lineHeight:'1.6'}}>
                       <div style={{fontWeight:700,marginBottom:8,color:'#b45309'}}>Calcul détaillé:</div>
                       {showInfiDetail && d.garde_infi != null && (
                         <div>
-                          {viewing.garde_hours || viewing.sortie_hours ? (
+                          {normalizedViewing.garde_hours || normalizedViewing.sortie_hours ? (
                             <>
-                              <div>Infirmier: ({viewing.garde_hours || 0}h × {d.garde_infi}€) + ({viewing.sortie_hours || 0}h × {d.sortie_infi || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${!viewing.garde_hours ? (d.sortie_infi || d.garde_infi) : d.garde_infi}€)` : ''}</div>
+                              <div>Infirmier: ({normalizedViewing.garde_hours || 0}h × {d.garde_infi}€) + ({normalizedViewing.sortie_hours || 0}h × {d.sortie_infi || 0}€) {normalizedViewing.overtime_hours ? `+ (${normalizedViewing.overtime_hours}h × ${!normalizedViewing.garde_hours ? (d.sortie_infi || d.garde_infi) : d.garde_infi}€)` : ''}</div>
                               <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {(() => {
-                                const garde = (viewing.garde_hours || 0) * (d.garde_infi || 0)
-                                const sortie = (viewing.sortie_hours || 0) * (d.sortie_infi || 0)
-                                const otRate = !viewing.garde_hours ? (d.sortie_infi || d.garde_infi || 0) : (d.garde_infi || 0)
-                                const ot = (viewing.overtime_hours || 0) * otRate
+                                const garde = (normalizedViewing.garde_hours || 0) * (d.garde_infi || 0)
+                                const sortie = (normalizedViewing.sortie_hours || 0) * (d.sortie_infi || 0)
+                                const otRate = !normalizedViewing.garde_hours ? (d.sortie_infi || d.garde_infi || 0) : (d.garde_infi || 0)
+                                const ot = (normalizedViewing.overtime_hours || 0) * otRate
                                 return Math.round((garde + sortie + ot + Number.EPSILON) * 100) / 100
                               })()} €</div>
                             </>
                           ) : (
                             <>
-                              <div>Infirmier: ({viewing.hours_actual || 0}h × {d.garde_infi}€){viewing.overtime_hours ? ` + (${viewing.overtime_hours}h × ${d.garde_infi}€)` : ''}</div>
+                              <div>Infirmier: ({normalizedViewing.hours_actual || 0}h × {d.garde_infi}€){normalizedViewing.overtime_hours ? ` + (${normalizedViewing.overtime_hours}h × ${d.garde_infi}€)` : ''}</div>
                               <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {(() => {
-                                const total = (viewing.hours_actual || 0) * (d.garde_infi || 0)
-                                const ot = (viewing.overtime_hours || 0) * (d.garde_infi || 0)
+                                const total = (normalizedViewing.hours_actual || 0) * (d.garde_infi || 0)
+                                const ot = (normalizedViewing.overtime_hours || 0) * (d.garde_infi || 0)
                                 return Math.round((total + ot + Number.EPSILON) * 100) / 100
                               })()} €</div>
                             </>
@@ -539,23 +617,23 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                       )}
                       {showMedDetail && d.garde_med != null && (
                         <div style={{marginTop:6}}>
-                          {viewing.garde_hours || viewing.sortie_hours ? (
+                          {normalizedViewing.garde_hours || normalizedViewing.sortie_hours ? (
                             <>
-                              <div>Médecin: ({viewing.garde_hours || 0}h × {d.garde_med}€) + ({viewing.sortie_hours || 0}h × {d.sortie_med || 0}€) {viewing.overtime_hours ? `+ (${viewing.overtime_hours}h × ${!viewing.garde_hours ? (d.sortie_med || d.garde_med) : d.garde_med}€)` : ''}</div>
+                              <div>Médecin: ({normalizedViewing.garde_hours || 0}h × {d.garde_med}€) + ({normalizedViewing.sortie_hours || 0}h × {d.sortie_med || 0}€) {normalizedViewing.overtime_hours ? `+ (${normalizedViewing.overtime_hours}h × ${!normalizedViewing.garde_hours ? (d.sortie_med || d.garde_med) : d.garde_med}€)` : ''}</div>
                               <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {(() => {
-                                const garde = (viewing.garde_hours || 0) * (d.garde_med || 0)
-                                const sortie = (viewing.sortie_hours || 0) * (d.sortie_med || 0)
-                                const otRate = !viewing.garde_hours ? (d.sortie_med || d.garde_med || 0) : (d.garde_med || 0)
-                                const ot = (viewing.overtime_hours || 0) * otRate
+                                const garde = (normalizedViewing.garde_hours || 0) * (d.garde_med || 0)
+                                const sortie = (normalizedViewing.sortie_hours || 0) * (d.sortie_med || 0)
+                                const otRate = !normalizedViewing.garde_hours ? (d.sortie_med || d.garde_med || 0) : (d.garde_med || 0)
+                                const ot = (normalizedViewing.overtime_hours || 0) * otRate
                                 return Math.round((garde + sortie + ot + Number.EPSILON) * 100) / 100
                               })()} €</div>
                             </>
                           ) : (
                             <>
-                              <div>Médecin: ({viewing.hours_actual || 0}h × {d.garde_med}€){viewing.overtime_hours ? ` + (${viewing.overtime_hours}h × ${d.garde_med}€)` : ''}</div>
+                              <div>Médecin: ({normalizedViewing.hours_actual || 0}h × {d.garde_med}€){normalizedViewing.overtime_hours ? ` + (${normalizedViewing.overtime_hours}h × ${d.garde_med}€)` : ''}</div>
                               <div style={{fontWeight:600,color:'#d97706',marginTop:4}}>= {(() => {
-                                const total = (viewing.hours_actual || 0) * (d.garde_med || 0)
-                                const ot = (viewing.overtime_hours || 0) * (d.garde_med || 0)
+                                const total = (normalizedViewing.hours_actual || 0) * (d.garde_med || 0)
+                                const ot = (normalizedViewing.overtime_hours || 0) * (d.garde_med || 0)
                                 return Math.round((total + ot + Number.EPSILON) * 100) / 100
                               })()} €</div>
                             </>
@@ -568,25 +646,27 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                           <div style={{fontWeight:700,color:'#b45309',marginTop:4,borderTop:'1px solid #fcd34d',paddingTop:4}}>= Total: {(() => {
                             const exp = Number(viewing.expense_amount || 0)
                             if (showInfiDetail && d.garde_infi != null) {
-                              if (viewing.garde_hours || viewing.sortie_hours) {
-                                const garde = (viewing.garde_hours || 0) * (d.garde_infi || 0)
-                                const sortie = (viewing.sortie_hours || 0) * (d.sortie_infi || 0)
-                                const ot = (viewing.overtime_hours || 0) * (d.garde_infi || 0)
+                              if (normalizedViewing.garde_hours || normalizedViewing.sortie_hours) {
+                                const garde = (normalizedViewing.garde_hours || 0) * (d.garde_infi || 0)
+                                const sortie = (normalizedViewing.sortie_hours || 0) * (d.sortie_infi || 0)
+                                const otRate = !normalizedViewing.garde_hours ? (d.sortie_infi || d.garde_infi || 0) : (d.garde_infi || 0)
+                                const ot = (normalizedViewing.overtime_hours || 0) * otRate
                                 return Math.round((garde + sortie + ot + exp + Number.EPSILON) * 100) / 100
                               } else {
-                                const total = (viewing.hours_actual || 0) * (d.garde_infi || 0)
-                                const ot = (viewing.overtime_hours || 0) * (d.garde_infi || 0)
+                                const total = (normalizedViewing.hours_actual || 0) * (d.garde_infi || 0)
+                                const ot = (normalizedViewing.overtime_hours || 0) * (d.garde_infi || 0)
                                 return Math.round((total + ot + exp + Number.EPSILON) * 100) / 100
                               }
                             } else if (showMedDetail && d.garde_med != null) {
-                              if (viewing.garde_hours || viewing.sortie_hours) {
-                                const garde = (viewing.garde_hours || 0) * (d.garde_med || 0)
-                                const sortie = (viewing.sortie_hours || 0) * (d.sortie_med || 0)
-                                const ot = (viewing.overtime_hours || 0) * (d.garde_med || 0)
+                              if (normalizedViewing.garde_hours || normalizedViewing.sortie_hours) {
+                                const garde = (normalizedViewing.garde_hours || 0) * (d.garde_med || 0)
+                                const sortie = (normalizedViewing.sortie_hours || 0) * (d.sortie_med || 0)
+                                const otRate = !normalizedViewing.garde_hours ? (d.sortie_med || d.garde_med || 0) : (d.garde_med || 0)
+                                const ot = (normalizedViewing.overtime_hours || 0) * otRate
                                 return Math.round((garde + sortie + ot + exp + Number.EPSILON) * 100) / 100
                               } else {
-                                const total = (viewing.hours_actual || 0) * (d.garde_med || 0)
-                                const ot = (viewing.overtime_hours || 0) * (d.garde_med || 0)
+                                const total = (normalizedViewing.hours_actual || 0) * (d.garde_med || 0)
+                                const ot = (normalizedViewing.overtime_hours || 0) * (d.garde_med || 0)
                                 return Math.round((total + ot + exp + Number.EPSILON) * 100) / 100
                               }
                             }

@@ -10,6 +10,9 @@ export default async function handler(req, res){
       sortie_hours = 0,
       overtime_hours = 0,
       hours_actual = 0,
+      ebrigade_duration_hours = null,
+      ebrigade_start_time = null,
+      ebrigade_end_time = null,
       pay_type = '',
       analytic_id = null,
       analytic_code = null,
@@ -19,9 +22,77 @@ export default async function handler(req, res){
       expense_amount = 0
     } = body
 
-    console.log('[estimate] RECEIVED INPUT:', { garde_hours, sortie_hours, overtime_hours, hours_actual, pay_type, analytic_name: body.analytic_name, analytic_id, analytic_code })
+    console.log('[estimate] RECEIVED INPUT:', { garde_hours, sortie_hours, overtime_hours, hours_actual, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, pay_type, analytic_name: body.analytic_name, analytic_id, analytic_code })
 
     const round2 = v => Math.round((Number(v||0) + Number.EPSILON) * 100) / 100
+    const parseTimeToMinutes = (value) => {
+      if (!value) return null
+      const s = String(value).trim().toLowerCase()
+      const m = s.match(/(\d{1,2})(?:[:h](\d{2}))?/)
+      if (!m) return null
+      const h = Number(m[1])
+      const min = Number(m[2] || 0)
+      if (Number.isNaN(h) || Number.isNaN(min)) return null
+      return (h * 60) + min
+    }
+
+    const inferDurationHours = () => {
+      const explicit = Number(ebrigade_duration_hours || 0)
+      if (explicit > 0) return explicit
+
+      const start = parseTimeToMinutes(ebrigade_start_time)
+      const end = parseTimeToMinutes(ebrigade_end_time)
+      if (start != null && end != null) {
+        const delta = end >= start ? (end - start) : ((end + 24 * 60) - start)
+        if (delta > 0) return delta / 60
+      }
+
+      const text = String(analytic_name || '')
+      const tm = text.match(/(\d{1,2})(?:[:h](\d{2}))?\s*-\s*(\d{1,2})(?:[:h](\d{2}))?/i)
+      if (tm) {
+        const sh = Number(tm[1]); const sm = Number(tm[2] || 0)
+        const eh = Number(tm[3]); const em = Number(tm[4] || 0)
+        const s = (sh * 60) + sm
+        const e = (eh * 60) + em
+        const delta = e >= s ? (e - s) : ((e + 24 * 60) - s)
+        if (delta > 0) return delta / 60
+      }
+
+      return 0
+    }
+
+    const normalizeBreakdown = () => {
+      const duration = inferDurationHours()
+      const garde = Number(garde_hours || 0)
+      const sortie = Number(sortie_hours || 0)
+      const overtime = Number(overtime_hours || 0)
+      const actual = Number(hours_actual || 0)
+
+      if (duration > 0 && garde === 0 && sortie > duration) {
+        return {
+          garde_hours: 0,
+          sortie_hours: duration,
+          overtime_hours: Math.round((sortie - duration) * 100) / 100,
+          hours_actual: actual,
+        }
+      }
+
+      if (duration > 0 && garde === 0 && sortie === 0 && actual > duration) {
+        return {
+          garde_hours: 0,
+          sortie_hours: 0,
+          overtime_hours: Math.round((actual - duration) * 100) / 100,
+          hours_actual: duration,
+        }
+      }
+
+      return {
+        garde_hours: garde,
+        sortie_hours: sortie,
+        overtime_hours: overtime,
+        hours_actual: actual,
+      }
+    }
 
     // Helper to extract name prefix before ' - ' or ' | ' or separator
     const extractNamePrefix = (name) => {
@@ -147,14 +218,15 @@ export default async function handler(req, res){
     console.log('[estimate] RATE RESOLUTION:', { rateGardeInfi, rateGardeMed, rateSortieInfi, rateSortieMed, payLower, allActsLength: allActs.length })
     
     // If we have specific garde_hours and sortie_hours, always use them (Garde type)
-    const hasGuardeBreakdown = Number(garde_hours || 0) > 0 || Number(sortie_hours || 0) > 0
+    const normalizedBreakdown = normalizeBreakdown()
+    const hasGuardeBreakdown = normalizedBreakdown.garde_hours > 0 || normalizedBreakdown.sortie_hours > 0
     
     if (hasGuardeBreakdown || payLower.includes('garde')){
-      const gH = Number(garde_hours || 0)
-      const sH = Number(sortie_hours || 0)
-      const oH = Number(overtime_hours || 0)
+      const gH = normalizedBreakdown.garde_hours
+      const sH = normalizedBreakdown.sortie_hours
+      const oH = normalizedBreakdown.overtime_hours
       // If no garde/sortie breakdown, fall back to hours_actual as garde hours
-      const effectiveGarde = (gH === 0 && sH === 0) ? Number(hours_actual || 0) : gH
+      const effectiveGarde = (gH === 0 && sH === 0) ? normalizedBreakdown.hours_actual : gH
       // If garde_hours=0, overtime is excess sortie → use sortie rate
       const otRateInfi = (effectiveGarde === 0 && sH > 0) ? rateSortieInfi : rateGardeInfi
       const otRateMed = (effectiveGarde === 0 && sH > 0) ? rateSortieMed : rateGardeMed
@@ -162,12 +234,12 @@ export default async function handler(req, res){
       estMed = (effectiveGarde * rateGardeMed) + (sH * rateSortieMed) + (oH * otRateMed * OT_MULT)
     } else if (payLower.includes('permanence') || payLower.includes('sortie') || payLower.includes('astreinte')) {
       // For permanence-type activities use the sortie/permanence rates
-      estInfi = (Number(hours_actual) * rateSortieInfi) + (Number(overtime_hours) * rateSortieInfi * OT_MULT)
-      estMed = (Number(hours_actual) * rateSortieMed) + (Number(overtime_hours) * rateSortieMed * OT_MULT)
+      estInfi = (normalizedBreakdown.hours_actual * rateSortieInfi) + (normalizedBreakdown.overtime_hours * rateSortieInfi * OT_MULT)
+      estMed = (normalizedBreakdown.hours_actual * rateSortieMed) + (normalizedBreakdown.overtime_hours * rateSortieMed * OT_MULT)
     } else {
       // default: use garde rates for generic/unknown pay types (preserve previous behaviour)
-      estInfi = (Number(hours_actual) * rateGardeInfi) + (Number(overtime_hours) * rateGardeInfi * OT_MULT)
-      estMed = (Number(hours_actual) * rateGardeMed) + (Number(overtime_hours) * rateGardeMed * OT_MULT)
+      estInfi = (normalizedBreakdown.hours_actual * rateGardeInfi) + (normalizedBreakdown.overtime_hours * rateGardeInfi * OT_MULT)
+      estMed = (normalizedBreakdown.hours_actual * rateGardeMed) + (normalizedBreakdown.overtime_hours * rateGardeMed * OT_MULT)
     }
     console.log('[estimate] CALC BEFORE ROLE:', { estInfi, estMed, payLower })
 
