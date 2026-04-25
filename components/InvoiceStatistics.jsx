@@ -67,7 +67,7 @@ export default function InvoiceStatistics() {
     const byRole = { INFI: { amount: 0, count: 0, hours: 0 }, MED: { amount: 0, count: 0, hours: 0 } }
 
     rows.forEach(p => {
-      // Montant : prendre uniquement la rémunération du rôle de l'utilisateur
+      // Montant : prendre uniquement la rémunération du rôle de l'utilisateur + note de frais
       const role = p.user_role
       let amount = 0
       if (role === 'MED') {
@@ -78,6 +78,8 @@ export default function InvoiceStatistics() {
         // Rôle inconnu : prendre le max (évite le double-comptage)
         amount = Math.max(parseFloat(p.remuneration_infi || 0), parseFloat(p.remuneration_med || 0))
       }
+      // Ajouter la note de frais au montant total
+      amount += parseFloat(p.expense_amount || 0)
 
       // Heures : si garde/sortie existent → ce sont LES heures réelles (pas hours_actual en plus)
       const gardeH = parseFloat(p.garde_hours || 0)

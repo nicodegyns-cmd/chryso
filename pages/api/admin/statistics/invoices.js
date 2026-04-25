@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     const params = [startDate, endDate]
     let idx = 3
 
-    if (role) { clauses.push(`u.role = $${idx++}`); params.push(role) }
+    if (role) { clauses.push(`(u.role = $${idx} OR u.role LIKE $${idx+1})`); params.push(role, '%' + role + '%'); idx += 2 }
     if (userId) { clauses.push(`p.user_id = $${idx++}`); params.push(parseInt(userId)) }
     if (analyticId) { clauses.push(`p.analytic_id = $${idx++}`); params.push(parseInt(analyticId)) }
 
@@ -43,6 +43,7 @@ export default async function handler(req, res) {
         p.overtime_hours,
         p.remuneration_infi,
         p.remuneration_med,
+        p.expense_amount,
         p.invoice_number,
         p.ebrigade_start_time,
         p.ebrigade_activity_name,
