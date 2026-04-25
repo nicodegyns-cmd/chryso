@@ -203,7 +203,7 @@ export default function ComptabilitePage() {
   }
 
   async function exportForAnalytic(analyticId, analyticName) {
-    const analyticPrestations = safePrestations.filter(p => {
+    const analyticPrestations = filteredPrestations.filter(p => {
       const pId = p.analytic_id != null ? String(p.analytic_id) : 'unassigned'
       return pId === (analyticId === 'unassigned' ? 'unassigned' : String(analyticId))
     })
@@ -220,7 +220,10 @@ export default function ComptabilitePage() {
       const res = await fetch('/api/comptabilite/export-all-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analytic_id: analyticId !== 'unassigned' ? analyticId : null, analyticName })
+        body: JSON.stringify({
+          prestation_ids: analyticPrestations.map(p => p.id),
+          analyticName
+        })
       })
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))

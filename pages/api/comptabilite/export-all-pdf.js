@@ -23,17 +23,24 @@ export default async function handler(req, res) {
   let browser = null
   try {
     const pool = getPool()
-    const { analytic_id, analyticName } = req.body || {}
+    const { analytic_id, analyticName, prestation_ids } = req.body || {}
 
-    // 1. Récupérer les prestations "sent_to_billing" — filtrées par analytique si fourni
+    // 1. Récupérer les prestations "sent_to_billing" — filtrées par IDs spécifiques ou par analytique
     const queryParams = []
-    let analyticFilter = ''
-    if (analytic_id != null) {
-      queryParams.push(analytic_id)
-      analyticFilter = `AND p.analytic_id = $${queryParams.length}`
+    let whereClause = ''
+    if (Array.isArray(prestation_ids) && prestation_ids.length > 0) {
+      queryParams.push(prestation_ids)
+      whereClause = `WHERE p.id = ANY($${queryParams.length})`
+    } else {
+      let analyticFilter = ''
+      if (analytic_id != null) {
+        queryParams.push(analytic_id)
+        analyticFilter = `AND p.analytic_id = $${queryParams.length}`
+      }
+      queryParams.push('Envoyé à la facturation')
+      const statusParam = `$${queryParams.length}`
+      whereClause = `WHERE p.status = ${statusParam} ${analyticFilter}`
     }
-    queryParams.push('Envoyé à la facturation')
-    const statusParam = `$${queryParams.length}`
 
     const result = await pool.query(`
       SELECT
@@ -55,7 +62,7 @@ export default async function handler(req, res) {
       FROM prestations p
       LEFT JOIN users u  ON p.user_id   = u.id
       LEFT JOIN analytics an ON p.analytic_id = an.id
-      WHERE p.status = ${statusParam} ${analyticFilter}
+      ${whereClause}
       ORDER BY p.user_id, p.analytic_id NULLS LAST, p.date ASC
     `, queryParams)
     const rows = result.rows || []
