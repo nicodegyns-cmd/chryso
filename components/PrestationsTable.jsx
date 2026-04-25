@@ -503,6 +503,20 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       }
     }
     
+    // Validate note de frais: require comment and proof image when expense_amount > 0
+    if (role !== 'admin' && role !== 'moderator') {
+      if (Number(editing.expense_amount || 0) > 0) {
+        if (!editing.expense_comment?.trim()) {
+          alert('⚠️ Veuillez renseigner une raison pour la note de frais.')
+          return
+        }
+        if (!editing.proof_image) {
+          alert('⚠️ Veuillez joindre une pièce justificative pour la note de frais (photo du ticket/reçu).')
+          return
+        }
+      }
+    }
+
     // For new prestations from activities, immediately update status to "En attente d'approbation"
     if (isNewPrestation && editing.isActivity && (!role || (role !== 'admin' && role !== 'moderator'))) {
       setEditing({...editing, status: "En attente d'approbation"})
@@ -1230,12 +1244,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                     </label>
                   </div>
                   <label style={{display:'block',marginBottom:12}}>
-                    <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>COMMENTAIRE</div>
-                    <input value={editing.expense_comment || ''} onChange={e=>setEditing({...editing, expense_comment: e.target.value})} style={{width:'100%',padding:'8px 10px',borderRadius:6,border:'1px solid #fcd34d',fontSize:14}} placeholder="Ex: Fournitures, transport..." />
+                    <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>COMMENTAIRE / RAISON {Number(editing.expense_amount || 0) > 0 && <span style={{color:'#dc2626'}}>*</span>}</div>
+                    <input value={editing.expense_comment || ''} onChange={e=>setEditing({...editing, expense_comment: e.target.value})} style={{width:'100%',padding:'8px 10px',borderRadius:6,border: Number(editing.expense_amount || 0) > 0 && !editing.expense_comment?.trim() ? '1px solid #dc2626' : '1px solid #fcd34d',fontSize:14}} placeholder="Ex: Fournitures, transport..." />
+                    {Number(editing.expense_amount || 0) > 0 && !editing.expense_comment?.trim() && <div style={{fontSize:11,color:'#dc2626',marginTop:4}}>Obligatoire si montant renseigné</div>}
                   </label>
 
                   <div style={{marginTop:8}}>
-                    <div style={{fontWeight:600,marginBottom:6,fontSize:12,color:'#92400e'}}>📸 JUSTIFICATIF (IMAGE)</div>
+                    <div style={{fontWeight:600,marginBottom:6,fontSize:12,color:'#92400e'}}>📸 JUSTIFICATIF (IMAGE) {Number(editing.expense_amount || 0) > 0 && <span style={{color:'#dc2626'}}>*</span>}</div>
                     <input type="file" accept="image/*" onChange={async (e)=>{
                       const f = e.target.files && e.target.files[0]
                       if (!f) return
@@ -1247,6 +1262,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                       })
                       setEditing({...editing, proof_image: data})
                     }} />
+                    {Number(editing.expense_amount || 0) > 0 && !editing.proof_image && <div style={{fontSize:11,color:'#dc2626',marginTop:4}}>Obligatoire si montant renseigné</div>}
 
                     {editing.proof_image && (
                       <div style={{marginTop:8}}>
