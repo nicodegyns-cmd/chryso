@@ -302,8 +302,10 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
       }
       const duration = inferDurationHours(p)
       if (!duration || duration <= 0) return false
-      const sortie = Number(p.sortie_hours || 0)
+      const sortie = Number(p.sortie_hours ?? -1)
       if (sortie > 0) return false
+      // sortie_hours = 0 explicitement → garde couvre toute la durée eBrigade → éligible
+      if (p.sortie_hours !== null && p.sortie_hours !== undefined && sortie === 0) return true
       const garde = Number(p.garde_hours || 0)
       const actual = Number(p.hours_actual || 0)
       const totalHours = garde > 0 ? garde : actual
