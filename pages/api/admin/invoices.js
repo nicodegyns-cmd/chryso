@@ -11,25 +11,25 @@ export default async function handler(req, res) {
     const { status, period } = req.query
 
     // Fetch from prestations table with pdf_url (new system)
+    // Group by (invoice_number, pdf_url) to avoid one row per prestation
     const base = `
       SELECT
-        p.id,
+        MIN(p.id) AS id,
         p.invoice_number,
-        p.request_ref,
-        p.analytic_id,
-        p.user_id,
-        COALESCE(NULLIF(p.remuneration_infi, 0), p.remuneration_med, p.remuneration_infi, 0) AS amount,
-        COALESCE(p.expense_amount, 0) AS expense_amount,
-        p.status,
-        p.created_at,
         p.pdf_url,
-        p.date,
-        a.name AS analytic_name,
-        a.code AS analytic_code,
-        u.first_name,
-        u.last_name,
-        u.email,
-        u.company as company_name
+        MIN(p.user_id) AS user_id,
+        MIN(p.analytic_id) AS analytic_id,
+        SUM(COALESCE(NULLIF(p.remuneration_infi, 0), p.remuneration_med, p.remuneration_infi, 0)) AS amount,
+        SUM(COALESCE(p.expense_amount, 0)) AS expense_amount,
+        MAX(p.status) AS status,
+        MAX(p.created_at) AS created_at,
+        MAX(p.date) AS date,
+        MIN(a.name) AS analytic_name,
+        MIN(a.code) AS analytic_code,
+        MIN(u.first_name) AS first_name,
+        MIN(u.last_name) AS last_name,
+        MIN(u.email) AS email,
+        MIN(u.company) AS company_name
       FROM prestations p
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN analytics a ON p.analytic_id = a.id
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
     }
 
     const where = clauses.length > 0 ? ` AND ${clauses.join(' AND ')}` : ''
-    const sql = `${base}${where} ORDER BY p.date DESC, p.id DESC`
+    const sql = `${base}${where} GROUP BY p.invoice_number, p.pdf_url ORDER BY MAX(p.date) DESC, MIN(p.id) DESC`
 
     const q = await pool.query(sql, params)
     const invoices = q.rows || (Array.isArray(q[0]) ? q[0] : [])

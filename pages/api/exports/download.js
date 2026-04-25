@@ -13,8 +13,8 @@ export default function handler(req, res) {
       return res.status(400).json({ error: 'missing file parameter' })
     }
 
-    // Security: only allow prestation PDFs
-    if (!file.match(/^prestation-\d+-\d+\.pdf$/)) {
+    // Security: only allow safe PDF filenames (no path separators or dangerous chars)
+    if (!file.match(/^[\w.-]+\.pdf$/)) {
       return res.status(403).json({ error: 'invalid file' })
     }
 
