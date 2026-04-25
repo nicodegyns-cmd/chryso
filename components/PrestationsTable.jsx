@@ -482,6 +482,26 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       alert('Cette prestation ne peut plus être modifiée.')
       return
     }
+
+    // Validate that at least some hours have been entered before submission
+    if (role !== 'admin' && role !== 'moderator') {
+      const payLowerCheck = (editing.ebrigade_activity_type || editing.analytic_name || editing.pay_type || '').toLowerCase()
+      const isGardeCheck = editing.hour_entry_type === 'garde' || (editing.hour_entry_type !== 'simple' && (payLowerCheck.includes('garde') || editing.ebrigade_duration_hours))
+      if (isGardeCheck) {
+        // For garde: sortie_hours must be explicitly set (can be 0, but not null/undefined/"")
+        if (editing.sortie_hours === null || editing.sortie_hours === undefined || editing.sortie_hours === '') {
+          alert('⚠️ Veuillez renseigner vos heures de sortie avant de soumettre.\n\nSi vous n\'avez pas eu de sortie, saisissez 0.')
+          return
+        }
+      } else {
+        // For other types: hours_actual must be > 0
+        const totalHours = (editing.hours_actual || 0) + (editing.garde_hours || 0)
+        if (totalHours <= 0) {
+          alert('⚠️ Veuillez renseigner vos heures avant de soumettre.')
+          return
+        }
+      }
+    }
     
     // For new prestations from activities, immediately update status to "En attente d'approbation"
     if (isNewPrestation && editing.isActivity && (!role || (role !== 'admin' && role !== 'moderator'))) {
