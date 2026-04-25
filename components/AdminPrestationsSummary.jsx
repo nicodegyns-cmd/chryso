@@ -313,7 +313,17 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
       const garde = Number(p.garde_hours || 0)
       const actual = Number(p.hours_actual || 0)
       const totalHours = garde > 0 ? garde : actual
-      return Math.abs(totalHours - duration) < 0.01
+      if (Math.abs(totalHours - duration) < 0.01) return true
+      // Fallback: accept if hours match the start/end derived duration
+      // (ebrigade_duration_hours may be incorrect while start/end times are right)
+      const st = parseTimeToMinutes(p.ebrigade_start_time)
+      const en = parseTimeToMinutes(p.ebrigade_end_time)
+      if (st != null && en != null) {
+        const delta = en >= st ? (en - st) : ((en + 24 * 60) - st)
+        const startEndDuration = delta / 60
+        if (startEndDuration > 0 && Math.abs(totalHours - startEndDuration) < 0.01) return true
+      }
+      return false
     })
   }, [items, filterAnalyticIds])
 
