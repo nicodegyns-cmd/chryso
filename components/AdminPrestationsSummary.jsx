@@ -302,6 +302,8 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
       }
       // Exclure les prestations avec une note de frais (vérification manuelle requise)
       if (Number(p.expense_amount || 0) > 0) return false
+      // Exclure les prestations avec heures supplémentaires (vérification manuelle requise)
+      if (normalizeBreakdown(p).overtime_hours > 0) return false
       const duration = inferDurationHours(p)
       if (!duration || duration <= 0) return false
       const sortie = Number(p.sortie_hours ?? -1)
