@@ -562,8 +562,6 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                     <th style={{padding:'8px 10px',textAlign:'left',color:'#374151',fontWeight:700}}>Utilisateur</th>
                     <th style={{padding:'8px 10px',textAlign:'left',color:'#374151',fontWeight:700}}>Date</th>
                     <th style={{padding:'8px 10px',textAlign:'left',color:'#374151',fontWeight:700}}>Analytique</th>
-                    <th style={{padding:'8px 10px',textAlign:'right',color:'#374151',fontWeight:700}}>Heures</th>
-                    <th style={{padding:'8px 10px',textAlign:'right',color:'#374151',fontWeight:700}}>Durée eBrigade</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -573,8 +571,6 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                       <td style={{padding:'8px 10px'}}>{p.user_firstname && p.user_lastname ? `${p.user_firstname} ${p.user_lastname}` : (p.user_email || '-')}</td>
                       <td style={{padding:'8px 10px'}}>{formatDate(p.date)}</td>
                       <td style={{padding:'8px 10px',color:'#5b21b6',fontWeight:500}}>{p.ebrigade_activity_name || p.analytic_name || '-'}</td>
-                      <td style={{padding:'8px 10px',textAlign:'right',fontWeight:600}}>{(Number(p.garde_hours || 0) > 0 ? Number(p.garde_hours) : Number(p.hours_actual || 0))}h</td>
-                      <td style={{padding:'8px 10px',textAlign:'right',color:'#16a34a',fontWeight:600}}>{inferDurationHours(p)}h</td>
                     </tr>
                   ))}
                 </tbody>
