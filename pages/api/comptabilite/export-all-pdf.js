@@ -3,6 +3,7 @@
 // fusionne tout en un seul PDF de compilation, marque les prestations comme "Facturé"
 
 const { getPool } = require('../../../services/db')
+const { sendStatusChangeEmail } = require('../../../services/emailService')
 const { PDFDocument } = require('pdf-lib')
 const puppeteer = require('puppeteer')
 const fs = require('fs')
@@ -287,7 +288,27 @@ export default async function handler(req, res) {
       [allIds]
     )
 
-    // 9. Retourner le PDF compilé
+    // 9. Envoyer un email à chaque utilisateur
+    for (const [uid, userPrestations] of userMap.entries()) {
+      const firstRow = userPrestations[0]
+      const userEmailAddr = firstRow.user_email
+      const firstName = firstRow.user_first_name || ''
+      const invoiceNum = firstRow.invoice_number || null
+      const prestDate = firstRow.date || firstRow.created_at || null
+      const analytic = firstRow.analytic_name || analyticName || null
+      if (userEmailAddr) {
+        sendStatusChangeEmail({
+          userEmail: userEmailAddr,
+          firstName,
+          status: 'Facturé',
+          date: prestDate,
+          analyticName: analytic,
+          invoiceNumber: invoiceNum
+        }).catch(e => console.error('[export-all-pdf] email error for', userEmailAddr, e.message))
+      }
+    }
+
+    // 10. Retourner le PDF compilé
     const downloadName = `Compilation_Factures_${dateStr}.pdf`
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`)

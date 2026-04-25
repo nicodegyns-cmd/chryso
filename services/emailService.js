@@ -623,8 +623,8 @@ async function sendStatusChangeEmail({ userEmail, firstName, status, date, analy
       },
       'Facturé': {
         color: '#10b981', bg: '#ecfdf5', textColor: '#047857',
-        icon: '💶', title: 'Prestation facturée',
-        message: "Votre prestation a été facturée avec succès."
+        icon: '💶', title: 'Facture disponible',
+        message: "La comptabilité traite votre paiement. Votre facture est disponible dans votre espace personnel, rubrique \"Factures\"."
       },
       'Payé': {
         color: '#0066cc', bg: '#eff6ff', textColor: '#1e40af',
