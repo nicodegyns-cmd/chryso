@@ -300,6 +300,8 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
         const aid = String(p.analytic_id || '')
         if (!filterAnalyticIds.includes(aid)) return false
       }
+      // Exclure les prestations avec une note de frais (vérification manuelle requise)
+      if (Number(p.expense_amount || 0) > 0) return false
       const duration = inferDurationHours(p)
       if (!duration || duration <= 0) return false
       const sortie = Number(p.sortie_hours ?? -1)
