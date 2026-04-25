@@ -122,7 +122,19 @@ export default function InvoicesPage() {
           const total = (savedAmount != null ? savedAmount : 0) + expense
           return {...rRow, total}
         })
-        setInvoices(withTotals)
+
+        // Dédupliquer par (invoice_number, pdf_url) — une carte par facture
+        const invoiceMap = new Map()
+        for (const row of withTotals) {
+          const key = (row.invoice_number || '') + '|' + (row.pdf_url || row.id)
+          if (!invoiceMap.has(key)) {
+            invoiceMap.set(key, { ...row })
+          } else {
+            const existing = invoiceMap.get(key)
+            existing.total = (existing.total || 0) + (row.total || 0)
+          }
+        }
+        setInvoices(Array.from(invoiceMap.values()))
       }catch(e){ console.error(e); setInvoices([]) }
       finally{ setLoading(false) }
     }
