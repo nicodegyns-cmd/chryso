@@ -44,6 +44,8 @@ export default async function handler(req, res) {
         p.remuneration_infi,
         p.remuneration_med,
         p.expense_amount,
+        p.expense_comment,
+        p.proof_image,
         p.invoice_number,
         p.ebrigade_start_time,
         p.ebrigade_activity_name,
