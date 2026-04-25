@@ -67,6 +67,7 @@ export default function InvoiceStatistics() {
     const byRole = { INFI: { amount: 0, count: 0, hours: 0 }, MED: { amount: 0, count: 0, hours: 0 } }
 
     rows.forEach(p => {
+      const role = p.user_role
       // Montant : utiliser le champ remuneration calculé côté SQL (même logique que comptabilité)
       let amount = parseFloat(p.remuneration || 0)
       // Ajouter la note de frais au montant total
