@@ -1,3 +1,9 @@
+// Augmenter le timeout pour les envois en masse
+export const config = {
+  api: { responseLimit: false },
+  maxDuration: 120,
+}
+
 import { getPool } from '../../../services/db'
 import { send } from '../../../services/emailService'
 
@@ -57,13 +63,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Aucun destinataire trouvé' })
     }
 
-    // Send emails
-    let sentCount = 0
-    let failedCount = 0
-    const errors = []
-
-    for (const recipient of recipients) {
-      try {
+    // Send emails in parallel
+    const results = await Promise.allSettled(
+      recipients.map(async (recipient) => {
         const emailBody = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <p>Bonjour ${recipient.first_name || ''} ${recipient.last_name || ''},</p>
@@ -78,24 +80,17 @@ export default async function handler(req, res) {
             </p>
           </div>
         `
+        const result = await send({ to: recipient.email, subject, html: emailBody })
+        if (!result.sent) throw new Error(result.error || 'Échec envoi')
+        return recipient.email
+      })
+    )
 
-        const result = await send({
-          to: recipient.email,
-          subject: subject,
-          html: emailBody,
-        })
-
-        if (result.sent) {
-          sentCount++
-        } else {
-          failedCount++
-          errors.push(`${recipient.email}: ${result.error}`)
-        }
-      } catch (err) {
-        failedCount++
-        errors.push(`${recipient.email}: ${err.message}`)
-      }
-    }
+    const sentCount = results.filter(r => r.status === 'fulfilled').length
+    const failedCount = results.filter(r => r.status === 'rejected').length
+    const errors = results
+      .filter(r => r.status === 'rejected')
+      .map((r, i) => `${recipients[i]?.email}: ${r.reason?.message || r.reason}`)
 
     return res.status(200).json({
       success: true,
