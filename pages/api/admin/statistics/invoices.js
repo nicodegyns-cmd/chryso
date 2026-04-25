@@ -54,10 +54,53 @@ export default async function handler(req, res) {
         u.email      AS user_email,
         u.role       AS user_role,
         a.name       AS analytic_name,
-        a.code       AS analytic_code
+        a.code       AS analytic_code,
+        CASE
+          WHEN COALESCE(p.remuneration_infi, p.remuneration_med, 0) > 0
+            AND COALESCE(p.overtime_hours, 0) > 0
+            AND (COALESCE(p.hours_actual, 0) + COALESCE(p.garde_hours, 0) + COALESCE(p.sortie_hours, 0)) > 0
+          THEN COALESCE(p.remuneration_infi, p.remuneration_med, 0)
+               + (COALESCE(p.overtime_hours, 0)
+                  * (COALESCE(p.remuneration_infi, p.remuneration_med, 0)
+                     / (COALESCE(p.hours_actual, 0) + COALESCE(p.garde_hours, 0) + COALESCE(p.sortie_hours, 0))))
+          WHEN COALESCE(p.remuneration_infi, p.remuneration_med, 0) > 0
+          THEN COALESCE(p.remuneration_infi, p.remuneration_med, 0)
+          WHEN (act_direct.id IS NOT NULL OR act_analytic.id IS NOT NULL)
+            AND (COALESCE(p.garde_hours, 0) + COALESCE(p.sortie_hours, 0) + COALESCE(p.hours_actual, 0)) > 0
+          THEN
+            CASE
+              WHEN u.role ILIKE '%med%' AND u.role NOT ILIKE '%infi%' THEN
+                (COALESCE(p.garde_hours, 0) + COALESCE(p.hours_actual, 0))
+                  * COALESCE(act_direct.remuneration_med, act_analytic.remuneration_med, 30)
+                + COALESCE(p.sortie_hours, 0)
+                  * COALESCE(act_direct.remuneration_sortie_med, act_direct.remuneration_med,
+                             act_analytic.remuneration_sortie_med, act_analytic.remuneration_med, 30)
+                + COALESCE(p.overtime_hours, 0)
+                  * COALESCE(act_direct.remuneration_med, act_analytic.remuneration_med, 30)
+              ELSE
+                (COALESCE(p.garde_hours, 0) + COALESCE(p.hours_actual, 0))
+                  * COALESCE(act_direct.remuneration_infi, act_analytic.remuneration_infi, 20)
+                + COALESCE(p.sortie_hours, 0)
+                  * COALESCE(act_direct.remuneration_sortie_infi, act_direct.remuneration_infi,
+                             act_analytic.remuneration_sortie_infi, act_analytic.remuneration_infi, 20)
+                + COALESCE(p.overtime_hours, 0)
+                  * COALESCE(act_direct.remuneration_infi, act_analytic.remuneration_infi, 20)
+            END
+          ELSE 0
+        END AS remuneration
       FROM prestations p
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN analytics a ON p.analytic_id = a.id
+      LEFT JOIN activities act_direct ON p.activity_id = act_direct.id
+      LEFT JOIN LATERAL (
+        SELECT id, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, pay_type
+        FROM activities
+        WHERE analytic_id = p.analytic_id
+          AND p.activity_id IS NULL
+          AND p.analytic_id IS NOT NULL
+        ORDER BY date DESC NULLS LAST
+        LIMIT 1
+      ) act_analytic ON true
       WHERE ${clauses.join(' AND ')}
       ORDER BY p.date DESC
     `
