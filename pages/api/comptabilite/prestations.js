@@ -26,12 +26,31 @@ export default async function handler(req, res) {
         p.garde_hours,
         p.sortie_hours,
         CASE
-          WHEN COALESCE(p.overtime_hours, 0) > 0 AND (COALESCE(p.hours_actual, 0) + COALESCE(p.garde_hours, 0) + COALESCE(p.sortie_hours, 0)) > 0
+          -- Stored totals exist and are non-zero: use them (with overtime adjustment if needed)
+          WHEN COALESCE(p.remuneration_infi, p.remuneration_med, 0) > 0
+            AND COALESCE(p.overtime_hours, 0) > 0
+            AND (COALESCE(p.hours_actual, 0) + COALESCE(p.garde_hours, 0) + COALESCE(p.sortie_hours, 0)) > 0
           THEN COALESCE(p.remuneration_infi, p.remuneration_med, 0)
                + (COALESCE(p.overtime_hours, 0)
                   * (COALESCE(p.remuneration_infi, p.remuneration_med, 0)
                      / (COALESCE(p.hours_actual, 0) + COALESCE(p.garde_hours, 0) + COALESCE(p.sortie_hours, 0))))
-          ELSE COALESCE(p.remuneration_infi, p.remuneration_med, 0)
+          WHEN COALESCE(p.remuneration_infi, p.remuneration_med, 0) > 0
+          THEN COALESCE(p.remuneration_infi, p.remuneration_med, 0)
+          -- Fallback: stored totals are NULL/0 — recalculate from hours × activity rates
+          WHEN act.id IS NOT NULL
+            AND (COALESCE(p.garde_hours, 0) + COALESCE(p.sortie_hours, 0) + COALESCE(p.hours_actual, 0)) > 0
+          THEN
+            CASE
+              WHEN u.role ILIKE '%med%' AND u.role NOT ILIKE '%infi%' THEN
+                (COALESCE(p.garde_hours, 0) + COALESCE(p.hours_actual, 0)) * COALESCE(act.remuneration_med, 30)
+                + COALESCE(p.sortie_hours, 0) * COALESCE(act.remuneration_sortie_med, act.remuneration_med, 30)
+                + COALESCE(p.overtime_hours, 0) * COALESCE(act.remuneration_med, 30)
+              ELSE
+                (COALESCE(p.garde_hours, 0) + COALESCE(p.hours_actual, 0)) * COALESCE(act.remuneration_infi, 20)
+                + COALESCE(p.sortie_hours, 0) * COALESCE(act.remuneration_sortie_infi, act.remuneration_infi, 20)
+                + COALESCE(p.overtime_hours, 0) * COALESCE(act.remuneration_infi, 20)
+            END
+          ELSE 0
         END AS remuneration,
         p.date,
         p.status,
