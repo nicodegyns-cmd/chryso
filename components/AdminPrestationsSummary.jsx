@@ -94,6 +94,8 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
   const [currentPage, setCurrentPage] = useState(1)
   const statuses = ["", "A saisir", "En attente d'approbation", "En attente d'envoie", "Envoyé à la facturation", "Annulé"]
   const [viewing, setViewing] = useState(null)
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false)
+  const [bulkValidating, setBulkValidating] = useState(false)
 
   // Load activity rates when viewing a prestation
   useEffect(() => {
@@ -222,6 +224,40 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
     finally{ setSavingIds(prev => { const c = {...prev}; delete c[id]; return c }) }
   }
 
+  async function bulkValidate() {
+    setBulkValidating(true)
+    const validatedById = typeof window !== 'undefined' ? localStorage.getItem('userId') : null
+    const validatedByEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : null
+    let successCount = 0
+    let failCount = 0
+    for (const p of eligibleForBulk) {
+      try {
+        const r = await fetch(`/api/admin/prestations/${p.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: "Envoyé à la facturation",
+            validated_by_id: validatedById ? Number(validatedById) : null,
+            validated_by_email: validatedByEmail
+          })
+        })
+        if (r.ok) {
+          const updated = await r.json()
+          setItems(prev => prev.map(item => item.id === updated.id ? updated : item))
+          successCount++
+        } else {
+          failCount++
+        }
+      } catch (e) {
+        console.error('bulk validate failed for', p.id, e)
+        failCount++
+      }
+    }
+    setBulkValidating(false)
+    setBulkConfirmOpen(false)
+    alert(`✅ Validation en masse terminée :\n${successCount} prestation(s) validée(s)${failCount > 0 ? `\n⚠️ ${failCount} échec(s)` : ''}`)
+  }
+
   const filtered = useMemo(() => {
     return items.filter(it => {
       // analytic filter for moderators
@@ -251,6 +287,29 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
   const endIdx = startIdx + limit
 
   const displayed = useMemo(() => (filtered || []).slice(startIdx, endIdx), [filtered, limit, currentPage, startIdx, endIdx])
+
+  // Prestations éligibles pour la validation en masse :
+  // - status "En attente d'approbation"
+  // - durée eBrigade connue
+  // - pas de sortie_hours > 0
+  // - heures saisies = durée eBrigade (tolérance 0.01h pour floating point)
+  const eligibleForBulk = useMemo(() => {
+    return items.filter(p => {
+      if (p.status !== "En attente d'approbation") return false
+      if (filterAnalyticIds && filterAnalyticIds.length > 0) {
+        const aid = String(p.analytic_id || '')
+        if (!filterAnalyticIds.includes(aid)) return false
+      }
+      const duration = inferDurationHours(p)
+      if (!duration || duration <= 0) return false
+      const sortie = Number(p.sortie_hours || 0)
+      if (sortie > 0) return false
+      const garde = Number(p.garde_hours || 0)
+      const actual = Number(p.hours_actual || 0)
+      const totalHours = garde > 0 ? garde : actual
+      return Math.abs(totalHours - duration) < 0.01
+    })
+  }, [items, filterAnalyticIds])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -291,6 +350,14 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
           onMouseEnter={(e)=>e.currentTarget.style.background='#f3f4f6'}
           onMouseLeave={(e)=>e.currentTarget.style.background='#fff'}
         >🔄 Réinitialiser</button>
+        {eligibleForBulk.length > 0 && (
+          <button
+            onClick={() => setBulkConfirmOpen(true)}
+            style={{padding:'6px 14px',borderRadius:6,border:'1px solid #16a34a',background:'#dcfce7',color:'#15803d',cursor:'pointer',fontWeight:700,fontSize:13,transition:'all 0.2s',marginLeft:8}}
+            onMouseEnter={(e)=>e.currentTarget.style.background='#bbf7d0'}
+            onMouseLeave={(e)=>e.currentTarget.style.background='#dcfce7'}
+          >⚡ Valider en masse ({eligibleForBulk.length})</button>
+        )}
       </div>
       {loading ? <div className="small-muted">Chargement...</div> : (
         <table style={{width:'100%',borderCollapse:'collapse',borderRadius:8,overflow:'hidden'}}>
@@ -461,6 +528,59 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
             style={{padding:'6px 12px',borderRadius:6,border:'1px solid #d1d5db',background:currentPage === totalPages ? '#f3f4f6' : '#fff',color:currentPage === totalPages ? '#9ca3af' : '#1f2937',cursor:currentPage === totalPages ? 'not-allowed' : 'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}
           >Suivant →</button>
           <span style={{fontSize:12,color:'#6b7280',marginLeft:8}}>Page {currentPage} sur {totalPages}</span>
+        </div>
+      )}
+      {/* Modal confirmation validation en masse */}
+      {bulkConfirmOpen && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1100,padding:20}}>
+          <div style={{width:'100%',maxWidth:640,background:'#fff',borderRadius:12,boxShadow:'0 20px 25px -5px rgba(0,0,0,0.15)',overflow:'auto',maxHeight:'80vh'}}>
+            <div style={{padding:20,borderBottom:'1px solid #e5e7eb',background:'#f0fdf4'}}>
+              <h3 style={{margin:0,fontSize:18,fontWeight:700,color:'#15803d'}}>⚡ Validation en masse — {eligibleForBulk.length} prestation(s)</h3>
+              <p style={{margin:'6px 0 0',fontSize:13,color:'#4b5563'}}>Les prestations suivantes correspondent exactement à la durée eBrigade, sans heures de sortie.</p>
+            </div>
+            <div style={{padding:16,overflowY:'auto',maxHeight:'45vh'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+                <thead>
+                  <tr style={{background:'#f9fafb',borderBottom:'2px solid #e5e7eb'}}>
+                    <th style={{padding:'8px 10px',textAlign:'left',color:'#374151',fontWeight:700}}>ID</th>
+                    <th style={{padding:'8px 10px',textAlign:'left',color:'#374151',fontWeight:700}}>Utilisateur</th>
+                    <th style={{padding:'8px 10px',textAlign:'left',color:'#374151',fontWeight:700}}>Date</th>
+                    <th style={{padding:'8px 10px',textAlign:'left',color:'#374151',fontWeight:700}}>Analytique</th>
+                    <th style={{padding:'8px 10px',textAlign:'right',color:'#374151',fontWeight:700}}>Heures</th>
+                    <th style={{padding:'8px 10px',textAlign:'right',color:'#374151',fontWeight:700}}>Durée eBrigade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eligibleForBulk.map((p, i) => (
+                    <tr key={p.id} style={{borderBottom:'1px solid #f3f4f6',background: i % 2 === 0 ? '#fff' : '#f9fafb'}}>
+                      <td style={{padding:'8px 10px',fontWeight:600}}>#{p.id}</td>
+                      <td style={{padding:'8px 10px'}}>{p.user_firstname && p.user_lastname ? `${p.user_firstname} ${p.user_lastname}` : (p.user_email || '-')}</td>
+                      <td style={{padding:'8px 10px'}}>{formatDate(p.date)}</td>
+                      <td style={{padding:'8px 10px',color:'#5b21b6',fontWeight:500}}>{p.ebrigade_activity_name || p.analytic_name || '-'}</td>
+                      <td style={{padding:'8px 10px',textAlign:'right',fontWeight:600}}>{(Number(p.garde_hours || 0) > 0 ? Number(p.garde_hours) : Number(p.hours_actual || 0))}h</td>
+                      <td style={{padding:'8px 10px',textAlign:'right',color:'#16a34a',fontWeight:600}}>{inferDurationHours(p)}h</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{padding:16,borderTop:'1px solid #e5e7eb',display:'flex',gap:10,justifyContent:'flex-end',background:'#f9fafb'}}>
+              <button
+                onClick={() => setBulkConfirmOpen(false)}
+                disabled={bulkValidating}
+                style={{padding:'8px 18px',borderRadius:6,border:'1px solid #d1d5db',background:'#fff',color:'#374151',cursor:'pointer',fontWeight:600,fontSize:14}}
+              >Annuler</button>
+              <button
+                onClick={bulkValidate}
+                disabled={bulkValidating}
+                style={{padding:'8px 18px',borderRadius:6,border:'1px solid #16a34a',background: bulkValidating ? '#dcfce7' : '#16a34a',color:'#fff',cursor: bulkValidating ? 'not-allowed' : 'pointer',fontWeight:700,fontSize:14,display:'flex',alignItems:'center',gap:8}}
+              >
+                {bulkValidating ? (
+                  <><span style={{display:'inline-block',width:14,height:14,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.7s linear infinite'}} />Validation en cours…</>
+                ) : `✓ Confirmer (${eligibleForBulk.length})`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {viewing && (
