@@ -37,9 +37,45 @@ export default async function handler(req, res) {
             p.expense_amount, p.expense_comment, p.pdf_url, p.request_ref, p.invoice_number,
             an.code AS analytic_code, an.name AS analytic_name,
             p.ebrigade_activity_name, p.ebrigade_activity_type, p.ebrigade_activity_code, p.ebrigade_id,
-            p.ebrigade_duration_hours, p.ebrigade_start_time, p.ebrigade_end_time
+            p.ebrigade_duration_hours, p.ebrigade_start_time, p.ebrigade_end_time,
+            CASE
+              WHEN COALESCE(p.remuneration_infi, p.remuneration_med, 0) > 0
+              THEN COALESCE(p.remuneration_infi, p.remuneration_med, 0)
+              WHEN (act_direct.id IS NOT NULL OR act_analytic.id IS NOT NULL)
+                AND (COALESCE(p.garde_hours, 0) + COALESCE(p.sortie_hours, 0) + COALESCE(p.hours_actual, 0)) > 0
+              THEN
+                CASE
+                  WHEN u.role ILIKE '%med%' AND u.role NOT ILIKE '%infi%' THEN
+                    (COALESCE(p.garde_hours, 0) + COALESCE(p.hours_actual, 0))
+                      * COALESCE(act_direct.remuneration_med, act_analytic.remuneration_med, 30)
+                    + COALESCE(p.sortie_hours, 0)
+                      * COALESCE(act_direct.remuneration_sortie_med, act_direct.remuneration_med,
+                                 act_analytic.remuneration_sortie_med, act_analytic.remuneration_med, 30)
+                    + COALESCE(p.overtime_hours, 0)
+                      * COALESCE(act_direct.remuneration_med, act_analytic.remuneration_med, 30)
+                  ELSE
+                    (COALESCE(p.garde_hours, 0) + COALESCE(p.hours_actual, 0))
+                      * COALESCE(act_direct.remuneration_infi, act_analytic.remuneration_infi, 20)
+                    + COALESCE(p.sortie_hours, 0)
+                      * COALESCE(act_direct.remuneration_sortie_infi, act_direct.remuneration_infi,
+                                 act_analytic.remuneration_sortie_infi, act_analytic.remuneration_infi, 20)
+                    + COALESCE(p.overtime_hours, 0)
+                      * COALESCE(act_direct.remuneration_infi, act_analytic.remuneration_infi, 20)
+                END
+              ELSE 0
+            END AS remuneration
              FROM prestations p
+               LEFT JOIN users u ON p.user_id = u.id
                LEFT JOIN analytics an ON p.analytic_id = an.id
+               LEFT JOIN activities act_direct ON p.activity_id = act_direct.id
+               LEFT JOIN LATERAL (
+                 SELECT id, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med
+                 FROM activities
+                 WHERE analytic_id = p.analytic_id
+                   AND p.activity_id IS NULL
+                   AND p.analytic_id IS NOT NULL
+                 LIMIT 1
+               ) act_analytic ON true
                WHERE p.user_id = $1
                ORDER BY p.date DESC, p.id DESC
                LIMIT 500`
@@ -85,6 +121,7 @@ export default async function handler(req, res) {
         hours_actual: r.hours_actual != null ? Number(r.hours_actual) : 0,
         remuneration_infi: r.remuneration_infi != null ? Number(r.remuneration_infi) : null,
         remuneration_med: r.remuneration_med != null ? Number(r.remuneration_med) : null,
+        remuneration: r.remuneration != null ? Number(r.remuneration) : 0,
         expense_amount: r.expense_amount != null ? Number(r.expense_amount) : null,
         expense_comment: r.expense_comment || null,
           pdf_url: r.pdf_url || null,

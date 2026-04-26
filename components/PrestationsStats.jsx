@@ -48,9 +48,13 @@ export default function PrestationsStats({ email, role }){
     const invoices = (filtered || []).filter(p => p && p.invoice_number)
     const sum = invoices.reduce((acc, p) => {
       let remu = 0
-      if (isMed) remu = Number(p.remuneration_med) || 0
-      else if (isInfi) remu = Number(p.remuneration_infi) || 0
-      else remu = (Number(p.remuneration_infi) || 0) + (Number(p.remuneration_med) || 0)
+      if (isMed) remu = Number(p.remuneration_med) || Number(p.remuneration) || 0
+      else if (isInfi) remu = Number(p.remuneration_infi) || Number(p.remuneration) || 0
+      else {
+        // fallback: use computed remuneration field (handles null infi/med)
+        const stored = (Number(p.remuneration_infi) || 0) + (Number(p.remuneration_med) || 0)
+        remu = stored > 0 ? stored : (Number(p.remuneration) || 0)
+      }
       return acc + remu + (Number(p.expense_amount) || 0)
     }, 0)
     setInvoiceTotal(Math.round((sum + Number.EPSILON) * 100) / 100)

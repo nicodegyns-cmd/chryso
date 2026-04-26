@@ -104,6 +104,7 @@ export default function InvoicesPage() {
           expense_amount: p.expense_amount || 0,
           remuneration_infi: p.remuneration_infi != null ? Number(p.remuneration_infi) : null,
           remuneration_med:  p.remuneration_med  != null ? Number(p.remuneration_med)  : null,
+          remuneration: p.remuneration != null ? Number(p.remuneration) : 0,
         }))
 
         // Use saved remuneration from DB (remuneration_infi/med) as the total amount
@@ -113,13 +114,19 @@ export default function InvoicesPage() {
           const userRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null
           const roleLow = (userRole || '').toLowerCase()
           const isMed = roleLow.includes('med') || roleLow.includes('médec') || roleLow.includes('doctor')
-          const savedAmount = isMed 
-            ? (rRow.remuneration_med != null ? Number(rRow.remuneration_med) : null)
-            : (rRow.remuneration_infi != null ? Number(rRow.remuneration_infi) : null)
-          
-          // Use saved amount if available, otherwise fallback to 0 (no estimate call needed)
+          const isInfi = roleLow.includes('infi') || roleLow.includes('infir') || roleLow.includes('nurs')
+          let savedAmount
+          if (isMed) savedAmount = rRow.remuneration_med != null ? Number(rRow.remuneration_med) : null
+          else if (isInfi) savedAmount = rRow.remuneration_infi != null ? Number(rRow.remuneration_infi) : null
+          else {
+            const stored = (rRow.remuneration_infi != null ? Number(rRow.remuneration_infi) : 0) +
+                           (rRow.remuneration_med != null ? Number(rRow.remuneration_med) : 0)
+            savedAmount = stored > 0 ? stored : null
+          }
+          // Fallback to computed remuneration if stored values are null
+          const remu = savedAmount != null ? savedAmount : (Number(rRow.remuneration) || 0)
           const expense = rRow.expense_amount != null ? Number(rRow.expense_amount) : 0
-          const total = (savedAmount != null ? savedAmount : 0) + expense
+          const total = remu + expense
           return {...rRow, total}
         })
 
