@@ -164,7 +164,7 @@ export default function ManualHourEntry() {
         ebrigade_activity_code: selectedCard.ebrigade_activity_code || selectedCard.analytic_code || null,
         ebrigade_activity_name: selectedCard.ebrigade_activity_name || selectedCard.analytic_name || null,
         ebrigade_activity_type: selectedCard.ebrigade_activity_type || null,
-        ebrigade_duration_hours: selectedCard.duration || selectedCard.ebrigade_duration_hours || null,
+        ebrigade_duration_hours: resolveCardDurationHours(selectedCard),
         ebrigade_start_time: selectedCard.startTime || null, ebrigade_end_time: selectedCard.endTime || null,
         status: "En attente d'approbation",
       }
@@ -258,7 +258,7 @@ export default function ManualHourEntry() {
                       <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, marginBottom: 2 }}>ACTIVITE</div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#1f2937' }}>{card.analytic_name || card.ebrigade_activity_name || '-'}</div>
                       {card.startTime && card.endTime && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{card.startTime} - {card.endTime}</div>}
-                      {card.duration && <div style={{ fontSize: 12, color: '#6b7280' }}>Duree eBrigade : <strong>{card.duration}h</strong></div>}
+                      {resolveCardDurationHours(card) && <div style={{ fontSize: 12, color: '#6b7280' }}>Duree eBrigade : <strong>{resolveCardDurationHours(card)}h</strong></div>}
                     </div>
                     <div style={{ marginTop: 'auto', padding: '8px 0 0', borderTop: '1px solid #f3f4f6', textAlign: 'center', fontSize: 13, fontWeight: 700, color: isSelected ? '#7c3aed' : '#6b7280' }}>
                       {isSelected ? 'Saisie en cours' : 'Cliquer pour saisir les heures'}
@@ -304,9 +304,9 @@ export default function ManualHourEntry() {
           {/* Body */}
           <div style={{ padding: 24 }}>
             {/* eBrigade info banner */}
-            {selectedCard.duration && (
+            {resolveCardDurationHours(selectedCard) && (
               <div style={{ marginBottom: 20, padding: '10px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 13, color: '#1d4ed8' }}>
-                📅 Durée eBrigade : <strong>{selectedCard.duration}h</strong>
+                📅 Durée eBrigade : <strong>{resolveCardDurationHours(selectedCard)}h</strong>
                 {selectedCard.startTime && <span> · {selectedCard.startTime} – {selectedCard.endTime}</span>}
               </div>
             )}
@@ -332,7 +332,7 @@ export default function ManualHourEntry() {
                     // Simple: only check pay_type, NOT ebrigade_activity_type (API can set that for Permanence too)
                     const isGardeAuto = !isRMP && pt.includes('garde')
                     const isGarde = modalTypeOverride === 'garde' ? true : modalTypeOverride === 'simple' ? false : isGardeAuto
-                    const ebrigadeDuration = selectedCard?.duration ? parseFloat(selectedCard.duration) : null
+                    const ebrigadeDuration = resolveCardDurationHours(selectedCard)
                     const sortieVal = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
                     const simpleHoursVal = formData.hours_actual !== '' ? parseFloat(formData.hours_actual) : null
                     console.log('[ManualHourEntry] 🔍 GARDE DETECTION:', { 

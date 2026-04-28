@@ -1,5 +1,27 @@
 import { getPool } from '../../services/db'
 
+function parseTimeToMinutes(value) {
+  if (!value) return null
+  const s = String(value).trim().toLowerCase()
+  const m = s.match(/(\d{1,2})(?:[:h](\d{2}))?/) 
+  if (!m) return null
+  const h = Number(m[1])
+  const min = Number(m[2] || 0)
+  if (Number.isNaN(h) || Number.isNaN(min)) return null
+  return (h * 60) + min
+}
+
+function resolveDurationHours(rawDuration, startTime, endTime) {
+  const start = parseTimeToMinutes(startTime)
+  const end = parseTimeToMinutes(endTime)
+  if (start != null && end != null) {
+    const delta = end >= start ? (end - start) : ((end + 24 * 60) - start)
+    if (delta > 0) return Math.round(((delta / 60) + Number.EPSILON) * 100) / 100
+  }
+  const parsed = Number(String(rawDuration ?? '').replace(',', '.'))
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
 export default async function handler(req, res){
   // Prevent caching for this endpoint
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
@@ -138,7 +160,7 @@ export default async function handler(req, res){
         date: p.EH_DATE_DEBUT,
         startTime: p.EH_DEBUT,
         endTime: p.EH_FIN,
-        duration: p.EP_DUREE,
+        duration: resolveDurationHours(p.EP_DUREE, p.EH_DEBUT, p.EH_FIN),
         analytic_code: p.E_CODE,  // Always eBrigade code
         analytic_name: p.E_LIBELLE,  // Always display full eBrigade name to user
         analytic_id: mapping?.activity_analytic_id || null,  // ID from analytics table (3,4,5,6,7) - NOT activity id
