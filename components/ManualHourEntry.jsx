@@ -9,6 +9,28 @@ const emptyForm = () => ({
   comments: '',
 })
 
+function parseTimeToMinutes(value) {
+  if (!value) return null
+  const s = String(value).trim().toLowerCase()
+  const m = s.match(/(\d{1,2})(?:[:h](\d{2}))?/) 
+  if (!m) return null
+  const h = Number(m[1])
+  const min = Number(m[2] || 0)
+  if (Number.isNaN(h) || Number.isNaN(min)) return null
+  return (h * 60) + min
+}
+
+function resolveCardDurationHours(card) {
+  const start = parseTimeToMinutes(card?.startTime)
+  const end = parseTimeToMinutes(card?.endTime)
+  if (start != null && end != null) {
+    const delta = end >= start ? (end - start) : ((end + 24 * 60) - start)
+    if (delta > 0) return Math.round(((delta / 60) + Number.EPSILON) * 100) / 100
+  }
+  const parsed = Number(String(card?.duration ?? card?.ebrigade_duration_hours ?? '').replace(',', '.'))
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
 function formatDate(d) {
   if (!d) return '-'
   const s = String(d).slice(0, 10)
@@ -79,7 +101,8 @@ export default function ManualHourEntry() {
     // Use activity-level configured type if set, otherwise auto
     const activityType = card.hour_entry_type === 'garde' || card.hour_entry_type === 'simple' ? card.hour_entry_type : null
     setModalTypeOverride(activityType)
-    setFormData({ hours_actual: card.duration ? String(card.duration) : '', garde_hours: '', sortie_hours: '', overtime_hours: '', comments: '' })
+    const resolvedDuration = resolveCardDurationHours(card)
+    setFormData({ hours_actual: resolvedDuration ? String(resolvedDuration) : '', garde_hours: '', sortie_hours: '', overtime_hours: '', comments: '' })
   }
 
   const handleCloseModal = () => {
@@ -105,21 +128,31 @@ export default function ManualHourEntry() {
         ptSubmit_lower: ptSubmit,
         isGardeSubmit
       })
-      const ebrigadeDurSubmit = selectedCard?.duration ? parseFloat(selectedCard.duration) : null
-      const sortieHoursSubmit = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
+      const ebrigadeDurSubmit = resolveCardDurationHours(selectedCard)
+      const rawSortieHoursSubmit = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
+      const sortieHoursSubmit = isGardeSubmit && ebrigadeDurSubmit !== null && rawSortieHoursSubmit !== null
+        ? Math.min(rawSortieHoursSubmit, ebrigadeDurSubmit)
+        : rawSortieHoursSubmit
+      const rawHoursActualSubmit = formData.hours_actual ? parseFloat(formData.hours_actual) : null
+      const hoursActualSubmit = !isGardeSubmit && ebrigadeDurSubmit !== null && rawHoursActualSubmit !== null
+        ? Math.min(rawHoursActualSubmit, ebrigadeDurSubmit)
+        : rawHoursActualSubmit
+      const simpleExcessSubmit = !isGardeSubmit && ebrigadeDurSubmit !== null && rawHoursActualSubmit !== null && rawHoursActualSubmit > ebrigadeDurSubmit
+        ? Math.round((rawHoursActualSubmit - ebrigadeDurSubmit) * 100) / 100 : 0
       const gardeHoursSubmit = isGardeSubmit && ebrigadeDurSubmit !== null && sortieHoursSubmit !== null
         ? Math.max(0, ebrigadeDurSubmit - sortieHoursSubmit)
         : (formData.garde_hours ? parseFloat(formData.garde_hours) : null)
       // If sortie > ebrigade duration, the excess becomes overtime
-      const gardeExcessSubmit = isGardeSubmit && ebrigadeDurSubmit !== null && sortieHoursSubmit !== null && sortieHoursSubmit > ebrigadeDurSubmit
-        ? Math.round((sortieHoursSubmit - ebrigadeDurSubmit) * 100) / 100 : 0
+      const gardeExcessSubmit = isGardeSubmit && ebrigadeDurSubmit !== null && rawSortieHoursSubmit !== null && rawSortieHoursSubmit > ebrigadeDurSubmit
+        ? Math.round((rawSortieHoursSubmit - ebrigadeDurSubmit) * 100) / 100 : 0
+      const baseOvertimeSubmit = formData.overtime_hours ? parseFloat(formData.overtime_hours) : 0
       const overtimeHoursSubmit = isGardeSubmit
         ? (gardeExcessSubmit > 0 ? gardeExcessSubmit : null)
-        : (formData.overtime_hours ? parseFloat(formData.overtime_hours) : null)
+        : ((baseOvertimeSubmit + simpleExcessSubmit) > 0 ? Math.round((baseOvertimeSubmit + simpleExcessSubmit) * 100) / 100 : null)
       const payload = {
         user_email: selectedUser.email, email: selectedUser.email,
         date: selectedCard.date, pay_type: selectedCard.pay_type || 'Garde',
-        hours_actual: isGardeSubmit ? null : (formData.hours_actual ? parseFloat(formData.hours_actual) : null),
+        hours_actual: isGardeSubmit ? null : hoursActualSubmit,
         garde_hours: gardeHoursSubmit,
         sortie_hours: sortieHoursSubmit,
         overtime_hours: overtimeHoursSubmit,
@@ -301,6 +334,7 @@ export default function ManualHourEntry() {
                     const isGarde = modalTypeOverride === 'garde' ? true : modalTypeOverride === 'simple' ? false : isGardeAuto
                     const ebrigadeDuration = selectedCard?.duration ? parseFloat(selectedCard.duration) : null
                     const sortieVal = formData.sortie_hours !== '' ? parseFloat(formData.sortie_hours) : null
+                    const simpleHoursVal = formData.hours_actual !== '' ? parseFloat(formData.hours_actual) : null
                     console.log('[ManualHourEntry] 🔍 GARDE DETECTION:', { 
                       pay_type: selectedCard?.pay_type,
                       pt_lower: pt,
@@ -336,9 +370,10 @@ export default function ManualHourEntry() {
                           ) : (
                             <div style={{ padding: 10, background: '#fff7ed', borderRadius: 6, border: '1px solid #fed7aa' }}>
                               <div style={{ fontSize: 12, color: '#c2410c', fontWeight: 600, marginBottom: 6 }}>⚠️ HEURES SUP (Auto)</div>
+                              <div style={{ fontSize: 13, color: '#c2410c' }}>Sortie: {ebrigadeDuration.toFixed(2)}h</div>
                               <div style={{ fontSize: 13, color: '#c2410c' }}>Garde: 0h</div>
                               <div style={{ fontSize: 15, fontWeight: 700, color: '#f97316', marginTop: 4 }}>Supp: +{(sortieVal - ebrigadeDuration).toFixed(2)}h</div>
-                              <div style={{ fontSize: 11, color: '#c2410c', marginTop: 2 }}>{sortieVal}h sortie − {ebrigadeDuration}h eBrigade</div>
+                              <div style={{ fontSize: 11, color: '#c2410c', marginTop: 2 }}>{sortieVal.toFixed(2)}h saisi = {ebrigadeDuration.toFixed(2)}h sortie + {(sortieVal - ebrigadeDuration).toFixed(2)}h sup</div>
                             </div>
                           )
                         )}
@@ -346,15 +381,23 @@ export default function ManualHourEntry() {
                     ) : (
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <label style={{ display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>HEURES</div>
+                          <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>HEURES RÉELLES</div>
                           <input type="number" step="0.25" min="0" name="hours_actual" value={formData.hours_actual} onChange={handleFormChange} placeholder="0"
                             style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
                         </label>
                         <label style={{ display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ fontSize: 12, color: '#f97316', fontWeight: 600, marginBottom: 6 }}>HEURES SUPPLÉMENTAIRES</div>
+                          <div style={{ fontSize: 12, color: '#f97316', fontWeight: 600, marginBottom: 6 }}>HEURES SUPPLÉMENTAIRES (manuel + auto)</div>
                           <input type="number" step="0.25" min="0" name="overtime_hours" value={formData.overtime_hours} onChange={handleFormChange} placeholder="0"
                             style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #fed7aa', fontSize: 14 }} />
                         </label>
+                        {ebrigadeDuration && simpleHoursVal !== null && simpleHoursVal > ebrigadeDuration && (
+                          <div style={{ gridColumn: '1 / -1', padding: 10, background: '#fff7ed', borderRadius: 6, border: '1px solid #fed7aa' }}>
+                            <div style={{ fontSize: 12, color: '#c2410c', fontWeight: 600, marginBottom: 6 }}>⚠️ HEURES SUP (Auto)</div>
+                            <div style={{ fontSize: 13, color: '#c2410c' }}>Heures réelles retenues: {ebrigadeDuration.toFixed(2)}h</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: '#f97316', marginTop: 4 }}>Supp auto: +{(simpleHoursVal - ebrigadeDuration).toFixed(2)}h</div>
+                            <div style={{ fontSize: 11, color: '#c2410c', marginTop: 2 }}>{simpleHoursVal.toFixed(2)}h saisi = {ebrigadeDuration.toFixed(2)}h réelles + {(simpleHoursVal - ebrigadeDuration).toFixed(2)}h sup</div>
+                          </div>
+                        )}
                       </div>
                     )
                   })()}

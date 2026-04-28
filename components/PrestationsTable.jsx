@@ -1,5 +1,29 @@
 import React, { useEffect, useMemo, useState, useImperativeHandle, forwardRef, useRef, useCallback } from 'react'
 
+function parseTimeToMinutes(value) {
+  if (!value) return null
+  const s = String(value).trim().toLowerCase()
+  const m = s.match(/(\d{1,2})(?:[:h](\d{2}))?/) 
+  if (!m) return null
+  const h = Number(m[1])
+  const min = Number(m[2] || 0)
+  if (Number.isNaN(h) || Number.isNaN(min)) return null
+  return (h * 60) + min
+}
+
+function resolveEbrigadeDurationHours(item) {
+  const start = parseTimeToMinutes(item?.ebrigade_start_time || item?.startTime)
+  const end = parseTimeToMinutes(item?.ebrigade_end_time || item?.endTime)
+  if (start != null && end != null) {
+    const delta = end >= start ? (end - start) : ((end + 24 * 60) - start)
+    if (delta > 0) return Math.round(((delta / 60) + Number.EPSILON) * 100) / 100
+  }
+
+  const raw = item?.ebrigade_duration_hours ?? item?.duration
+  const parsed = Number(String(raw ?? '').replace(',', '.'))
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
 const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -391,7 +415,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         sortie_hours: null,
         overtime_hours: null,
         // eBrigade data for Garde/activity hours
-        ebrigade_duration_hours: p.duration || null,
+        ebrigade_duration_hours: resolveEbrigadeDurationHours(p),
         ebrigade_start_time: p.startTime || null,
         ebrigade_end_time: p.endTime || null,
         // eBrigade prestation metadata
@@ -540,8 +564,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       }
       
       // For Garde activities: auto-calculate garde_hours from total duration - sortie_hours
-      if (payLowerForPreview.includes('garde') && editing.ebrigade_duration_hours && editing.sortie_hours !== null && editing.sortie_hours !== undefined) {
-        gardeHoursForPreview = editing.ebrigade_duration_hours - editing.sortie_hours
+      const effectiveDurationForPreview = resolveEbrigadeDurationHours(editing)
+      if (payLowerForPreview.includes('garde') && effectiveDurationForPreview && editing.sortie_hours !== null && editing.sortie_hours !== undefined) {
+        gardeHoursForPreview = effectiveDurationForPreview - editing.sortie_hours
       }
       
       const preview = {
@@ -724,8 +749,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       }
       
       // For Garde activities: auto-calculate garde_hours from total duration - sortie_hours
-      if (payLower.includes('garde') && effective.ebrigade_duration_hours && effective.sortie_hours !== null && effective.sortie_hours !== undefined) {
-        effective.garde_hours = effective.ebrigade_duration_hours - effective.sortie_hours
+      const effectiveDurationForSave = resolveEbrigadeDurationHours(effective)
+      if (payLower.includes('garde') && effectiveDurationForSave && effective.sortie_hours !== null && effective.sortie_hours !== undefined) {
+        effective.garde_hours = effectiveDurationForSave - effective.sortie_hours
       }
 
       // Ensure eBrigade data is included in the save
@@ -804,9 +830,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       try{
         // For Garde type: auto-calc garde_hours = ebrigade_duration - sortie_hours
         let liveGardeH = editing.garde_hours || 0
-        if (editingIsGarde && editing.ebrigade_duration_hours != null &&
+        const effectiveDurationForEstimate = resolveEbrigadeDurationHours(editing)
+        if (editingIsGarde && effectiveDurationForEstimate != null &&
             editing.sortie_hours !== null && editing.sortie_hours !== undefined) {
-          liveGardeH = editing.ebrigade_duration_hours - editing.sortie_hours
+          liveGardeH = effectiveDurationForEstimate - editing.sortie_hours
         }
         const body = {
           garde_hours: liveGardeH,
@@ -1156,10 +1183,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   {editingIsGarde && (
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                       {/* Read-only: Total hours from eBrigade - only if available */}
-                      {editing.ebrigade_duration_hours && (
+                      {resolveEbrigadeDurationHours(editing) && (
                         <div style={{padding:10,background:'#eff6ff',borderRadius:6,border:'1px solid #bfdbfe'}}>
                           <div style={{fontSize:12,color:'#0366d6',fontWeight:600,marginBottom:6}}>📅 HEURES TOTALES (eBrigade)</div>
-                          <div style={{fontSize:16,fontWeight:700,color:'#0366d6'}}>{editing.ebrigade_duration_hours}h</div>
+                          <div style={{fontSize:16,fontWeight:700,color:'#0366d6'}}>{resolveEbrigadeDurationHours(editing)}h</div>
                           <div style={{fontSize:11,color:'#0366d6',marginTop:4}}>Calculé depuis {editing.ebrigade_start_time || '—'} à {editing.ebrigade_end_time || '—'}</div>
                         </div>
                       )}
@@ -1172,11 +1199,11 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                       </label>
                       
                       {/* Auto-calculated garde hours - shows if we have ebrigade_duration_hours */}
-                      {editing.ebrigade_duration_hours && editing.sortie_hours !== null && editing.sortie_hours !== undefined && (
+                      {resolveEbrigadeDurationHours(editing) && editing.sortie_hours !== null && editing.sortie_hours !== undefined && (
                         <div style={{padding:10,background:'#f0fdf4',borderRadius:6,border:'1px solid #bbf7d0'}}>
                           <div style={{fontSize:12,color:'#15803d',fontWeight:600,marginBottom:6}}>🧮 HEURES GARDE (Calculées)</div>
-                          <div style={{fontSize:16,fontWeight:700,color:'#15803d'}}>{(editing.ebrigade_duration_hours - (editing.sortie_hours || 0)).toFixed(2)}h</div>
-                          <div style={{fontSize:11,color:'#15803d',marginTop:4}}>= {editing.ebrigade_duration_hours}h (total) − {editing.sortie_hours}h (sortie)</div>
+                          <div style={{fontSize:16,fontWeight:700,color:'#15803d'}}>{(resolveEbrigadeDurationHours(editing) - (editing.sortie_hours || 0)).toFixed(2)}h</div>
+                          <div style={{fontSize:11,color:'#15803d',marginTop:4}}>= {resolveEbrigadeDurationHours(editing)}h (total) − {editing.sortie_hours}h (sortie)</div>
                         </div>
                       )}
                     </div>
