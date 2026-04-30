@@ -152,6 +152,17 @@ export default function FacturationPage() {
     }
   }
 
+  async function deleteInvoice(id) {
+    if (!confirm('Supprimer définitivement cette facture ? Cette action est irréversible.')) return
+    try {
+      const res = await fetch(`/api/admin/prestations/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Erreur lors de la suppression')
+      fetchInvoices()
+    } catch (err) {
+      alert('Erreur : ' + err.message)
+    }
+  }
+
   // Fetch invoices on component mount
   useEffect(() => {
     fetchInvoices()
@@ -440,6 +451,25 @@ export default function FacturationPage() {
                                 onMouseLeave={(e) => { if (inv.id) e.target.style.background = '#8b5cf6' }}
                               >
                                 ✏️
+                              </button>
+                              <button
+                                onClick={() => inv.id && deleteInvoice(inv.id)}
+                                title="Supprimer"
+                                style={{
+                                  padding: '6px 10px',
+                                  background: '#ef4444',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: 4,
+                                  cursor: inv.id ? 'pointer' : 'not-allowed',
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  transition: 'background 0.2s'
+                                }}
+                                onMouseEnter={(e) => { if (inv.id) e.target.style.background = '#dc2626' }}
+                                onMouseLeave={(e) => { if (inv.id) e.target.style.background = '#ef4444' }}
+                              >
+                                🗑️
                               </button>
                             </div>
                           </td>
