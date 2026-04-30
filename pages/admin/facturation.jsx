@@ -14,6 +14,84 @@ export default function FacturationPage() {
   const [filterDateTo, setFilterDateTo] = useState('')
   const [editingInvoice, setEditingInvoice] = useState(null)
 
+  // Manual invoice modal
+  const [manualInvoiceOpen, setManualInvoiceOpen] = useState(false)
+  const [manualInvoiceSubmitting, setManualInvoiceSubmitting] = useState(false)
+  const [allUsers, setAllUsers] = useState([])
+  const [manualForm, setManualForm] = useState({
+    user_id: '',
+    analytic_id: '',
+    activity_label: '',
+    date: new Date().toISOString().split('T')[0],
+    garde_hours: '',
+    sortie_hours: '',
+    overtime_hours: '',
+    unit_price: '',
+    comments: '',
+  })
+
+  async function openManualInvoice() {
+    setManualInvoiceOpen(true)
+    try {
+      const res = await fetch('/api/admin/users')
+      const data = await res.json()
+      setAllUsers((data.users || []).filter(u => u.is_active))
+    } catch (e) {
+      console.error('Failed loading users', e)
+    }
+  }
+
+  async function submitManualInvoice() {
+    if (!manualForm.user_id) return alert('Veuillez sélectionner un utilisateur')
+    if (!manualForm.date) return alert('Veuillez saisir la date de la prestation')
+    if (!manualForm.unit_price || Number(manualForm.unit_price) <= 0) return alert('Le prix unitaire doit être positif')
+    if (!Number(manualForm.garde_hours) && !Number(manualForm.sortie_hours)) return alert('Au moins des heures de garde ou de sortie sont requises')
+
+    setManualInvoiceSubmitting(true)
+    try {
+      const res = await fetch('/api/admin/manual-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: manualForm.user_id,
+          analytic_id: manualForm.analytic_id || null,
+          activity_label: manualForm.activity_label,
+          date: manualForm.date,
+          garde_hours: Number(manualForm.garde_hours) || 0,
+          sortie_hours: Number(manualForm.sortie_hours) || 0,
+          overtime_hours: Number(manualForm.overtime_hours) || 0,
+          unit_price: Number(manualForm.unit_price),
+          comments: manualForm.comments,
+        }),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Erreur lors de la génération')
+      }
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `facture-manuelle-${manualForm.date}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      setManualInvoiceOpen(false)
+      setManualForm({
+        user_id: '', analytic_id: '', activity_label: '',
+        date: new Date().toISOString().split('T')[0],
+        garde_hours: '', sortie_hours: '', overtime_hours: '',
+        unit_price: '', comments: '',
+      })
+      fetchInvoices()
+    } catch (err) {
+      alert('❌ Erreur : ' + err.message)
+    } finally {
+      setManualInvoiceSubmitting(false)
+    }
+  }
+
   // Fetch invoices on component mount
   useEffect(() => {
     fetchInvoices()
@@ -72,19 +150,40 @@ export default function FacturationPage() {
   }
 
   return (
+    <>
     <div className="admin-layout">
       <AdminHeader />
       <div className="admin-container">
         <AdminSidebar />
         <main className="admin-main">
           {/* Header Section */}
-          <div style={{marginBottom: 32}}>
-            <h1 style={{fontSize: 28, fontWeight: 700, color: '#111827', marginBottom: 8}}>
-              💰 Gestion de la Facturation
-            </h1>
-            <p style={{color: '#6b7280', fontSize: 14}}>
-              Gérez vos factures, paiements et relevés de comptes
-            </p>
+          <div style={{marginBottom: 32, display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+            <div>
+              <h1 style={{fontSize: 28, fontWeight: 700, color: '#111827', marginBottom: 8}}>
+                💰 Gestion de la Facturation
+              </h1>
+              <p style={{color: '#6b7280', fontSize: 14}}>
+                Gérez vos factures, paiements et relevés de comptes
+              </p>
+            </div>
+            <button
+              onClick={openManualInvoice}
+              style={{
+                padding: '12px 22px',
+                background: '#7c3aed',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: '0 2px 6px rgba(124,58,237,0.3)',
+                whiteSpace: 'nowrap',
+                marginTop: 4,
+              }}
+            >
+              ✍️ Facture manuelle
+            </button>
           </div>
 
           {/* Statistics Cards */}
@@ -295,6 +394,164 @@ export default function FacturationPage() {
         </main>
       </div>
     </div>
+
+      {/* Manual Invoice Modal */}
+      {manualInvoiceOpen && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1400}} onClick={() => !manualInvoiceSubmitting && setManualInvoiceOpen(false)}>
+          <div style={{background:'#fff',borderRadius:12,width:'95%',maxWidth:560,maxHeight:'95vh',overflow:'auto',padding:32,boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}} onClick={e => e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24}}>
+              <h2 style={{margin:0,fontSize:20,fontWeight:700,color:'#111827'}}>✍️ Créer une facture manuelle</h2>
+              <button onClick={() => setManualInvoiceOpen(false)} disabled={manualInvoiceSubmitting} style={{border:'none',background:'transparent',fontSize:20,cursor:'pointer',color:'#6b7280'}}>✕</button>
+            </div>
+
+            <div style={{display:'flex',flexDirection:'column',gap:16}}>
+              {/* Utilisateur */}
+              <div>
+                <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:6}}>👤 Utilisateur *</label>
+                <select
+                  value={manualForm.user_id}
+                  onChange={e => setManualForm(f => ({...f, user_id: e.target.value}))}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,background:'white'}}
+                >
+                  <option value="">— Sélectionner un utilisateur —</option>
+                  {allUsers.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.company || `${u.first_name || ''} ${u.last_name || ''}`.trim()} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Analytique */}
+              <div>
+                <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:6}}>📊 Activité / Analytique</label>
+                <select
+                  value={manualForm.analytic_id}
+                  onChange={e => {
+                    const aid = e.target.value
+                    const sel = analytics.find(a => String(a.id) === String(aid))
+                    setManualForm(f => ({...f, analytic_id: aid, activity_label: sel ? sel.name : f.activity_label}))
+                  }}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,background:'white'}}
+                >
+                  <option value="">— Sélectionner une analytique —</option>
+                  {analytics.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} {a.code ? `(${a.code})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Libellé activité */}
+              <div>
+                <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:6}}>📝 Libellé de la prestation</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Garde de nuit, Intervention ambulance..."
+                  value={manualForm.activity_label}
+                  onChange={e => setManualForm(f => ({...f, activity_label: e.target.value}))}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}}
+                />
+              </div>
+
+              {/* Date */}
+              <div>
+                <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:6}}>📅 Date de la prestation *</label>
+                <input
+                  type="date"
+                  value={manualForm.date}
+                  onChange={e => setManualForm(f => ({...f, date: e.target.value}))}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}}
+                />
+              </div>
+
+              {/* Heures */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+                <div>
+                  <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:6}}>🌙 H. Garde</label>
+                  <input type="number" min="0" step="0.5" placeholder="0" value={manualForm.garde_hours}
+                    onChange={e => setManualForm(f => ({...f, garde_hours: e.target.value}))}
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
+                </div>
+                <div>
+                  <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:6}}>🚨 H. Sortie</label>
+                  <input type="number" min="0" step="0.5" placeholder="0" value={manualForm.sortie_hours}
+                    onChange={e => setManualForm(f => ({...f, sortie_hours: e.target.value}))}
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
+                </div>
+                <div>
+                  <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:6}}>⏱️ H. Supp.</label>
+                  <input type="number" min="0" step="0.5" placeholder="0" value={manualForm.overtime_hours}
+                    onChange={e => setManualForm(f => ({...f, overtime_hours: e.target.value}))}
+                    style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
+                </div>
+              </div>
+
+              {/* Prix unitaire */}
+              <div>
+                <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:6}}>💶 Prix unitaire (€/h) *</label>
+                <input
+                  type="number" min="0" step="0.01" placeholder="Ex: 25.50"
+                  value={manualForm.unit_price}
+                  onChange={e => setManualForm(f => ({...f, unit_price: e.target.value}))}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}}
+                />
+              </div>
+
+              {/* Aperçu montant */}
+              {(Number(manualForm.garde_hours) > 0 || Number(manualForm.sortie_hours) > 0 || Number(manualForm.overtime_hours) > 0) && Number(manualForm.unit_price) > 0 && (
+                <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:6,padding:'10px 14px',fontSize:13,color:'#166534'}}>
+                  💰 Montant estimé :{' '}
+                  <strong>
+                    {(
+                      (Number(manualForm.garde_hours) || 0) * Number(manualForm.unit_price) +
+                      (Number(manualForm.sortie_hours) || 0) * Number(manualForm.unit_price) +
+                      (Number(manualForm.overtime_hours) || 0) * Number(manualForm.unit_price)
+                    ).toFixed(2)} €
+                  </strong>
+                  {' '}({[
+                    Number(manualForm.garde_hours) > 0 && `${manualForm.garde_hours}h garde`,
+                    Number(manualForm.sortie_hours) > 0 && `${manualForm.sortie_hours}h sortie`,
+                    Number(manualForm.overtime_hours) > 0 && `${manualForm.overtime_hours}h supp.`,
+                  ].filter(Boolean).join(' + ')})
+                </div>
+              )}
+
+              {/* Commentaires */}
+              <div>
+                <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:6}}>💬 Commentaires</label>
+                <textarea
+                  placeholder="Commentaires optionnels..."
+                  value={manualForm.comments}
+                  onChange={e => setManualForm(f => ({...f, comments: e.target.value}))}
+                  rows={2}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,resize:'vertical',boxSizing:'border-box'}}
+                />
+              </div>
+
+              {/* Actions */}
+              <div style={{display:'flex',justifyContent:'flex-end',gap:10,paddingTop:8}}>
+                <button
+                  onClick={() => setManualInvoiceOpen(false)}
+                  disabled={manualInvoiceSubmitting}
+                  style={{padding:'10px 20px',background:'#f3f4f6',border:'none',borderRadius:6,cursor:'pointer',fontSize:14,fontWeight:600}}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={submitManualInvoice}
+                  disabled={manualInvoiceSubmitting}
+                  style={{padding:'10px 24px',background:manualInvoiceSubmitting ? '#9ca3af' : '#7c3aed',color:'white',border:'none',borderRadius:6,cursor:manualInvoiceSubmitting ? 'not-allowed' : 'pointer',fontSize:14,fontWeight:700,boxShadow:'0 2px 6px rgba(124,58,237,0.3)'}}
+                >
+                  {manualInvoiceSubmitting ? '⏳ Génération en cours...' : '📄 Générer la facture'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
