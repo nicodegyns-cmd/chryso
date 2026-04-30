@@ -18,15 +18,19 @@ export default function FacturationPage() {
   const [manualInvoiceOpen, setManualInvoiceOpen] = useState(false)
   const [manualInvoiceSubmitting, setManualInvoiceSubmitting] = useState(false)
   const [manualStep, setManualStep] = useState(1)
+  const [manualType, setManualType] = useState('garde') // 'garde' | 'simple'
+  const [suggestedRate, setSuggestedRate] = useState(null)
   const [allUsers, setAllUsers] = useState([])
   const [manualUserSearch, setManualUserSearch] = useState('')
   const [selectedManualUser, setSelectedManualUser] = useState(null)
   const [selectedManualAnalytic, setSelectedManualAnalytic] = useState(null)
   const [manualForm, setManualForm] = useState({
     date: new Date().toISOString().split('T')[0],
-    garde_hours: '',
+    total_duration: '', // durée totale optionnelle (mode garde)
+    garde_hours: '',    // saisie libre si pas de durée totale
     sortie_hours: '',
     overtime_hours: '',
+    hours_actual: '',   // mode simple
     unit_price: '',
     comments: '',
   })
@@ -34,13 +38,15 @@ export default function FacturationPage() {
   async function openManualInvoice() {
     setManualInvoiceOpen(true)
     setManualStep(1)
+    setManualType('garde')
+    setSuggestedRate(null)
     setManualUserSearch('')
     setSelectedManualUser(null)
     setSelectedManualAnalytic(null)
     setManualForm({
       date: new Date().toISOString().split('T')[0],
-      garde_hours: '', sortie_hours: '', overtime_hours: '',
-      unit_price: '', comments: '',
+      total_duration: '', garde_hours: '', sortie_hours: '', overtime_hours: '',
+      hours_actual: '', unit_price: '', comments: '',
     })
     try {
       const res = await fetch('/api/admin/users')
@@ -51,11 +57,62 @@ export default function FacturationPage() {
     }
   }
 
+  async function goToStep3() {
+    setManualStep(3)
+    if (!selectedManualUser?.id) return
+    try {
+      const res = await fetch(`/api/admin/user-prestations?user_id=${selectedManualUser.id}`)
+      const data = await res.json()
+      const pList = (data.prestations || []).filter(p => {
+        const h = (Number(p.garde_hours)||0) + (Number(p.sortie_hours)||0) + (Number(p.overtime_hours)||0) + (Number(p.hours_actual)||0)
+        const r = (Number(p.remuneration_infi)||0) + (Number(p.remuneration_med)||0)
+        return h > 0 && r > 0
+      })
+      if (pList.length) {
+        const p = pList[0]
+        const h = (Number(p.garde_hours)||0) + (Number(p.sortie_hours)||0) + (Number(p.overtime_hours)||0)
+        const r = (Number(p.remuneration_infi)||0) + (Number(p.remuneration_med)||0)
+        setSuggestedRate(Math.round((r / h) * 100) / 100)
+        const pt = (p.pay_type||'').toLowerCase()
+        if (pt.includes('simple') || (!pt.includes('garde') && p.hours_actual)) setManualType('simple')
+        else setManualType('garde')
+      }
+    } catch(e) { /* ignore */ }
+  }
+
   async function submitManualInvoice() {
     if (!selectedManualUser) return alert('Veuillez sélectionner un utilisateur')
     if (!manualForm.date) return alert('Veuillez saisir la date de la prestation')
     if (!manualForm.unit_price || Number(manualForm.unit_price) <= 0) return alert('Le prix unitaire doit être positif')
-    if (!Number(manualForm.garde_hours) && !Number(manualForm.sortie_hours)) return alert('Au moins des heures de garde ou de sortie sont requises')
+
+    // Calcul des heures selon le type
+    let gardeH, sortieH, overtimeH
+    if (manualType === 'garde') {
+      const totDur = manualForm.total_duration ? Number(manualForm.total_duration) : null
+      const sortie = Number(manualForm.sortie_hours) || 0
+      const ot = Number(manualForm.overtime_hours) || 0
+      if (totDur !== null) {
+        if (sortie <= totDur) {
+          gardeH = totDur - sortie
+          sortieH = sortie
+          overtimeH = ot
+        } else {
+          gardeH = 0
+          sortieH = totDur
+          overtimeH = (sortie - totDur) + ot
+        }
+      } else {
+        gardeH = Number(manualForm.garde_hours) || 0
+        sortieH = sortie
+        overtimeH = ot
+      }
+      if (gardeH + sortieH === 0) return alert('Au moins des heures de garde ou de sortie sont requises')
+    } else {
+      gardeH = Number(manualForm.hours_actual) || 0
+      sortieH = 0
+      overtimeH = Number(manualForm.overtime_hours) || 0
+      if (gardeH === 0) return alert('Les heures réelles sont requises')
+    }
 
     setManualInvoiceSubmitting(true)
     try {
@@ -67,9 +124,9 @@ export default function FacturationPage() {
           analytic_id: selectedManualAnalytic?.id || null,
           activity_label: selectedManualAnalytic?.name || '',
           date: manualForm.date,
-          garde_hours: Number(manualForm.garde_hours) || 0,
-          sortie_hours: Number(manualForm.sortie_hours) || 0,
-          overtime_hours: Number(manualForm.overtime_hours) || 0,
+          garde_hours: gardeH,
+          sortie_hours: sortieH,
+          overtime_hours: overtimeH,
           unit_price: Number(manualForm.unit_price),
           comments: manualForm.comments,
         }),
@@ -500,19 +557,41 @@ export default function FacturationPage() {
                   })}
                 </div>
                 <div style={{marginTop:20,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <button onClick={() => { setSelectedManualAnalytic(null); setManualStep(3) }} style={{border:'none',background:'none',color:'#9ca3af',cursor:'pointer',fontSize:13}}>Passer cette étape</button>
-                  <button onClick={() => setManualStep(3)} style={{padding:'11px 28px',background:'#7c3aed',color:'white',border:'none',borderRadius:8,cursor:'pointer',fontSize:14,fontWeight:700}}>Suivant →</button>
+                  <button onClick={() => { setSelectedManualAnalytic(null); goToStep3() }} style={{border:'none',background:'none',color:'#9ca3af',cursor:'pointer',fontSize:13}}>Passer cette étape</button>
+                  <button onClick={() => goToStep3()} style={{padding:'11px 28px',background:'#7c3aed',color:'white',border:'none',borderRadius:8,cursor:'pointer',fontSize:14,fontWeight:700}}>Suivant →</button>
                 </div>
               </div>
             )}
 
-            {/* ── ÉTAPE 3 : Détails ── */}
-            {manualStep === 3 && (
+            {/* ── ÉTAPE 3 : Héures + Tarif ── */}
+            {manualStep === 3 && (() => {
+              // Compute hours for live preview
+              const totDur = manualForm.total_duration ? Number(manualForm.total_duration) : null
+              const sortieVal = manualForm.sortie_hours !== '' ? Number(manualForm.sortie_hours) : null
+              const simpleVal = manualForm.hours_actual !== '' ? Number(manualForm.hours_actual) : null
+              const price = Number(manualForm.unit_price) || 0
+
+              let previewGardeH = 0, previewSortieH = 0, previewOtH = Number(manualForm.overtime_hours)||0
+              if (manualType === 'garde') {
+                if (totDur !== null && sortieVal !== null) {
+                  if (sortieVal <= totDur) { previewGardeH = totDur - sortieVal; previewSortieH = sortieVal }
+                  else { previewGardeH = 0; previewSortieH = totDur; previewOtH += sortieVal - totDur }
+                } else {
+                  previewGardeH = Number(manualForm.garde_hours)||0
+                  previewSortieH = sortieVal || 0
+                }
+              } else {
+                previewGardeH = simpleVal || 0
+              }
+              const totalH = previewGardeH + previewSortieH + previewOtH
+              const totalEur = totalH * price
+
+              return (
               <div>
                 <button onClick={() => setManualStep(2)} style={{border:'none',background:'none',color:'#7c3aed',cursor:'pointer',fontSize:13,fontWeight:600,padding:0,marginBottom:14}}>← Retour</button>
 
                 {/* Summary chips */}
-                <div style={{display:'flex',gap:8,marginBottom:20,flexWrap:'wrap'}}>
+                <div style={{display:'flex',gap:8,marginBottom:18,flexWrap:'wrap'}}>
                   <div style={{padding:'5px 12px',background:'#f5f3ff',border:'1px solid #c4b5fd',borderRadius:20,fontSize:12,fontWeight:600,color:'#5b21b6'}}>
                     👤 {selectedManualUser?.company || `${selectedManualUser?.first_name||''} ${selectedManualUser?.last_name||''}`.trim()}
                   </div>
@@ -524,56 +603,146 @@ export default function FacturationPage() {
                 </div>
 
                 {/* Date */}
-                <div style={{marginBottom:14}}>
-                  <label style={{display:'block',fontSize:11,fontWeight:700,color:'#6b7280',marginBottom:6,letterSpacing:'0.06em'}}>📅 DATE *</label>
+                <div style={{marginBottom:16}}>
+                  <label style={{display:'block',fontSize:11,fontWeight:700,color:'#6b7280',marginBottom:6,letterSpacing:'0.06em'}}>📅 DATE DE LA PRESTATION *</label>
                   <input type="date" value={manualForm.date} onChange={e => setManualForm(f=>({...f,date:e.target.value}))}
                     style={{width:'100%',padding:'11px 14px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:14,boxSizing:'border-box'}} />
                 </div>
 
-                {/* Hours */}
-                <div style={{marginBottom:14}}>
-                  <label style={{display:'block',fontSize:11,fontWeight:700,color:'#6b7280',marginBottom:8,letterSpacing:'0.06em'}}>⏱️ HEURES *</label>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
-                    {[
-                      {key:'garde_hours',label:'Garde 🌙'},
-                      {key:'sortie_hours',label:'Sortie 🚨'},
-                      {key:'overtime_hours',label:'Supp. ⚡'},
-                    ].map(({key,label}) => (
-                      <div key={key}>
-                        <div style={{fontSize:11,color:'#6b7280',fontWeight:600,marginBottom:4,textAlign:'center'}}>{label}</div>
-                        <input type="number" min="0" step="0.5" placeholder="0"
-                          value={manualForm[key]}
-                          onChange={e => setManualForm(f=>({...f,[key]:e.target.value}))}
-                          style={{width:'100%',padding:'10px 8px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:16,fontWeight:700,textAlign:'center',boxSizing:'border-box'}} />
-                      </div>
-                    ))}
+                {/* Hours section - identical to ManualHourEntry modal */}
+                <div style={{marginBottom:16,padding:14,border:'1px solid #e5e7eb',borderRadius:10,background:'#f9fafb'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+                    <div style={{fontWeight:700,fontSize:14,color:'#1f2937'}}>📊 Heures de travail</div>
+                    {/* Type toggle */}
+                    <div style={{display:'flex',gap:4,background:'#e5e7eb',borderRadius:8,padding:3}}>
+                      {[['garde','🌙 Garde'],['simple','⏱️ Simple']].map(([t,label]) => (
+                        <button key={t} onClick={() => setManualType(t)}
+                          style={{padding:'5px 14px',border:'none',borderRadius:6,cursor:'pointer',fontSize:12,fontWeight:700,transition:'all 0.15s',
+                            background:manualType===t?'white':'transparent',
+                            color:manualType===t?'#7c3aed':'#6b7280',
+                            boxShadow:manualType===t?'0 1px 3px rgba(0,0,0,0.12)':'none'
+                          }}>{label}</button>
+                      ))}
+                    </div>
                   </div>
+
+                  {manualType === 'garde' ? (
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                      {/* Total duration (optional reference) */}
+                      <div style={{padding:10,background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:8}}>
+                        <div style={{fontSize:12,color:'#1d4ed8',fontWeight:600,marginBottom:6}}>DURÉE TOTALE (réf.)</div>
+                        <input type="number" step="0.25" min="0" placeholder="0"
+                          value={manualForm.total_duration}
+                          onChange={e => setManualForm(f=>({...f,total_duration:e.target.value}))}
+                          style={{width:'100%',padding:'8px 10px',border:'1px solid #bfdbfe',borderRadius:6,fontSize:14,fontWeight:700,background:'white',boxSizing:'border-box'}} />
+                        {manualForm.total_duration && <div style={{fontSize:11,color:'#1d4ed8',marginTop:4}}>Durée de référence</div>}
+                      </div>
+
+                      {/* Sortie hours */}
+                      <div>
+                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SORTIE</div>
+                        <input type="number" step="0.25" min="0" placeholder="0"
+                          value={manualForm.sortie_hours}
+                          onChange={e => setManualForm(f=>({...f,sortie_hours:e.target.value}))}
+                          style={{width:'100%',padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
+                      </div>
+
+                      {/* Auto-calc garde if total_duration set */}
+                      {totDur !== null && sortieVal !== null ? (
+                        sortieVal <= totDur ? (
+                          <div style={{padding:10,background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:8}}>
+                            <div style={{fontSize:12,color:'#15803d',fontWeight:600,marginBottom:4}}>🧮 HEURES GARDE (calculées)</div>
+                            <div style={{fontSize:18,fontWeight:700,color:'#15803d'}}>{(totDur - sortieVal).toFixed(2)}h</div>
+                            <div style={{fontSize:11,color:'#15803d'}}>{totDur}h − {sortieVal}h sortie</div>
+                          </div>
+                        ) : (
+                          <div style={{padding:10,background:'#fff7ed',border:'1px solid #fed7aa',borderRadius:8}}>
+                            <div style={{fontSize:12,color:'#c2410c',fontWeight:600}}>⚠️ H. SUP AUTO</div>
+                            <div style={{fontSize:13,color:'#c2410c'}}>Sortie : {totDur.toFixed(2)}h capée</div>
+                            <div style={{fontSize:15,fontWeight:700,color:'#f97316'}}>+{(sortieVal - totDur).toFixed(2)}h supp.</div>
+                          </div>
+                        )
+                      ) : (
+                        /* Manual garde input when no total_duration */
+                        <div>
+                          <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>🌙 HEURES GARDE</div>
+                          <input type="number" step="0.25" min="0" placeholder="0"
+                            value={manualForm.garde_hours}
+                            onChange={e => setManualForm(f=>({...f,garde_hours:e.target.value}))}
+                            style={{width:'100%',padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
+                        </div>
+                      )}
+
+                      {/* Overtime */}
+                      <div>
+                        <div style={{fontSize:12,color:'#f97316',fontWeight:600,marginBottom:6}}>HEURES SUPP. (manuel)</div>
+                        <input type="number" step="0.25" min="0" placeholder="0"
+                          value={manualForm.overtime_hours}
+                          onChange={e => setManualForm(f=>({...f,overtime_hours:e.target.value}))}
+                          style={{width:'100%',padding:'8px 10px',border:'1px solid #fed7aa',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
+                      </div>
+                    </div>
+                  ) : (
+                    /* Simple mode */
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                      <div>
+                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES RÉELLES</div>
+                        <input type="number" step="0.25" min="0" placeholder="0"
+                          value={manualForm.hours_actual}
+                          onChange={e => setManualForm(f=>({...f,hours_actual:e.target.value}))}
+                          style={{width:'100%',padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
+                      </div>
+                      <div>
+                        <div style={{fontSize:12,color:'#f97316',fontWeight:600,marginBottom:6}}>HEURES SUPP.</div>
+                        <input type="number" step="0.25" min="0" placeholder="0"
+                          value={manualForm.overtime_hours}
+                          onChange={e => setManualForm(f=>({...f,overtime_hours:e.target.value}))}
+                          style={{width:'100%',padding:'8px 10px',border:'1px solid #fed7aa',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Unit price */}
-                <div style={{marginBottom:14}}>
+                <div style={{marginBottom:suggestedRate?8:16}}>
                   <label style={{display:'block',fontSize:11,fontWeight:700,color:'#6b7280',marginBottom:6,letterSpacing:'0.06em'}}>💶 PRIX / HEURE (€) *</label>
                   <input type="number" min="0" step="0.01" placeholder="Ex : 25.50"
                     value={manualForm.unit_price}
                     onChange={e => setManualForm(f=>({...f,unit_price:e.target.value}))}
                     style={{width:'100%',padding:'11px 14px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:14,boxSizing:'border-box'}} />
                 </div>
+                {suggestedRate && !manualForm.unit_price && (
+                  <div style={{marginBottom:16,display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:'#fffbeb',border:'1px solid #fde68a',borderRadius:8}}>
+                    <span style={{fontSize:12,color:'#92400e'}}>💡 Dernier taux connu : <strong>{suggestedRate} €/h</strong></span>
+                    <button onClick={() => setManualForm(f=>({...f,unit_price:String(suggestedRate)}))} style={{fontSize:11,padding:'3px 10px',background:'#f59e0b',color:'white',border:'none',borderRadius:6,cursor:'pointer',fontWeight:700}}>Utiliser</button>
+                  </div>
+                )}
 
                 {/* Live total */}
-                {(Number(manualForm.garde_hours)>0||Number(manualForm.sortie_hours)>0||Number(manualForm.overtime_hours)>0) && Number(manualForm.unit_price)>0 && (
-                  <div style={{marginBottom:14,padding:'12px 16px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                    <span style={{fontSize:13,color:'#15803d'}}>Total estimé</span>
-                    <strong style={{fontSize:18,color:'#15803d'}}>
-                      {(((Number(manualForm.garde_hours)||0)+(Number(manualForm.sortie_hours)||0)+(Number(manualForm.overtime_hours)||0))*Number(manualForm.unit_price)).toFixed(2)} €
-                    </strong>
+                {totalH > 0 && price > 0 && (
+                  <div style={{marginBottom:16,padding:'10px 14px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:8}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <span style={{fontSize:13,color:'#15803d'}}>Total estimé</span>
+                      <strong style={{fontSize:20,color:'#15803d'}}>{totalEur.toFixed(2)} €</strong>
+                    </div>
+                    {manualType === 'garde' ? (
+                      <div style={{fontSize:11,color:'#15803d',marginTop:4,display:'flex',gap:8,flexWrap:'wrap'}}>
+                        {previewGardeH>0 && <span>{previewGardeH.toFixed(2)}h garde</span>}
+                        {previewSortieH>0 && <span>+ {previewSortieH.toFixed(2)}h sortie</span>}
+                        {previewOtH>0 && <span>+ {previewOtH.toFixed(2)}h supp.</span>}
+                        <span>× {price} €/h</span>
+                      </div>
+                    ) : (
+                      <div style={{fontSize:11,color:'#15803d',marginTop:4}}>{previewGardeH.toFixed(2)}h réelles{previewOtH>0?` + ${previewOtH.toFixed(2)}h supp.`:''} × {price} €/h</div>
+                    )}
                   </div>
                 )}
 
                 {/* Comments */}
-                <div style={{marginBottom:22}}>
+                <div style={{marginBottom:20}}>
                   <label style={{display:'block',fontSize:11,fontWeight:700,color:'#6b7280',marginBottom:6,letterSpacing:'0.06em'}}>💬 NOTE (optionnel)</label>
                   <textarea placeholder="Commentaire interne..." value={manualForm.comments} onChange={e=>setManualForm(f=>({...f,comments:e.target.value}))} rows={2}
-                    style={{width:'100%',padding:'10px 14px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:13,resize:'vertical',boxSizing:'border-box'}} />
+                    style={{width:'100%',padding:'10px 14px',border:'1px solid #e5e7eb',borderRadius:8,fontSize:13,resize:'vertical',boxSizing:'border-box',fontFamily:'inherit'}} />
                 </div>
 
                 <button onClick={submitManualInvoice} disabled={manualInvoiceSubmitting}
@@ -581,7 +750,8 @@ export default function FacturationPage() {
                   {manualInvoiceSubmitting ? '⏳ Génération en cours...' : '📄 Générer la facture PDF'}
                 </button>
               </div>
-            )}
+              )
+            })()}
 
           </div>
         </div>
