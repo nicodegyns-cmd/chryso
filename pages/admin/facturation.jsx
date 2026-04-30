@@ -70,7 +70,7 @@ export default function FacturationPage() {
       })
       if (pList.length) {
         const p = pList[0]
-        const h = (Number(p.garde_hours)||0) + (Number(p.sortie_hours)||0) + (Number(p.overtime_hours)||0)
+        const h = (Number(p.garde_hours)||0) + (Number(p.sortie_hours)||0) + (Number(p.overtime_hours)||0) + (Number(p.hours_actual)||0)
         const r = (Number(p.remuneration_infi)||0) + (Number(p.remuneration_med)||0)
         setSuggestedRate(Math.round((r / h) * 100) / 100)
         const pt = (p.pay_type||'').toLowerCase()
