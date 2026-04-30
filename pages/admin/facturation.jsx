@@ -61,21 +61,20 @@ export default function FacturationPage() {
     setManualStep(3)
     if (!selectedManualUser?.id) return
     try {
-      const res = await fetch(`/api/admin/user-prestations?user_id=${selectedManualUser.id}`)
-      const data = await res.json()
-      const pList = (data.prestations || []).filter(p => {
-        const h = (Number(p.garde_hours)||0) + (Number(p.sortie_hours)||0) + (Number(p.overtime_hours)||0) + (Number(p.hours_actual)||0)
-        const r = (Number(p.remuneration_infi)||0) + (Number(p.remuneration_med)||0)
-        return h > 0 && r > 0
-      })
-      if (pList.length) {
-        const p = pList[0]
-        const h = (Number(p.garde_hours)||0) + (Number(p.sortie_hours)||0) + (Number(p.overtime_hours)||0) + (Number(p.hours_actual)||0)
-        const r = (Number(p.remuneration_infi)||0) + (Number(p.remuneration_med)||0)
-        setSuggestedRate(Math.round((r / h) * 100) / 100)
-        const pt = (p.pay_type||'').toLowerCase()
-        if (pt.includes('simple') || (!pt.includes('garde') && p.hours_actual)) setManualType('simple')
-        else setManualType('garde')
+      // Fetch the rate directly from the activity for the selected analytic
+      if (selectedManualAnalytic?.id) {
+        const rateRes = await fetch(`/api/admin/activity-rate?analytic_id=${selectedManualAnalytic.id}`)
+        const rateData = await rateRes.json()
+        if (rateData.rate) {
+          const isMed = (selectedManualUser.role || '').toUpperCase().includes('MED')
+          const rate = isMed
+            ? (Number(rateData.rate.remuneration_med) || Number(rateData.rate.remuneration_infi) || null)
+            : (Number(rateData.rate.remuneration_infi) || Number(rateData.rate.remuneration_med) || null)
+          if (rate) setSuggestedRate(rate)
+          const pt = (rateData.rate.pay_type || '').toLowerCase()
+          if (pt.includes('simple') || pt.includes('permanence') || pt.includes('astreinte')) setManualType('simple')
+          else setManualType('garde')
+        }
       }
     } catch(e) { /* ignore */ }
   }
@@ -713,7 +712,7 @@ export default function FacturationPage() {
                 </div>
                 {suggestedRate && !manualForm.unit_price && (
                   <div style={{marginBottom:16,display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:'#fffbeb',border:'1px solid #fde68a',borderRadius:8}}>
-                    <span style={{fontSize:12,color:'#92400e'}}>💡 Dernier taux connu : <strong>{suggestedRate} €/h</strong></span>
+                    <span style={{fontSize:12,color:'#92400e'}}>💡 Taux de l'activité : <strong>{suggestedRate} €/h</strong></span>
                     <button onClick={() => setManualForm(f=>({...f,unit_price:String(suggestedRate)}))} style={{fontSize:11,padding:'3px 10px',background:'#f59e0b',color:'white',border:'none',borderRadius:6,cursor:'pointer',fontWeight:700}}>Utiliser</button>
                   </div>
                 )}
