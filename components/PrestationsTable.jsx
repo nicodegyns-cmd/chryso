@@ -296,6 +296,18 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           return
         }
       }
+
+      // Block encoding after 48h deadline for non-admin users (dates >= 2026-05-01)
+      if (p.date && role !== 'admin' && role !== 'moderator') {
+        const prestDate48 = new Date(p.date); prestDate48.setHours(0, 0, 0, 0)
+        if (prestDate48 >= new Date('2026-05-01')) {
+          const hoursElapsed = (Date.now() - prestDate48.getTime()) / (1000 * 60 * 60)
+          if (hoursElapsed >= 48) {
+            alert(`⏰ Le délai de 48h pour encoder vos heures est dépassé.\n\nVous ne pouvez plus encoder vos heures pour la prestation du ${prestDate48.toLocaleDateString('fr-FR')}.\nVeuillez contacter un administrateur.`)
+            return
+          }
+        }
+      }
       
       // FIRST: Check in the API if a prestation already exists for this user/date/analytic
       // This ensures we don't miss existing prestations that are scrolled out of view or filtered

@@ -120,6 +120,20 @@ export default async function handler(req, res) {
         }
       }
 
+      // Block user hour encoding after 48h deadline (applies to prestations from 2026-05-01)
+      // Admins can bypass this with is_admin_override: true
+      const { is_admin_override } = req.body || {}
+      if (date && !is_admin_override) {
+        const prestDateDeadline = new Date(date)
+        prestDateDeadline.setHours(0, 0, 0, 0)
+        if (prestDateDeadline >= new Date('2026-05-01')) {
+          const hoursElapsed = (Date.now() - prestDateDeadline.getTime()) / (1000 * 60 * 60)
+          if (hoursElapsed >= 48) {
+            return res.status(403).json({ error: 'Le délai de 48h pour encoder vos heures est dépassé. Veuillez contacter un administrateur.' })
+          }
+        }
+      }
+
       // Find user by email
       const q1 = await pool.query(
         'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',

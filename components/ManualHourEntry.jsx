@@ -167,6 +167,7 @@ export default function ManualHourEntry() {
         ebrigade_duration_hours: resolveCardDurationHours(selectedCard),
         ebrigade_start_time: selectedCard.startTime || null, ebrigade_end_time: selectedCard.endTime || null,
         status: "En attente d'approbation",
+        is_admin_override: true,
       }
       const res = await fetch('/api/admin/prestations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || err.message || `Erreur ${res.status}`) }
