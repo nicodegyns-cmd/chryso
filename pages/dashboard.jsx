@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const [ebrigadeId, setEbrigadeId] = React.useState(null)
   const prestationsTableRef = React.useRef(null)
   
-  // Check user status: onboarding > pending validation > full access
+  // Check user status and fetch liaison_ebrigade_id in a single call
   React.useEffect(() => {
     if (!userEmail) return
     
@@ -29,6 +29,10 @@ export default function DashboardPage() {
         const me = list.find((u) => (u.email || '').toLowerCase() === userEmail.toLowerCase())
         
         if (!me) return
+        
+        // Set ebrigade liaison id
+        setEbrigadeId(me.liaison_ebrigade_id || null)
+        console.log('[dashboard] User data:', me)
         
         // Priority 1: If onboarding not complete, go to profile (only for INFI/MED roles)
         const mustCompleteRoles = ['INFI', 'MED', 'infirmier', 'medecin']
@@ -46,22 +50,6 @@ export default function DashboardPage() {
     
     checkStatus()
   }, [userEmail, router])
-  
-  // Fetch user's liaison_ebrigade_id when email changes
-  React.useEffect(() => {
-    if (!userEmail) return
-    
-    fetch(`/api/users/by-token?email=${encodeURIComponent(userEmail)}`)
-      .then(r => {
-        if (!r.ok) throw new Error(`API error: ${r.status}`)
-        return r.json()
-      })
-      .then(user => {
-        console.log('[dashboard] User data:', user)
-        setEbrigadeId(user.liaison_ebrigade_id || null)
-      })
-      .catch(e => console.error('[dashboard] Error fetching user:', e))
-  }, [userEmail])
   
   // Force page reload when router query changes (for ebrigade_id changes)
   React.useEffect(() => {
