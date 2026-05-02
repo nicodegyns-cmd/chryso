@@ -28,6 +28,8 @@ export default function ComptabilitePage() {
   const [confirmPaymentItem, setConfirmPaymentItem] = useState(null)
   const [exportingAll, setExportingAll] = useState(false)
   const [exportingIds, setExportingIds] = useState({})
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   const userRole = useLocalStorage('role', null)
   const userEmail = useLocalStorage('email', '')
@@ -261,7 +263,7 @@ export default function ComptabilitePage() {
   }
 
   async function exportAll() {
-    const pending = safePrestations.filter(p => p && p.status === 'sent_to_billing')
+    const pending = filteredPrestations.filter(p => p && p.status === 'sent_to_billing')
     if (pending.length === 0) {
       alert('❌ Aucune prestation à facturer (statut "À facturer")')
       return
@@ -305,13 +307,17 @@ export default function ComptabilitePage() {
 
   const filteredPrestations = safePrestations.filter(p => {
     const query = (searchQuery || '').toLowerCase()
-    return (
+    const matchSearch = (
       (p.user_name || '').toString().toLowerCase().includes(query) ||
       (p.first_name || '').toString().toLowerCase().includes(query) ||
       (p.last_name || '').toString().toLowerCase().includes(query) ||
       (p.email || '').toString().toLowerCase().includes(query) ||
       (p.activity_type || '').toString().toLowerCase().includes(query)
     )
+    const prestDate = p.date ? p.date.slice(0, 10) : ''
+    const matchFrom = !dateFrom || prestDate >= dateFrom
+    const matchTo = !dateTo || prestDate <= dateTo
+    return matchSearch && matchFrom && matchTo
   })
 
   // Basic stats for cards
@@ -417,7 +423,63 @@ export default function ComptabilitePage() {
                 <option value="all">Toutes</option>
               </select>
             </div>
+
+            {/* Date From */}
+            <div>
+              <label style={{display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151'}}>
+                📅 Date de début
+              </label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  fontSize: 14,
+                  background: 'white'
+                }}
+              />
+            </div>
+
+            {/* Date To */}
+            <div>
+              <label style={{display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151'}}>
+                📅 Date de fin
+              </label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  fontSize: 14,
+                  background: 'white'
+                }}
+              />
+            </div>
           </div>
+
+          {/* Active date filter badge */}
+          {(dateFrom || dateTo) && (
+            <div style={{marginTop: 12, display: 'flex', alignItems: 'center', gap: 10}}>
+              <span style={{fontSize: 13, color: '#374151'}}>
+                Filtre actif : {dateFrom ? `du ${new Date(dateFrom).toLocaleDateString('fr-FR')}` : ''}{dateFrom && dateTo ? ' ' : ''}{dateTo ? `au ${new Date(dateTo).toLocaleDateString('fr-FR')}` : ''}
+                {' '}— {filteredPrestations.length} prestation{filteredPrestations.length !== 1 ? 's' : ''}
+              </span>
+              <button
+                onClick={() => { setDateFrom(''); setDateTo('') }}
+                style={{padding: '4px 10px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, cursor: 'pointer', color: '#374151'}}
+              >
+                ✕ Effacer
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Export Button — Global */}
