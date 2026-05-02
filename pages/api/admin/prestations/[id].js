@@ -189,8 +189,8 @@ export default async function handler(req, res){
             if (!ratesRow && updatedRow.ebrigade_activity_name) {
               const extractPrefix = (name) => {
                 if (!name) return null
-                const match = name.match(/^([^-|]+?)(?:\s*[-|])/)
-                return match ? match[1].trim() : name.trim()
+                const parts = name.split('|')
+                return parts[0].trim()
               }
               const ratesQ = await pool.query(
                 `SELECT act.remuneration_infi, act.remuneration_med, act.remuneration_sortie_infi, act.remuneration_sortie_med
