@@ -171,12 +171,22 @@ export default async function handler(req, res){
           const gardeH = Number(updatedRow.garde_hours || 0)
           const sortieH = Number(updatedRow.sortie_hours || 0)
           
-          // Fetch HOURLY RATES from activities (via ebrigade name mapping or analytic_id)
+          // Fetch HOURLY RATES from activities (via activity_id FK, ebrigade name mapping or analytic_id)
           let rateGarde = 0, rateSortie = 0
           try {
             let ratesRow = null
-            // Try via ebrigade NAME mapping first (exact prefix match)
-            if (updatedRow.ebrigade_activity_name) {
+            // Try direct FK lookup via activity_id first (most reliable)
+            if (updatedRow.activity_id) {
+              const ratesQDirect = await pool.query(
+                `SELECT remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med
+                 FROM activities WHERE id = $1 LIMIT 1`,
+                [updatedRow.activity_id]
+              )
+              const directRows = (ratesQDirect && ratesQDirect.rows) ? ratesQDirect.rows : []
+              if (directRows.length > 0) ratesRow = directRows[0]
+            }
+            // Try via ebrigade NAME mapping (exact prefix match)
+            if (!ratesRow && updatedRow.ebrigade_activity_name) {
               const extractPrefix = (name) => {
                 if (!name) return null
                 const match = name.match(/^([^-|]+?)(?:\s*[-|])/)
