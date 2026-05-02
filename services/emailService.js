@@ -754,6 +754,148 @@ L'équipe ${appName}
   }
 }
 
+/**
+ * Send a reminder email to a user who hasn't declared their hours yet.
+ * @param {Object} opts
+ * @param {string} opts.userEmail
+ * @param {string} opts.firstName
+ * @param {string|Date} opts.date - prestation date
+ * @param {string} opts.analyticName
+ * @param {string} opts.payType
+ * @param {number} opts.hoursLeft - hours remaining (24 or 12)
+ * @param {boolean} opts.isLast - true = final reminder
+ */
+async function sendReminderEmail({ userEmail, firstName, date, analyticName, payType, hoursLeft, isLast }) {
+  try {
+    const mailer = getTransporter()
+    const appName = process.env.APP_NAME || 'Fénix'
+    const appUrl = process.env.APP_URL || 'https://www.sirona-consult.be'
+
+    let formattedDate = date || '-'
+    try {
+      if (date) {
+        formattedDate = new Date(date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        formattedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)
+      }
+    } catch(e) { /* use raw date */ }
+
+    const color = isLast ? '#dc2626' : '#f59e0b'
+    const bg = isLast ? '#fee2e2' : '#fffbeb'
+    const textColor = isLast ? '#991b1b' : '#92400e'
+    const icon = isLast ? '🚨' : '⏰'
+    const title = isLast ? 'Dernier rappel — Encodage des heures' : 'Rappel — Encodage des heures'
+    const urgency = isLast
+      ? `Il ne vous reste plus que <strong>${hoursLeft}h</strong> pour encoder vos heures. Passé ce délai, votre demande ne pourra plus être traitée.`
+      : `Il vous reste <strong>${hoursLeft}h</strong> pour encoder vos heures de prestation.`
+
+    const activityDisplay = analyticName || '-'
+    const payTypeRow = payType
+      ? `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 140px;">Type</td><td style="padding: 6px 0; font-weight: 600; color: #1f2937;">${payType}</td></tr>`
+      : ''
+
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} — ${appName}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f9f9f9;">
+  <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid ${color}; padding-bottom: 20px;">
+      <h1 style="color: ${color}; margin: 0; font-size: 28px;">${icon} ${title}</h1>
+    </div>
+
+    <p style="margin-top: 0;">Bonjour ${firstName || 'Utilisateur'},</p>
+
+    <p>Vous avez une prestation dont les heures n'ont pas encore été déclarées.</p>
+
+    <div style="background-color: ${bg}; border-left: 4px solid ${color}; padding: 16px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; color: ${textColor}; font-size: 15px; font-weight: bold;">${urgency}</p>
+    </div>
+
+    <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0 0 12px; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Prestation concernée</p>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 140px;">Date</td>
+          <td style="padding: 6px 0; font-weight: 600; color: #1f2937;">${formattedDate}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 140px;">Activité</td>
+          <td style="padding: 6px 0; font-weight: 600; color: #1f2937;">${activityDisplay}</td>
+        </tr>
+        ${payTypeRow}
+      </table>
+    </div>
+
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${appUrl}/dashboard" style="display: inline-block; background-color: ${color}; color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px;">
+        ${icon} Encoder mes heures maintenant
+      </a>
+    </div>
+
+    <p style="color: #666; font-size: 13px;">
+      Ou connectez-vous directement sur :
+      <a href="${appUrl}" style="color: ${color}; font-weight: bold;">${appUrl}</a>
+    </p>
+
+    <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #999; font-size: 12px;">
+      <p style="margin: 4px 0;">© ${new Date().getFullYear()} ${appName}. Tous droits réservés.</p>
+      <p style="margin: 4px 0;">Cet email a été envoyé automatiquement. Veuillez ne pas y répondre.</p>
+    </div>
+
+  </div>
+</body>
+</html>`
+
+    const textContent = `${icon} ${title} — ${appName}
+
+Bonjour ${firstName || 'Utilisateur'},
+
+Il vous reste ${hoursLeft}h pour encoder vos heures de prestation.
+
+Prestation concernée :
+- Date : ${formattedDate}
+- Activité : ${activityDisplay}${payType ? '\n- Type : ' + payType : ''}
+
+Encodez vos heures sur : ${appUrl}/dashboard
+
+Cordialement,
+L'équipe ${appName}
+`.trim()
+
+    if (!mailer) {
+      console.log('[EmailService] Reminder email would be sent to:', userEmail, `— ${hoursLeft}h left`)
+      return { sent: false, error: 'SMTP not configured - logged to console only' }
+    }
+
+    const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'no-reply@sirona-consult.be'
+
+    const info = await mailer.sendMail({
+      from: { name: appName, address: fromEmail },
+      to: userEmail,
+      subject: `${appName} — ${icon} ${hoursLeft}h restantes pour encoder vos heures`,
+      html: htmlContent,
+      text: textContent,
+      replyTo: fromEmail,
+      headers: {
+        ...getEmailHeaders(fromEmail),
+        'X-Originating-IP': '[127.0.0.1]',
+        'Bounces-To': fromEmail,
+        'Errors-To': fromEmail,
+      }
+    })
+
+    console.log('[EmailService] Reminder email sent:', { to: userEmail, hoursLeft, messageId: info.messageId })
+    return { sent: true, messageId: info.messageId }
+  } catch (err) {
+    console.error('[EmailService] Error sending reminder email:', err.message)
+    return { sent: false, error: err.message }
+  }
+}
+
 module.exports = {
   send,
   sendUserCreationEmail,
@@ -761,4 +903,5 @@ module.exports = {
   sendPasswordChangeEmail,
   sendPasswordResetEmail,
   sendStatusChangeEmail,
+  sendReminderEmail,
 }
