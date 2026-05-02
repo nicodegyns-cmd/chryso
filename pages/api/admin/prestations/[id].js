@@ -345,7 +345,7 @@ export default async function handler(req, res){
       <tbody>
         ${ rowsHtml }
         ${ (Number(updatedRow.expense_amount || 0) > 0) ? ('<tr>' +
-          '<td>Note de frais' + (updatedRow.expense_comment ? ' — ' + (updatedRow.expense_comment) : '') + '</td>' +
+          '<td>Note de frais</td>' +
           '<td></td>' +
           '<td></td>' +
           '<td>' + (Number(Number(updatedRow.expense_amount || 0)).toFixed(2)).toString().replace('.',',') + '€</td>' +
@@ -367,8 +367,7 @@ export default async function handler(req, res){
     <div class="footer">
       <div>Prière de régler ce montant par virement bancaire sur le compte suivant : ${updatedRow.user_account || updatedRow.account || 'BE18063402145665'}</div>
       <div style="margin-top:8px">En renseignant votre numéro de facture : ${updatedRow.invoice_number || ''} en communication.</div>
-      <div style="margin-top:18px">Commentaires :</div>
-      <div style="white-space:pre-wrap">${(updatedRow.comments || '-').toString()}</div>
+
     </div>
   </body>
 </html>`

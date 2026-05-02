@@ -213,8 +213,7 @@ export default async function handler(req, res) {
           }
 
           if (expenses > 0) {
-            const expComment = escHtml(p.expense_comment || '')
-            tableBodyHtml += `<tr><td>Note de frais${expComment ? ' — ' + expComment : ''}</td><td></td><td></td><td>${fmt(expenses)}€</td></tr>`
+            tableBodyHtml += `<tr><td>Note de frais</td><td></td><td></td><td>${fmt(expenses)}€</td></tr>`
             analyticTotal += expenses
           }
         }
