@@ -592,7 +592,7 @@ L'équipe ${appName}
  * @param {string} [opts.refusalReason] - Reason for refusal if cancelled
  * @returns {Promise<{sent: boolean, error?: string}>}
  */
-async function sendStatusChangeEmail({ userEmail, firstName, status, date, analyticName, payType, invoiceNumber, refusalReason }) {
+async function sendStatusChangeEmail({ userEmail, firstName, status, date, analyticName, payType, invoiceNumber, refusalReason, pdfPath }) {
   try {
     const mailer = getTransporter()
     const appName = process.env.APP_NAME || 'Fénix'
@@ -731,6 +731,16 @@ L'équipe ${appName}
 
     const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'no-reply@sirona-consult.be'
 
+    const fs = require('fs')
+    const attachments = []
+    if (pdfPath && fs.existsSync(pdfPath)) {
+      attachments.push({
+        filename: `Facture-${invoiceNumber || 'prestation'}.pdf`,
+        path: pdfPath,
+        contentType: 'application/pdf'
+      })
+    }
+
     const info = await mailer.sendMail({
       from: { name: appName, address: fromEmail },
       to: userEmail,
@@ -738,6 +748,7 @@ L'équipe ${appName}
       html: htmlContent,
       text: textContent,
       replyTo: fromEmail,
+      attachments,
       headers: {
         ...getEmailHeaders(fromEmail),
         'X-Originating-IP': '[127.0.0.1]',

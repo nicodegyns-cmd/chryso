@@ -459,6 +459,18 @@ export default async function handler(req, res) {
 
       // Send status change notification email (fire-and-forget)
       if (req.body && req.body.status && completeUpdate.user_email) {
+        // Resolve PDF file path from pdf_url for attachment
+        let pdfFilePath = null
+        if (req.body.status === 'Facturé' && completeUpdate.pdf_url) {
+          try {
+            const urlParams = new URL(completeUpdate.pdf_url, 'http://localhost')
+            const filename = urlParams.searchParams.get('file')
+            if (filename) {
+              const path = require('path')
+              pdfFilePath = path.join(process.cwd(), 'public', 'exports', filename)
+            }
+          } catch(e) { /* ignore */ }
+        }
         sendStatusChangeEmail({
           userEmail: completeUpdate.user_email,
           firstName: completeUpdate.user_firstname || '',
@@ -468,6 +480,7 @@ export default async function handler(req, res) {
           payType: completeUpdate.pay_type || '',
           invoiceNumber: completeUpdate.invoice_number || null,
           refusalReason: req.body.refusalReason || null,
+          pdfPath: pdfFilePath,
         }).catch(e => console.warn('[prestations PATCH] status email failed:', e.message))
       }
 
