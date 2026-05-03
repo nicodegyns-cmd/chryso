@@ -162,6 +162,8 @@ export default async function handler(req, res) {
       // Construire le HTML de la table
       let tableBodyHtml = ''
       let grandTotal = 0
+      // Suivi du montant calculé par prestation (id → montant)
+      const computedAmountPerId = new Map()
 
       for (const [, ag] of analyticMap) {
         tableBodyHtml += `
@@ -197,21 +199,25 @@ export default async function handler(req, res) {
           const rateGarde  = rateGardeRaw  > 0 ? rateGardeRaw  : fallbackRate
           const rateSortie = rateSortieRaw > 0 ? rateSortieRaw : fallbackRate
 
+          let prestComputedAmt = 0
           if (gardeH > 0 || sortieH > 0) {
             if (gardeH > 0) {
               const gAmt = +(rateGarde * gardeH).toFixed(2)
               tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Garde</td><td>${gardeH}</td><td>${fmt(rateGarde)}€</td><td>${fmt(gAmt)}€</td></tr>`
               analyticTotal += gAmt
+              prestComputedAmt += gAmt
             }
             if (sortieH > 0) {
               const sAmt = +(rateSortie * sortieH).toFixed(2)
               tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Sortie</td><td>${sortieH}</td><td>${fmt(rateSortie)}€</td><td>${fmt(sAmt)}€</td></tr>`
               analyticTotal += sAmt
+              prestComputedAmt += sAmt
             }
             if (overtimeH > 0) {
               const oAmt = +(rateGarde * overtimeH).toFixed(2)
               tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(rateGarde)}€</td><td>${fmt(oAmt)}€</td></tr>`
               analyticTotal += oAmt
+              prestComputedAmt += oAmt
             }
           } else {
             const baseH = Number(p.hours_actual || p.garde_hours || 0)
@@ -219,10 +225,12 @@ export default async function handler(req, res) {
             const lineAmt = +totalAmt.toFixed(2)
             tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>${qty}</td><td>${fmt(fallbackRate)}€</td><td>${fmt(lineAmt)}€</td></tr>`
             analyticTotal += lineAmt
+            prestComputedAmt += lineAmt
             if (overtimeH > 0) {
               const oAmt = +(fallbackRate * overtimeH).toFixed(2)
               tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(fallbackRate)}€</td><td>${fmt(oAmt)}€</td></tr>`
               analyticTotal += oAmt
+              prestComputedAmt += oAmt
             }
           }
 
@@ -230,6 +238,7 @@ export default async function handler(req, res) {
             tableBodyHtml += `<tr><td>Note de frais</td><td></td><td></td><td>${fmt(expenses)}€</td></tr>`
             analyticTotal += expenses
           }
+          computedAmountPerId.set(p.id, +(prestComputedAmt + (expenses || 0)).toFixed(2))
         }
 
         grandTotal += analyticTotal
@@ -279,11 +288,21 @@ export default async function handler(req, res) {
       const pages = await mergedPdf.copyPages(userDoc, userDoc.getPageIndices())
       pages.forEach(p => mergedPdf.addPage(p))
 
-      // Mettre à jour en base : invoice_number + pdf_url individuel
-      await pool.query(
-        `UPDATE prestations SET invoice_number = $1, pdf_url = $2 WHERE id = ANY($3)`,
-        [invoiceNumber, userPdfUrl, userPrestations.map(p => p.id)]
-      )
+      // Mettre à jour en base : invoice_number + pdf_url + montant calculé (remuneration_infi) par prestation
+      for (const p of userPrestations) {
+        const computedAmt = computedAmountPerId.get(p.id)
+        if (computedAmt != null) {
+          await pool.query(
+            `UPDATE prestations SET invoice_number = $1, pdf_url = $2, remuneration_infi = $3 WHERE id = $4`,
+            [invoiceNumber, userPdfUrl, computedAmt, p.id]
+          )
+        } else {
+          await pool.query(
+            `UPDATE prestations SET invoice_number = $1, pdf_url = $2 WHERE id = $3`,
+            [invoiceNumber, userPdfUrl, p.id]
+          )
+        }
+      }
       userPdfPaths.set(uid, { filePath: userFilePath, invoiceNumber })
     }
 
