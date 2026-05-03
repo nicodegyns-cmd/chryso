@@ -130,15 +130,18 @@ export default function InvoicesPage() {
           return {...rRow, total}
         })
 
-        // Dédupliquer par (invoice_number, pdf_url) — une carte par facture
+        // Dédupliquer par invoice_number — une seule facture par numéro (garde la plus récente)
         const invoiceMap = new Map()
         for (const row of withTotals) {
-          const key = (row.invoice_number || '') + '|' + (row.pdf_url || row.id)
+          const key = row.invoice_number || ('no-num-' + (row.pdf_url || row.id))
           if (!invoiceMap.has(key)) {
             invoiceMap.set(key, { ...row })
           } else {
+            // Garder la ligne avec le pdf_url le plus récent (date la plus haute ou id le plus grand)
             const existing = invoiceMap.get(key)
-            existing.total = (existing.total || 0) + (row.total || 0)
+            if ((row.id || 0) > (existing.id || 0)) {
+              invoiceMap.set(key, { ...row })
+            }
           }
         }
         setInvoices(Array.from(invoiceMap.values()))

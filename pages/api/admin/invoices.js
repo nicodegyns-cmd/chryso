@@ -16,7 +16,7 @@ export default async function handler(req, res) {
       SELECT
         MIN(p.id) AS id,
         p.invoice_number,
-        p.pdf_url,
+        MAX(p.pdf_url) AS pdf_url,
         MIN(p.user_id) AS user_id,
         MIN(p.analytic_id) AS analytic_id,
         SUM(COALESCE(NULLIF(p.remuneration_infi, 0), p.remuneration_med, p.remuneration_infi, 0)) AS amount,
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
     }
 
     const where = clauses.length > 0 ? ` AND ${clauses.join(' AND ')}` : ''
-    const sql = `${base}${where} GROUP BY p.invoice_number, p.pdf_url ORDER BY MAX(p.date) DESC, MIN(p.id) DESC`
+    const sql = `${base}${where} GROUP BY p.invoice_number ORDER BY MAX(p.date) DESC, MIN(p.id) DESC`
 
     const q = await pool.query(sql, params)
     const invoices = q.rows || (Array.isArray(q[0]) ? q[0] : [])
