@@ -130,17 +130,22 @@ export default function InvoicesPage() {
           return {...rRow, total}
         })
 
-        // Dédupliquer par invoice_number — une seule facture par numéro (garde la plus récente)
+        // Dédupliquer par invoice_number — une seule facture par numéro
+        // Additionne les totaux de toutes les prestations du même numéro
         const invoiceMap = new Map()
         for (const row of withTotals) {
           const key = row.invoice_number || ('no-num-' + (row.pdf_url || row.id))
           if (!invoiceMap.has(key)) {
             invoiceMap.set(key, { ...row })
           } else {
-            // Garder la ligne avec le pdf_url le plus récent (date la plus haute ou id le plus grand)
             const existing = invoiceMap.get(key)
+            // Garder le pdf_url et les infos de la ligne avec l'id le plus grand (la plus récente)
             if ((row.id || 0) > (existing.id || 0)) {
-              invoiceMap.set(key, { ...row })
+              const summedTotal = (existing.total || 0) + (row.total || 0)
+              invoiceMap.set(key, { ...row, total: summedTotal })
+            } else {
+              // Garder l'existant mais ajouter le montant de cette ligne
+              existing.total = (existing.total || 0) + (row.total || 0)
             }
           }
         }
