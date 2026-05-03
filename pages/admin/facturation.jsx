@@ -13,6 +13,7 @@ export default function FacturationPage() {
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [editingInvoice, setEditingInvoice] = useState(null)
+  const [recompiling, setRecompiling] = useState(false)
 
   // Manual invoice modal
   const [manualInvoiceOpen, setManualInvoiceOpen] = useState(false)
@@ -34,6 +35,37 @@ export default function FacturationPage() {
     unit_price: '',
     comments: '',
   })
+
+  async function recompileInvoices() {
+    setRecompiling(true)
+    try {
+      const body = {}
+      if (analyticFilter) body.analytic_id = analyticFilter
+      if (filterDateFrom) body.date_from = filterDateFrom
+      if (filterDateTo) body.date_to = filterDateTo
+      const res = await fetch('/api/comptabilite/recompile-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert('Erreur : ' + (err.error || res.statusText))
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Compilation_Factures_${new Date().toISOString().split('T')[0]}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      alert('Erreur lors de la recompilation : ' + e.message)
+    } finally {
+      setRecompiling(false)
+    }
+  }
 
   async function openManualInvoice() {
     setManualInvoiceOpen(true)
@@ -237,24 +269,46 @@ export default function FacturationPage() {
                 Gérez vos factures, paiements et relevés de comptes
               </p>
             </div>
-            <button
-              onClick={openManualInvoice}
-              style={{
-                padding: '12px 22px',
-                background: '#7c3aed',
-                color: 'white',
-                border: 'none',
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 700,
-                boxShadow: '0 2px 6px rgba(124,58,237,0.3)',
-                whiteSpace: 'nowrap',
-                marginTop: 4,
-              }}
-            >
-              ✍️ Facture manuelle
-            </button>
+            <div style={{display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end'}}>
+              <button
+                onClick={recompileInvoices}
+                disabled={recompiling}
+                title="Télécharger une compilation PDF de toutes les factures déjà générées (statut Facturé)"
+                style={{
+                  padding: '12px 18px',
+                  background: recompiling ? '#9ca3af' : '#059669',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: recompiling ? 'not-allowed' : 'pointer',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  boxShadow: '0 2px 6px rgba(5,150,105,0.3)',
+                  whiteSpace: 'nowrap',
+                  marginTop: 4,
+                }}
+              >
+                {recompiling ? '⏳ Compilation...' : '📦 Recompiler PDF'}
+              </button>
+              <button
+                onClick={openManualInvoice}
+                style={{
+                  padding: '12px 22px',
+                  background: '#7c3aed',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  boxShadow: '0 2px 6px rgba(124,58,237,0.3)',
+                  whiteSpace: 'nowrap',
+                  marginTop: 4,
+                }}
+              >
+                ✍️ Facture manuelle
+              </button>
+            </div>
           </div>
 
           {/* Statistics Cards */}
