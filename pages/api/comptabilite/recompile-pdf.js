@@ -61,13 +61,21 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Aucune facture PDF trouvée avec les filtres sélectionnés' })
     }
 
-    // Fusionner les PDFs existants
+    // Dédupliquer par pdf_url : plusieurs prestations peuvent pointer vers le même fichier PDF
+    const seenUrls = new Set()
+    const uniqueRows = rows.filter(row => {
+      if (!row.pdf_url || seenUrls.has(row.pdf_url)) return false
+      seenUrls.add(row.pdf_url)
+      return true
+    })
+
+    // Fusionner les PDFs existants (un seul fichier par pdf_url unique)
     const mergedPdf = await PDFDocument.create()
     const basePath = path.join(process.cwd(), 'public')
     let loadedCount = 0
     const missing = []
 
-    for (const row of rows) {
+    for (const row of uniqueRows) {
       if (!row.pdf_url) continue
 
       // Résoudre le chemin du fichier
