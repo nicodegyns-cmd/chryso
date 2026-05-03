@@ -11,7 +11,8 @@ export default async function handler(req, res) {
     const { status, period } = req.query
 
     // Fetch from prestations table with pdf_url (new system)
-    // Group by (invoice_number, pdf_url) to avoid one row per prestation
+    // Group by invoice_number to avoid one row per prestation
+    // Amount is computed from hours × rates (same formula as PDF generation)
     const base = `
       SELECT
         MIN(p.id) AS id,
@@ -19,7 +20,43 @@ export default async function handler(req, res) {
         MAX(p.pdf_url) AS pdf_url,
         MIN(p.user_id) AS user_id,
         MIN(p.analytic_id) AS analytic_id,
-        SUM(COALESCE(NULLIF(p.remuneration_infi, 0), p.remuneration_med, p.remuneration_infi, 0)) AS amount,
+        SUM(
+          CASE
+            WHEN COALESCE(p.garde_hours, 0) + COALESCE(p.sortie_hours, 0) > 0 THEN
+              -- Garde hours × rate
+              COALESCE(p.garde_hours, 0) * COALESCE(
+                NULLIF(
+                  CASE WHEN u.role ILIKE '%med%'
+                    THEN COALESCE(NULLIF(act.remuneration_med, 0), act_nm.remuneration_med)
+                    ELSE COALESCE(NULLIF(act.remuneration_infi, 0), act_nm.remuneration_infi)
+                  END, 0),
+                0
+              ) +
+              -- Sortie hours × rate (fallback to garde rate)
+              COALESCE(p.sortie_hours, 0) * COALESCE(
+                NULLIF(
+                  CASE WHEN u.role ILIKE '%med%'
+                    THEN COALESCE(NULLIF(act.remuneration_sortie_med, 0), act_nm.remuneration_sortie_med,
+                                  NULLIF(act.remuneration_med, 0), act_nm.remuneration_med)
+                    ELSE COALESCE(NULLIF(act.remuneration_sortie_infi, 0), act_nm.remuneration_sortie_infi,
+                                  NULLIF(act.remuneration_infi, 0), act_nm.remuneration_infi)
+                  END, 0),
+                0
+              ) +
+              -- Overtime hours × garde rate
+              COALESCE(p.overtime_hours, 0) * COALESCE(
+                NULLIF(
+                  CASE WHEN u.role ILIKE '%med%'
+                    THEN COALESCE(NULLIF(act.remuneration_med, 0), act_nm.remuneration_med)
+                    ELSE COALESCE(NULLIF(act.remuneration_infi, 0), act_nm.remuneration_infi)
+                  END, 0),
+                0
+              )
+            ELSE
+              -- No hours breakdown: use stored remuneration value
+              COALESCE(NULLIF(p.remuneration_infi, 0), p.remuneration_med, p.remuneration_infi, 0)
+          END
+        ) AS amount,
         SUM(COALESCE(p.expense_amount, 0)) AS expense_amount,
         MAX(p.status) AS status,
         MAX(p.created_at) AS created_at,
@@ -33,6 +70,10 @@ export default async function handler(req, res) {
       FROM prestations p
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN analytics a ON p.analytic_id = a.id
+      LEFT JOIN activities act ON p.activity_id = act.id
+      LEFT JOIN activity_ebrigade_name_mappings nm
+        ON nm.ebrigade_analytic_name_pattern = TRIM(SPLIT_PART(COALESCE(p.ebrigade_activity_name, ''), '|', 1))
+      LEFT JOIN activities act_nm ON act_nm.id = nm.activity_id
       WHERE p.pdf_url IS NOT NULL AND p.pdf_url != ''
     `
 
