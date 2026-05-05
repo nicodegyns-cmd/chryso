@@ -30,7 +30,8 @@ export default function RIBUploadBanner({ email }) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.type !== 'application/pdf') {
+    const isPdf = file.type === 'application/pdf' || file.type === 'application/octet-stream' || file.type === '' || file.name?.toLowerCase().endsWith('.pdf')
+    if (!isPdf) {
       setErrorMsg('Veuillez sélectionner un fichier PDF')
       return
     }
@@ -149,7 +150,7 @@ export default function RIBUploadBanner({ email }) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf"
+            accept=".pdf,application/pdf"
             onChange={handleFileChange}
             disabled={uploading}
             style={{ display: 'none' }}
