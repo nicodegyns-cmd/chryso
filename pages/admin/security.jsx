@@ -8,6 +8,7 @@ export default function SecurityPage() {
 
   // --- Login history ---
   const [loginHistory, setLoginHistory] = useState([])
+  const [loginStats, setLoginStats] = useState(null)
   const [loginLoading, setLoginLoading] = useState(false)
   const [loginSearch, setLoginSearch] = useState('')
 
@@ -48,7 +49,12 @@ export default function SecurityPage() {
     try {
       const r = await fetch('/api/admin/login-history')
       const d = await r.json()
-      setLoginHistory(Array.isArray(d) ? d : [])
+      if (d && d.rows) {
+        setLoginHistory(d.rows)
+        setLoginStats(d.stats || null)
+      } else {
+        setLoginHistory(Array.isArray(d) ? d : [])
+      }
     } catch (e) { setLoginHistory([]) }
     finally { setLoginLoading(false) }
   }
@@ -431,35 +437,30 @@ export default function SecurityPage() {
           {/* ===== CONNEXIONS ===== */}
           {tab === 'connexions' && (
             <div>
-              {/* Currently connected (last 24h) */}
-              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', marginBottom: 24 }}>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
-                  Connectés dans les dernières 24h ({recentlyConnected.length})
-                </div>
-                {loginLoading ? (
-                  <div style={{ padding: 24, color: '#6b7280', textAlign: 'center' }}>Chargement…</div>
-                ) : recentlyConnected.length === 0 ? (
-                  <div style={{ padding: 24, color: '#6b7280', textAlign: 'center' }}>Aucune connexion récente</div>
-                ) : (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: 16 }}>
-                    {[...new Map(recentlyConnected.map(r => [r.email, r])).values()].map(row => (
-                      <div key={row.email} style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '8px 14px', fontSize: 13 }}>
-                        <div style={{ fontWeight: 600 }}>{row.first_name} {row.last_name}</div>
-                        <div style={{ color: '#6b7280', fontSize: 12 }}>{row.email}</div>
-                        <div style={{ color: '#16a34a', fontSize: 11, marginTop: 2 }}>
-                          {new Date(row.logged_in_at).toLocaleString('fr-FR')}
-                        </div>
-                      </div>
-                    ))}
+              {/* Stats cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
+                {[
+                  { label: 'Total connexions', value: loginStats ? Number(loginStats.total).toLocaleString('fr-FR') : '…', color: '#3b82f6', bg: '#eff6ff', icon: '🔐' },
+                  { label: 'Dernières 24h', value: loginStats ? Number(loginStats.last_24h).toLocaleString('fr-FR') : '…', color: '#16a34a', bg: '#f0fdf4', icon: '🟢' },
+                  { label: '7 derniers jours', value: loginStats ? Number(loginStats.last_7d).toLocaleString('fr-FR') : '…', color: '#7c3aed', bg: '#f5f3ff', icon: '📅' },
+                  { label: '30 derniers jours', value: loginStats ? Number(loginStats.last_30d).toLocaleString('fr-FR') : '…', color: '#ea580c', bg: '#fff7ed', icon: '📆' },
+                  { label: 'Utilisateurs uniques', value: loginStats ? Number(loginStats.unique_users).toLocaleString('fr-FR') : '…', color: '#0891b2', bg: '#ecfeff', icon: '👤' },
+                  { label: 'Uniques 24h', value: loginStats ? Number(loginStats.unique_24h).toLocaleString('fr-FR') : '…', color: '#16a34a', bg: '#f0fdf4', icon: '👥' },
+                  { label: 'IP distinctes', value: loginStats ? Number(loginStats.unique_ips).toLocaleString('fr-FR') : '…', color: '#be185d', bg: '#fdf2f8', icon: '🌐' },
+                  { label: 'Heure de pointe', value: loginStats?.peak_hour || '—', color: '#b45309', bg: '#fffbeb', icon: '⏰' },
+                ].map(c => (
+                  <div key={c.label} style={{ background: c.bg, border: `1px solid ${c.color}30`, borderRadius: 10, padding: '14px 16px' }}>
+                    <div style={{ fontSize: 20, marginBottom: 4 }}>{c.icon}</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: c.color }}>{c.value}</div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{c.label}</div>
                   </div>
-                )}
+                ))}
               </div>
 
               {/* Full history */}
               <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>Historique des connexions ({loginHistory.length})</span>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>Historique récent ({loginHistory.length} dernières entrées)</span>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input
                       value={loginSearch} onChange={e => setLoginSearch(e.target.value)}
