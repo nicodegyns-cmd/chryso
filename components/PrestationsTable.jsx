@@ -1472,12 +1472,11 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
       {/* ── Confirmation modal (separate overlay, mobile-friendly) ── */}
       {confirmOpen && confirmPreview && (
-        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:2000,padding:'0 0 0 0'}}>
-          <style>{`@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
-          <div style={{width:'100%',maxWidth:520,background:'#fff',borderRadius:'16px 16px 0 0',boxShadow:'0 -8px 32px rgba(0,0,0,0.18)',padding:'0 0 env(safe-area-inset-bottom,16px) 0',overflow:'auto',maxHeight:'90vh',animation:'slideUp 0.22s ease-out'}}>
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:2000,padding:16}}>
+          <style>{`@keyframes fadeUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
+          <div style={{width:'100%',maxWidth:480,background:'#fff',borderRadius:16,boxShadow:'0 20px 60px rgba(0,0,0,0.3)',overflowY:'auto',maxHeight:'calc(100vh - 32px)',animation:'fadeUp 0.2s ease-out'}}>
             {/* Header */}
             <div style={{padding:'20px 20px 0 20px'}}>
-              <div style={{width:40,height:4,background:'#d1d5db',borderRadius:2,margin:'0 auto 16px auto'}}/>
               <h3 style={{margin:'0 0 4px 0',fontSize:18,fontWeight:800,color:'#1f2937',textAlign:'center'}}>✅ Récapitulatif</h3>
               <p style={{margin:'0 0 16px 0',fontSize:13,color:'#6b7280',textAlign:'center'}}>Vérifiez votre saisie avant de confirmer.</p>
             </div>
