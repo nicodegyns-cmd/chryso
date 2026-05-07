@@ -844,10 +844,19 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                           {exp.comment && <div><div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>COMMENTAIRE</div><div style={{fontSize:14,color:'#92400e'}}>{exp.comment}</div></div>}
                           {exp.proof_image && (
                             <div>
-                              <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>📸 JUSTIFICATIF</div>
-                              <a href={exp.proof_image} target="_blank" rel="noopener noreferrer">
-                                <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:250,border:'2px solid #fcd34d',borderRadius:6,display:'block',cursor:'pointer'}} />
-                              </a>
+                              <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>� JUSTIFICATIF</div>
+                              {exp.proof_image.startsWith('data:application/pdf') ? (
+                                <a href={exp.proof_image} download={exp.proof_name || 'justificatif.pdf'} target="_blank" rel="noopener noreferrer"
+                                  style={{display:'inline-flex',alignItems:'center',gap:8,padding:'10px 14px',background:'#fff7ed',border:'2px solid #fcd34d',borderRadius:6,textDecoration:'none',color:'#92400e',fontWeight:600,fontSize:13}}>
+                                  <span style={{fontSize:20}}>📄</span>
+                                  <span style={{wordBreak:'break-all'}}>{exp.proof_name || 'document.pdf'}</span>
+                                  <span style={{fontSize:11,opacity:0.7}}>↓ Télécharger</span>
+                                </a>
+                              ) : (
+                                <a href={exp.proof_image} target="_blank" rel="noopener noreferrer">
+                                  <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:250,border:'2px solid #fcd34d',borderRadius:6,display:'block',cursor:'pointer'}} />
+                                </a>
+                              )}
                             </div>
                           )}
                         </div>
