@@ -38,7 +38,7 @@ body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI"
 .login-form{display:flex;flex-direction:column;gap:12px}
 .field{display:flex;flex-direction:column}
 .label-text{font-size:13px;color:var(--muted);margin-bottom:6px}
-input{padding:10px 12px;border:1px solid #e6e9ef;border-radius:8px;font-size:15px}
+input{padding:10px 12px;border:1px solid #e6e9ef;border-radius:8px;font-size:16px}
 input:focus{outline:none;box-shadow:0 0 0 3px rgba(37,99,235,0.08);border-color:var(--accent)}
 .primary{margin-top:6px;background:var(--accent);color:#fff;padding:10px 12px;border:none;border-radius:8px;font-weight:600;cursor:pointer}
 .primary:disabled{opacity:0.6;cursor:default}
@@ -204,9 +204,9 @@ button{min-height:38px}
 .create-user-form .full{grid-column:1 / -1}
 .create-user-form .form-row{display:flex;flex-direction:column;gap:6px}
 .create-user-form input,.create-user-form select{padding:8px 10px;border-radius:6px;border:1px solid #e1e1e1}
-.create-user-form .form-input{padding:10px 12px;border-radius:8px;border:1px solid #e6e9ef;font-size:15px}
+.create-user-form .form-input{padding:10px 12px;border-radius:8px;border:1px solid #e6e9ef;font-size:16px}
 .create-user-form .form-input:focus{outline:none;box-shadow:0 0 0 3px rgba(37,99,235,0.06);border-color:var(--accent)}
-.create-user-form .form-textarea{padding:10px 12px;border-radius:8px;border:1px solid #e6e9ef;font-size:15px;resize:vertical;min-height:96px}
+.create-user-form .form-textarea{padding:10px 12px;border-radius:8px;border:1px solid #e6e9ef;font-size:16px;resize:vertical;min-height:96px}
 .form-help{margin-top:6px;font-size:13px;color:var(--muted)}
 .form-error{color:#b00020;background:#fff1f1;padding:8px 10px;border-radius:6px;border:1px solid #f5c6c6}
 
