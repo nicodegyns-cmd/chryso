@@ -1415,67 +1415,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
               </div>
             )}
 
-            {/* Confirmation preview modal (shown inside edit modal) */}
-            {confirmOpen && confirmPreview && (
-              <div style={{position:'relative',marginTop:12,padding:12,border:'1px solid #e6edf3',borderRadius:6,background:'#f9fafb'}}>
-                <h4 style={{marginTop:0}}>Récapitulatif avant confirmation</h4>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                  <div><strong>Heures réelles:</strong><div>{confirmPreview.hours_actual}</div></div>
-                  <div><strong>Heures garde:</strong><div>{confirmPreview.garde_hours}</div></div>
-                  <div><strong>Heures sortie:</strong><div>{confirmPreview.sortie_hours}</div></div>
-                  <div><strong>Heures supp:</strong><div>{confirmPreview.overtime_hours}</div></div>
-                  <div><strong>Note de frais (montant):</strong><div>{confirmPreview.expense_amount ? confirmPreview.expense_amount : 0}</div></div>
-                  <div><strong>Total estimé:</strong><div style={{fontWeight:700}}>{confirmPreview.estimated_total} €</div></div>
-                </div>
-                {/* New detailed breakdown */}
-                <div style={{marginTop:10,padding:10,border:'1px dashed #e2e8f0',borderRadius:6,background:'#fff'}}>
-                  <div style={{display:'flex',gap:12,flexWrap:'wrap',alignItems:'flex-start'}}>
-                    {/* Show detailed breakdown if we have it */}
-                    {confirmPreview.garde_amount_infi !== undefined && (
-                      <div style={{flex:1,minWidth:250,padding:10,background:'#f0f9ff',borderRadius:6,borderLeft:'3px solid #3b82f6'}}>
-                        <strong style={{display:'block',marginBottom:8}}>Décomposition:</strong>
-                        <div style={{fontSize:13}}>
-                          {confirmPreview.garde_hours > 0 && <div>Garde: {confirmPreview.garde_hours}h × {confirmPreview.rates?.detailed?.garde_infi || 0}€ = <strong>{confirmPreview.garde_amount_infi || 0}€</strong></div>}
-                          {confirmPreview.sortie_hours > 0 && <div>Sortie: {confirmPreview.sortie_hours}h × {confirmPreview.rates?.detailed?.sortie_infi || 0}€ = <strong>{confirmPreview.sortie_amount_infi || 0}€</strong></div>}
-                          {confirmPreview.overtime_hours > 0 && <div>Supp: {confirmPreview.overtime_hours}h × {confirmPreview.rates?.detailed?.garde_infi || 0}€ = <strong>{confirmPreview.overtime_amount_infi || 0}€</strong></div>}
-                          <div style={{marginTop:6,paddingTop:6,borderTop:'1px solid #bfdbfe',fontWeight:700}}>Total: {confirmPreview.estimated_infi}€</div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {!confirmPreview.garde_amount_infi && confirmPreview.estimated_med > 0 && (
-                      <div style={{flex:1,minWidth:250,padding:10,background:'#fef3c7',borderRadius:6,borderLeft:'3px solid #f59e0b'}}>
-                        <strong style={{display:'block',marginBottom:8}}>Décomposition Médecin:</strong>
-                        <div style={{fontSize:13}}>
-                          {confirmPreview.garde_hours > 0 && <div>Garde: {confirmPreview.garde_hours}h × {confirmPreview.rates?.detailed?.garde_med || 0}€ = <strong>{confirmPreview.garde_amount_med || 0}€</strong></div>}
-                          {confirmPreview.sortie_hours > 0 && <div>Sortie: {confirmPreview.sortie_hours}h × {confirmPreview.rates?.detailed?.sortie_med || 0}€ = <strong>{confirmPreview.sortie_amount_med || 0}€</strong></div>}
-                          {confirmPreview.overtime_hours > 0 && <div>Supp: {confirmPreview.overtime_hours}h × {confirmPreview.rates?.detailed?.garde_med || 0}€ = <strong>{confirmPreview.overtime_amount_med || 0}€</strong></div>}
-                          <div style={{marginTop:6,paddingTop:6,borderTop:'1px solid #fde68a',fontWeight:700}}>Total: {confirmPreview.estimated_med}€</div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Fallback to simple display if no detailed breakdown */}
-                    {confirmPreview.garde_amount_infi === undefined && (
-                      <>
-                        <div style={{flex:1,minWidth:200}}><strong>Montant estimé (infi):</strong>
-                          <div style={{fontWeight:700,marginTop:4}}>{confirmPreview.estimated_infi ?? 0} €</div>
-                        </div>
-                        {confirmPreview.estimated_med > 0 && <div style={{flex:1,minWidth:200}}><strong>Montant estimé (med):</strong>
-                          <div style={{fontWeight:700,marginTop:4}}>{confirmPreview.estimated_med ?? 0} €</div>
-                        </div>}
-                      </>
-                    )}
-                    
-                    <div style={{flex:1,minWidth:200}}><strong>Dépenses:</strong>
-                      <div style={{fontWeight:700,marginTop:4}}>{confirmPreview.expense_amount ?? 0} €</div>
-                    </div>
-                  </div>
-                </div>
-                <div style={{marginTop:10,color:'#6b7280',fontSize:13}}>Ce total est une estimation. Le montant final pourra être ajusté lors du traitement.</div>
-              </div>
-            )}
-
                 <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:12}}>
               {(() => {
                 const locked = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation'].includes(editing.status)
@@ -1519,13 +1458,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                         style={{padding:'8px 16px',background:'#d1fae5',color:'#065f46',border:'1px solid #6ee7b7',borderRadius:6,cursor:'pointer',fontWeight:700,fontSize:13}}
                       >✅ Valider</button>
                     )}
-                    {role !== 'admin' && role !== 'moderator' && !locked && !confirmOpen && <button onClick={()=>saveEdit(false)} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer'}</button>}
-                    {role !== 'admin' && role !== 'moderator' && !locked && confirmOpen && (
-                      <>
-                        <button onClick={()=>{ setConfirmOpen(false); setConfirmPreview(null); }} disabled={saving}>Modifier</button>
-                        <button onClick={confirmAndSave} disabled={saving}>{saving ? 'Enregistrement...' : 'Confirmer'}</button>
-                      </>
-                    )}
+                    {role !== 'admin' && role !== 'moderator' && !locked && <button onClick={()=>saveEdit(false)} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer'}</button>}
                     {role === 'admin' && <button onClick={saveEdit} disabled={saving || locked}>{locked ? 'Non modifiable' : (saving ? 'Enregistrement...' : 'Enregistrer')}</button>}
                   </>
                 )
@@ -1535,6 +1468,99 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           </div>
         </div>
         </>
+      )}
+
+      {/* ── Confirmation modal (separate overlay, mobile-friendly) ── */}
+      {confirmOpen && confirmPreview && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:2000,padding:'0 0 0 0'}}>
+          <style>{`@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
+          <div style={{width:'100%',maxWidth:520,background:'#fff',borderRadius:'16px 16px 0 0',boxShadow:'0 -8px 32px rgba(0,0,0,0.18)',padding:'0 0 env(safe-area-inset-bottom,16px) 0',overflow:'auto',maxHeight:'90vh',animation:'slideUp 0.22s ease-out'}}>
+            {/* Header */}
+            <div style={{padding:'20px 20px 0 20px'}}>
+              <div style={{width:40,height:4,background:'#d1d5db',borderRadius:2,margin:'0 auto 16px auto'}}/>
+              <h3 style={{margin:'0 0 4px 0',fontSize:18,fontWeight:800,color:'#1f2937',textAlign:'center'}}>✅ Récapitulatif</h3>
+              <p style={{margin:'0 0 16px 0',fontSize:13,color:'#6b7280',textAlign:'center'}}>Vérifiez votre saisie avant de confirmer.</p>
+            </div>
+
+            <div style={{padding:'0 20px 20px 20px'}}>
+              {/* Hours summary */}
+              <div style={{background:'#f0f9ff',borderRadius:10,padding:14,marginBottom:14,border:'1px solid #bfdbfe'}}>
+                <div style={{fontWeight:700,fontSize:13,color:'#1e40af',marginBottom:10,textTransform:'uppercase',letterSpacing:'0.04em'}}>Heures saisies</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                  {confirmPreview.hours_actual > 0 && <div style={{fontSize:14}}><span style={{color:'#6b7280'}}>Heures réelles</span><br/><strong>{confirmPreview.hours_actual}h</strong></div>}
+                  {confirmPreview.garde_hours > 0 && <div style={{fontSize:14}}><span style={{color:'#6b7280'}}>Garde</span><br/><strong>{confirmPreview.garde_hours}h</strong></div>}
+                  {confirmPreview.sortie_hours > 0 && <div style={{fontSize:14}}><span style={{color:'#6b7280'}}>Sortie</span><br/><strong>{confirmPreview.sortie_hours}h</strong></div>}
+                  {confirmPreview.overtime_hours > 0 && <div style={{fontSize:14}}><span style={{color:'#6b7280'}}>Heures supp.</span><br/><strong>{confirmPreview.overtime_hours}h</strong></div>}
+                </div>
+              </div>
+
+              {/* Detailed breakdown */}
+              {confirmPreview.garde_amount_infi !== undefined && (
+                <div style={{background:'#f0f9ff',borderRadius:10,padding:14,marginBottom:14,border:'1px solid #bfdbfe'}}>
+                  <div style={{fontWeight:700,fontSize:13,color:'#1e40af',marginBottom:10,textTransform:'uppercase',letterSpacing:'0.04em'}}>Décomposition (infirmier)</div>
+                  <div style={{fontSize:14,lineHeight:'1.8'}}>
+                    {confirmPreview.garde_hours > 0 && <div style={{display:'flex',justifyContent:'space-between'}}><span>Garde {confirmPreview.garde_hours}h × {confirmPreview.rates?.detailed?.garde_infi || 0}€</span><strong>{confirmPreview.garde_amount_infi || 0}€</strong></div>}
+                    {confirmPreview.sortie_hours > 0 && <div style={{display:'flex',justifyContent:'space-between'}}><span>Sortie {confirmPreview.sortie_hours}h × {confirmPreview.rates?.detailed?.sortie_infi || 0}€</span><strong>{confirmPreview.sortie_amount_infi || 0}€</strong></div>}
+                    {confirmPreview.overtime_hours > 0 && <div style={{display:'flex',justifyContent:'space-between'}}><span>Supp. {confirmPreview.overtime_hours}h × {confirmPreview.rates?.detailed?.garde_infi || 0}€</span><strong>{confirmPreview.overtime_amount_infi || 0}€</strong></div>}
+                  </div>
+                </div>
+              )}
+
+              {!confirmPreview.garde_amount_infi && confirmPreview.estimated_med > 0 && (
+                <div style={{background:'#fef3c7',borderRadius:10,padding:14,marginBottom:14,border:'1px solid #fde68a'}}>
+                  <div style={{fontWeight:700,fontSize:13,color:'#92400e',marginBottom:10,textTransform:'uppercase',letterSpacing:'0.04em'}}>Décomposition (médecin)</div>
+                  <div style={{fontSize:14,lineHeight:'1.8'}}>
+                    {confirmPreview.garde_hours > 0 && <div style={{display:'flex',justifyContent:'space-between'}}><span>Garde {confirmPreview.garde_hours}h × {confirmPreview.rates?.detailed?.garde_med || 0}€</span><strong>{confirmPreview.garde_amount_med || 0}€</strong></div>}
+                    {confirmPreview.sortie_hours > 0 && <div style={{display:'flex',justifyContent:'space-between'}}><span>Sortie {confirmPreview.sortie_hours}h × {confirmPreview.rates?.detailed?.sortie_med || 0}€</span><strong>{confirmPreview.sortie_amount_med || 0}€</strong></div>}
+                    {confirmPreview.overtime_hours > 0 && <div style={{display:'flex',justifyContent:'space-between'}}><span>Supp. {confirmPreview.overtime_hours}h × {confirmPreview.rates?.detailed?.garde_med || 0}€</span><strong>{confirmPreview.overtime_amount_med || 0}€</strong></div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Fallback simple */}
+              {confirmPreview.garde_amount_infi === undefined && (
+                <div style={{background:'#f9fafb',borderRadius:10,padding:14,marginBottom:14,border:'1px solid #e5e7eb'}}>
+                  <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:10,textTransform:'uppercase',letterSpacing:'0.04em'}}>Montants estimés</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                    {(confirmPreview.estimated_infi ?? 0) > 0 && <div style={{fontSize:14}}><span style={{color:'#6b7280'}}>Infirmier</span><br/><strong>{confirmPreview.estimated_infi} €</strong></div>}
+                    {(confirmPreview.estimated_med ?? 0) > 0 && <div style={{fontSize:14}}><span style={{color:'#6b7280'}}>Médecin</span><br/><strong>{confirmPreview.estimated_med} €</strong></div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Expenses */}
+              {(confirmPreview.expense_amount ?? 0) > 0 && (
+                <div style={{background:'#fffbeb',borderRadius:10,padding:14,marginBottom:14,border:'1px solid #fcd34d'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:14}}>
+                    <span style={{color:'#92400e',fontWeight:600}}>🧾 Notes de frais</span>
+                    <strong style={{color:'#b45309'}}>{confirmPreview.expense_amount} €</strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Total */}
+              <div style={{background:'linear-gradient(135deg,#1e40af,#3b82f6)',borderRadius:12,padding:18,marginBottom:20,textAlign:'center',color:'#fff'}}>
+                <div style={{fontSize:12,fontWeight:700,opacity:0.85,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:6}}>Montant total estimé</div>
+                <div style={{fontSize:32,fontWeight:900}}>{confirmPreview.estimated_total} €</div>
+                <div style={{fontSize:11,opacity:0.75,marginTop:4}}>Cette estimation sera confirmée lors du traitement.</div>
+              </div>
+
+              {/* Buttons */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                <button
+                  onClick={()=>{ setConfirmOpen(false); setConfirmPreview(null); }}
+                  disabled={saving}
+                  style={{padding:'14px 0',background:'#f3f4f6',color:'#374151',border:'1px solid #d1d5db',borderRadius:10,cursor:'pointer',fontWeight:700,fontSize:15}}
+                >← Modifier</button>
+                <button
+                  onClick={confirmAndSave}
+                  disabled={saving}
+                  style={{padding:'14px 0',background:'linear-gradient(135deg,#059669,#10b981)',color:'#fff',border:'none',borderRadius:10,cursor:'pointer',fontWeight:700,fontSize:15,boxShadow:'0 4px 12px rgba(16,185,129,0.3)'}}
+                >{saving ? '⏳ Envoi...' : '✅ Confirmer'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
