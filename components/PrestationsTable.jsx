@@ -1249,7 +1249,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                       {/* User inputs for sortie hours - always show for garde */}
                       <label style={{display:'flex',flexDirection:'column'}}>
                         <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES SORTIE</div>
-                        <input type="number" value={editing.sortie_hours ?? ''} onChange={e=>{ setEditing({...editing, sortie_hours: e.target.value ? Number(e.target.value) : null}); }} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
+                        <input type="number" value={editing.sortie_hours ?? ''} onChange={e=>{ setEditing({...editing, sortie_hours: e.target.value ? Number(e.target.value) : null}); }} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:16}} />
                         <div style={{fontSize:11,color:'#10b981',marginTop:6,fontWeight:600}}>💰 {ratePreview && ratePreview.rates && ratePreview.rates.detailed ? (ratePreview.rates.detailed.sortie_infi ? ratePreview.rates.detailed.sortie_infi+' €/h (infi) • '+ratePreview.rates.detailed.sortie_med+' €/h (med)' : ratePreview.rates.infi+' €/h • '+ratePreview.rates.med+' €/h') : '—'}</div>
                       </label>
                       
@@ -1269,17 +1269,17 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                       <label style={{display:'flex',flexDirection:'column'}}>
                         <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES</div>
-                        <input type="number" value={editing.hours_actual ?? ''} onChange={e=>setEditing({...editing, hours_actual: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
+                        <input type="number" value={editing.hours_actual ?? ''} onChange={e=>setEditing({...editing, hours_actual: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:16}} />
                       </label>
                       <label style={{display:'flex',flexDirection:'column'}}>
                         <div style={{fontSize:12,color:'#f97316',fontWeight:600,marginBottom:6}}>HEURES SUPPLÉMENTAIRES</div>
-                        <input type="number" value={editing.overtime_hours ?? ''} onChange={e=>setEditing({...editing, overtime_hours: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #fed7aa',fontSize:14}} />
+                        <input type="number" value={editing.overtime_hours ?? ''} onChange={e=>setEditing({...editing, overtime_hours: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #fed7aa',fontSize:16}} />
                       </label>
                       {/* If not garde and not permanence and not APS, allow optional garde_hours input */}
                       {!editingIsPermanence && !editingIsAPS && (
                         <label style={{display:'flex',flexDirection:'column'}}>
                           <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES GARDE (si applicable)</div>
-                          <input type="number" value={editing.garde_hours ?? ''} onChange={e=>setEditing({...editing, garde_hours: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} />
+                          <input type="number" value={editing.garde_hours ?? ''} onChange={e=>setEditing({...editing, garde_hours: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:16}} />
                         </label>
                       )}
                     </div>
@@ -1293,11 +1293,11 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                       <label style={{display:'flex',flexDirection:'column'}}>
                         <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT INFIRMIER</div>
-                        <input type="number" step="0.01" value={editing.remuneration_infi ?? ''} onChange={e=>setEditing({...editing, remuneration_infi: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} placeholder="0.00" />
+                        <input type="number" step="0.01" value={editing.remuneration_infi ?? ''} onChange={e=>setEditing({...editing, remuneration_infi: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:16}} placeholder="0.00" />
                       </label>
                       <label style={{display:'flex',flexDirection:'column'}}>
                         <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT MÉDECIN</div>
-                        <input type="number" step="0.01" value={editing.remuneration_med ?? ''} onChange={e=>setEditing({...editing, remuneration_med: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:14}} placeholder="0.00" />
+                        <input type="number" step="0.01" value={editing.remuneration_med ?? ''} onChange={e=>setEditing({...editing, remuneration_med: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:16}} placeholder="0.00" />
                       </label>
                     </div>
                   </div>
@@ -1311,7 +1311,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                       value={editing.comments || ''}
                       onChange={e=>setEditing({...editing, comments: e.target.value})}
                       placeholder="Ajouter un commentaire sur cette prestation..."
-                      style={{display:'block',width:'100%',minHeight:80,padding:10,border:'1px solid #d1d5db',borderRadius:6,resize:'vertical',fontFamily:'inherit',fontSize:14}}
+                      style={{display:'block',width:'100%',minHeight:80,padding:10,border:'1px solid #d1d5db',borderRadius:6,resize:'vertical',fontFamily:'inherit',fontSize:16}}
                     />
                   </label>
                 </div>
@@ -1354,7 +1354,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                               const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,amount:e.target.value?Number(e.target.value):''}:x)
                               setEditing({...editing, expenses: next})
                             }}
-                            style={{padding:'7px 9px',borderRadius:6,border:'1px solid #fcd34d',fontSize:14}}
+                            style={{padding:'7px 9px',borderRadius:6,border:'1px solid #fcd34d',fontSize:16}}
                             placeholder="0.00"
                           />
                         </label>
@@ -1366,7 +1366,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                               const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,comment:e.target.value}:x)
                               setEditing({...editing, expenses: next})
                             }}
-                            style={{padding:'7px 9px',borderRadius:6,border: Number(exp.amount||0)>0&&!exp.comment?.trim()?'1px solid #dc2626':'1px solid #fcd34d',fontSize:14}}
+                            style={{padding:'7px 9px',borderRadius:6,border: Number(exp.amount||0)>0&&!exp.comment?.trim()?'1px solid #dc2626':'1px solid #fcd34d',fontSize:16}}
                             placeholder="Ex: Transport, fournitures..."
                           />
                           {Number(exp.amount||0)>0&&!exp.comment?.trim()&&<div style={{fontSize:11,color:'#dc2626',marginTop:3}}>Obligatoire</div>}
