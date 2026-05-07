@@ -91,6 +91,7 @@ export default async function handler(req, res) {
         expense_amount,
         expense_comment,
         proof_image,
+        expenses_json,
         status,
         // eBrigade data
         ebrigade_id,
@@ -152,6 +153,10 @@ export default async function handler(req, res) {
       } catch(e) {}
       try {
         await pool.query("ALTER TABLE prestations ADD COLUMN IF NOT EXISTS remuneration_sortie_med NUMERIC(8,2) DEFAULT NULL")
+      } catch(e) {}
+      // Ensure expenses_json column exists
+      try {
+        await pool.query("ALTER TABLE prestations ADD COLUMN IF NOT EXISTS expenses_json TEXT DEFAULT NULL")
       } catch(e) {}
 
       // Find local analytique_id and calculate tariffs from eBrigade mappings
@@ -321,18 +326,36 @@ export default async function handler(req, res) {
         }
       }
 
+      // Compute expense total from expenses_json if provided
+      let finalExpenseAmount = expense_amount || null
+      let finalExpenseComment = expense_comment || null
+      let finalProofImage = proof_image || null
+      let finalExpensesJson = expenses_json || null
+      if (expenses_json) {
+        try {
+          const arr = typeof expenses_json === 'string' ? JSON.parse(expenses_json) : expenses_json
+          if (Array.isArray(arr) && arr.length > 0) {
+            const valid = arr.filter(e => Number(e.amount || 0) > 0)
+            finalExpenseAmount = valid.reduce((s, e) => s + Number(e.amount || 0), 0) || null
+            finalExpenseComment = valid.map(e => e.comment).filter(Boolean).join('; ') || null
+            finalProofImage = (valid[0] && valid[0].proof_image) || null
+            finalExpensesJson = JSON.stringify(valid)
+          }
+        } catch(e) { console.warn('[prestations POST] invalid expenses_json:', e.message) }
+      }
+
       // Insert new prestation with eBrigade data
       const q2 = await pool.query(
         `INSERT INTO prestations (
           user_id, analytic_id, date, pay_type,
           hours_actual, garde_hours, sortie_hours, overtime_hours,
           remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med,
-          comments, expense_amount, expense_comment, proof_image,
+          comments, expense_amount, expense_comment, proof_image, expenses_json,
           status, created_at, updated_at,
           ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code,
           ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours,
           ebrigade_start_time, ebrigade_end_time
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW(), $18, $19, $20, $21, $22, $23, $24, $25, $26) 
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NOW(), $19, $20, $21, $22, $23, $24, $25, $26, $27) 
         RETURNING *`,
         [
           userId,
@@ -348,9 +371,10 @@ export default async function handler(req, res) {
           calculatedRemuneSortieInfi,
           calculatedRemuneSortieMed,
           comments || null,
-          expense_amount || null,
-          expense_comment || null,
-          proof_image || null,
+          finalExpenseAmount,
+          finalExpenseComment,
+          finalProofImage,
+          finalExpensesJson,
           status || 'À saisir',
           ebrigade_id || null,
           ebrigade_personnel_id || null,
@@ -390,7 +414,7 @@ export default async function handler(req, res) {
       // Log incoming payload keys for debugging
       try{ console.log('[admin/prestations] PATCH payload keys:', Object.keys(req.body || {})) }catch(e){}
       const { id } = req.query
-      const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, analytic_name, status, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validated_by_id, validated_by_email } = req.body || {}
+      const { pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, expenses_json: patchExpensesJson, analytic_id, analytic_name, status, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validated_by_id, validated_by_email } = req.body || {}
 
       // Resolve validator ID: use provided ID, or look up by email as fallback
       let validaterId = validated_by_id ? Number(validated_by_id) : null
@@ -402,6 +426,29 @@ export default async function handler(req, res) {
         } catch (e) { console.warn('validator lookup failed:', e.message) }
       }
       console.log('[PATCH] validaterId resolved:', validaterId, '(from', validated_by_id ? 'id' : 'email', ')')
+
+      // Compute expense fields from expenses_json if provided
+      let patchFinalExpenseAmount = expense_amount
+      let patchFinalExpenseComment = expense_comment
+      let patchFinalProofImage = proof_image
+      let patchFinalExpensesJson = patchExpensesJson
+      if (patchExpensesJson !== undefined) {
+        try {
+          const arr = typeof patchExpensesJson === 'string' ? JSON.parse(patchExpensesJson) : patchExpensesJson
+          if (Array.isArray(arr)) {
+            const valid = arr.filter(e => Number(e.amount || 0) > 0)
+            patchFinalExpenseAmount = valid.length > 0 ? valid.reduce((s, e) => s + Number(e.amount || 0), 0) : null
+            patchFinalExpenseComment = valid.map(e => e.comment).filter(Boolean).join('; ') || null
+            patchFinalProofImage = (valid[0] && valid[0].proof_image) || null
+            patchFinalExpensesJson = JSON.stringify(valid)
+          }
+        } catch(e) { console.warn('[prestations PATCH] invalid expenses_json:', e.message) }
+      }
+
+      // Ensure expenses_json column exists
+      try {
+        await pool.query("ALTER TABLE prestations ADD COLUMN IF NOT EXISTS expenses_json TEXT DEFAULT NULL")
+      } catch(e) {}
 
       const q = await pool.query(
         `UPDATE prestations SET
@@ -429,10 +476,11 @@ export default async function handler(req, res) {
            ebrigade_duration_hours = COALESCE($21::numeric, ebrigade_duration_hours),
            ebrigade_start_time = COALESCE($22, ebrigade_start_time),
            ebrigade_end_time = COALESCE($23, ebrigade_end_time),
+           expenses_json = COALESCE($25, expenses_json),
            updated_at = NOW()
          WHERE id = $14
          RETURNING *`,
-        [pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, expense_amount, expense_comment, proof_image, analytic_id, status, id, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, analytic_name || ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validaterId]
+        [pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, patchFinalExpenseAmount, patchFinalExpenseComment, patchFinalProofImage, analytic_id, status, id, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, analytic_name || ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validaterId, patchFinalExpensesJson]
       )
 
       const rows = (q && q.rows) ? q.rows : []

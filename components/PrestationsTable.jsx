@@ -11,6 +11,21 @@ function parseTimeToMinutes(value) {
   return (h * 60) + min
 }
 
+// Parse expenses_json or fall back to legacy expense fields
+function parseExpenses(row) {
+  if (row && row.expenses_json) {
+    try {
+      const parsed = typeof row.expenses_json === 'string' ? JSON.parse(row.expenses_json) : row.expenses_json
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    } catch(e) {}
+  }
+  // Backward compat: build a single-item array from legacy fields
+  if (row && (row.expense_amount || row.expense_comment || row.proof_image)) {
+    return [{ amount: Number(row.expense_amount || 0), comment: row.expense_comment || '', proof_image: row.proof_image || null }]
+  }
+  return []
+}
+
 function resolveEbrigadeDurationHours(item) {
   const start = parseTimeToMinutes(item?.ebrigade_start_time || item?.startTime)
   const end = parseTimeToMinutes(item?.ebrigade_end_time || item?.endTime)
@@ -296,18 +311,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           return
         }
       }
-
-      // Block encoding after 48h deadline for non-admin users (dates >= 2026-05-01)
-      if (p.date && role !== 'admin' && role !== 'moderator') {
-        const prestDate48 = new Date(p.date); prestDate48.setHours(0, 0, 0, 0)
-        if (prestDate48 >= new Date('2026-05-01')) {
-          const hoursElapsed = (Date.now() - prestDate48.getTime()) / (1000 * 60 * 60)
-          if (hoursElapsed >= 48) {
-            alert(`⏰ Le délai de 48h pour encoder vos heures est dépassé.\n\nVous ne pouvez plus encoder vos heures pour la prestation du ${prestDate48.toLocaleDateString('fr-FR')}.\nVeuillez contacter un administrateur.`)
-            return
-          }
-        }
-      }
       
       // FIRST: Check in the API if a prestation already exists for this user/date/analytic
       // This ensures we don't miss existing prestations that are scrolled out of view or filtered
@@ -357,6 +360,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
               
               setEditing({
                 ...migratedData,
+                expenses: parseExpenses(migratedData),
                 isActivity: true,
                 isEBrigade: true
               })
@@ -404,6 +408,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         
         setEditing({
           ...migratedPrestation,
+          expenses: parseExpenses(migratedPrestation),
           isActivity: true,
           isEBrigade: true
         })
@@ -444,6 +449,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         expense_comment: null,
         comments: null,
         proof_image: null,
+        expenses: [],
         isActivity: true, // Flag to force editable form for activities
         // mark as eBrigade if the incoming activity originates from eBrigade
         isEBrigade: !!(p.source === 'ebrigade' || p.activityCode || p.E_CODE || p.ebrigade_activity_code || p.ebrigade_id)
@@ -470,6 +476,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     }catch(e){ /* ignore and fall back to local object */ }
     setEditing({
       ...p,
+      expenses: parseExpenses(p),
       // ensure isEBrigade is preserved/detected when editing an object that carries eBrigade metadata
       isEBrigade: !!(p.isEBrigade || p.source === 'ebrigade' || p.activityCode || p.E_CODE || p.ebrigade_activity_code || p.ebrigade_id)
     })
@@ -539,16 +546,20 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       }
     }
     
-    // Validate note de frais: require comment and proof image when expense_amount > 0
+    // Validate notes de frais: each entry with an amount must have a comment and proof image
     if (role !== 'admin' && role !== 'moderator') {
-      if (Number(editing.expense_amount || 0) > 0) {
-        if (!editing.expense_comment?.trim()) {
-          alert('⚠️ Veuillez renseigner une raison pour la note de frais.')
-          return
-        }
-        if (!editing.proof_image) {
-          alert('⚠️ Veuillez joindre une pièce justificative pour la note de frais (photo du ticket/reçu).')
-          return
+      const expenses = editing.expenses || []
+      for (let i = 0; i < expenses.length; i++) {
+        const exp = expenses[i]
+        if (Number(exp.amount || 0) > 0) {
+          if (!exp.comment?.trim()) {
+            alert(`⚠️ Note de frais #${i+1}: veuillez renseigner une raison.`)
+            return
+          }
+          if (!exp.proof_image) {
+            alert(`⚠️ Note de frais #${i+1}: veuillez joindre une pièce justificative.`)
+            return
+          }
         }
       }
     }
@@ -586,7 +597,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         garde_hours: gardeHoursForPreview,
         sortie_hours: sortieHoursForPreview,
         overtime_hours: editing.overtime_hours || 0,
-        expense_amount: editing.expense_amount || 0
+        expense_amount: (editing.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0)
       }
 
       // If the user provided explicit remuneration values, show them directly
@@ -750,6 +761,20 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         remuneration_med: effective.remuneration_med
       })
       
+      // Serialize expenses array → expenses_json + compute expense_amount total
+      const expensesArr = (effective.expenses || []).filter(e => Number(e.amount || 0) > 0)
+      if (expensesArr.length > 0) {
+        effective.expenses_json = JSON.stringify(expensesArr)
+        effective.expense_amount = expensesArr.reduce((s, e) => s + Number(e.amount || 0), 0)
+        effective.expense_comment = expensesArr.map(e => e.comment).filter(Boolean).join('; ')
+        effective.proof_image = expensesArr[0].proof_image || null
+      } else {
+        effective.expenses_json = JSON.stringify([])
+        effective.expense_amount = null
+        effective.expense_comment = null
+        effective.proof_image = null
+      }
+
       // Always set status to "En attente d'approbation" for non-admin/moderator users
       if (!role || (role !== 'admin' && role !== 'moderator')){
         effective.status = "En attente d'approbation"
@@ -857,7 +882,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           analytic_name: editing.analytic_name || null,
           user_role: (clientRole && clientRole !== 'user') ? clientRole : (editing.user_role || null),
           user_email: (typeof window !== 'undefined' ? localStorage.getItem('email') : null) || editing.user_email || editing.email || null,
-          expense_amount: editing.expense_amount || 0
+          expense_amount: (editing.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0)
         }
         const r = await fetch('/api/prestations/estimate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) })
         if (!r.ok) return
@@ -1154,34 +1179,52 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   </div>
                 )}
 
-                {/* Section Note de frais */}
-                {(editing.expense_amount || editing.expense_comment || editing.proof_image) && (
-                  <div style={{padding:12,border:'1px solid #f59e0b',borderRadius:8,background:'#fffbeb'}}>
-                    <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>🧾 Note de frais</div>
-                    <div style={{display:'grid',gap:12}}>
-                      {editing.expense_amount && (
-                        <div>
-                          <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>MONTANT</div>
-                          <div style={{fontSize:15,fontWeight:600,color:'#d97706'}}>{editing.expense_amount} €</div>
+                {/* Section Notes de frais (view-only) */}
+                {(() => {
+                  const viewExpenses = editing.expenses && editing.expenses.length > 0
+                    ? editing.expenses.filter(e => Number(e.amount||0) > 0)
+                    : (editing.expense_amount || editing.expense_comment || editing.proof_image)
+                      ? [{amount: editing.expense_amount, comment: editing.expense_comment, proof_image: editing.proof_image}]
+                      : []
+                  if (viewExpenses.length === 0) return null
+                  return (
+                    <div style={{padding:12,border:'1px solid #f59e0b',borderRadius:8,background:'#fffbeb'}}>
+                      <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>🧾 Notes de frais</div>
+                      {viewExpenses.map((exp, idx) => (
+                        <div key={idx} style={{marginBottom:10,paddingBottom:10,borderBottom: idx<viewExpenses.length-1?'1px dashed #fcd34d':'none'}}>
+                          <div style={{fontSize:12,fontWeight:700,color:'#b45309',marginBottom:6}}>Note #{idx+1}</div>
+                          <div style={{display:'grid',gap:8}}>
+                            {exp.amount && (
+                              <div>
+                                <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>MONTANT</div>
+                                <div style={{fontSize:15,fontWeight:600,color:'#d97706'}}>{exp.amount} €</div>
+                              </div>
+                            )}
+                            {exp.comment && (
+                              <div>
+                                <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>COMMENTAIRE</div>
+                                <div style={{fontSize:14,color:'#92400e'}}>{exp.comment}</div>
+                              </div>
+                            )}
+                            {exp.proof_image && (
+                              <div>
+                                <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>📸 JUSTIFICATIF</div>
+                                <a href={exp.proof_image} target="_blank" rel="noopener noreferrer">
+                                  <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:220,border:'2px solid #fcd34d',borderRadius:6,display:'block',cursor:'pointer'}} />
+                                </a>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
-                      {editing.expense_comment && (
-                        <div>
-                          <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>COMMENTAIRE</div>
-                          <div style={{fontSize:14,color:'#92400e'}}>{editing.expense_comment}</div>
-                        </div>
-                      )}
-                      {editing.proof_image && (
-                        <div>
-                          <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>📸 JUSTIFICATIF</div>
-                          <a href={editing.proof_image} target="_blank" rel="noopener noreferrer">
-                            <img src={editing.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:250,border:'2px solid #fcd34d',borderRadius:6,display:'block',cursor:'pointer'}} />
-                          </a>
+                      ))}
+                      {viewExpenses.length > 1 && (
+                        <div style={{textAlign:'right',fontWeight:700,color:'#b45309',fontSize:13,marginTop:4}}>
+                          Total: {viewExpenses.reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
               </div>
             ) : (
               // existing editable form for non-admin and activities
@@ -1273,45 +1316,101 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   </label>
                 </div>
 
-                {/* Section Note de frais */}
+                {/* Section Notes de frais (multiple) */}
                 <div style={{padding:12,border:'1px solid #f59e0b',borderRadius:8,background:'#fffbeb'}}>
-                  <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>🧾 Note de frais (si applicable)</div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-                    <label style={{display:'flex',flexDirection:'column'}}>
-                      <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>MONTANT</div>
-                      <input type="number" step="0.01" value={editing.expense_amount ?? ''} onChange={e=>setEditing({...editing, expense_amount: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #fcd34d',fontSize:14}} placeholder="0.00" />
-                    </label>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                    <div style={{fontWeight:700,fontSize:14,color:'#92400e'}}>🧾 Notes de frais (si applicable)</div>
+                    <button
+                      type="button"
+                      onClick={()=>setEditing({...editing, expenses: [...(editing.expenses||[]), {amount:'', comment:'', proof_image:null}]})}
+                      style={{padding:'5px 12px',background:'#f59e0b',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:600,fontSize:13}}
+                    >+ Ajouter une note</button>
                   </div>
-                  <label style={{display:'block',marginBottom:12}}>
-                    <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>COMMENTAIRE / RAISON {Number(editing.expense_amount || 0) > 0 && <span style={{color:'#dc2626'}}>*</span>}</div>
-                    <input value={editing.expense_comment || ''} onChange={e=>setEditing({...editing, expense_comment: e.target.value})} style={{width:'100%',padding:'8px 10px',borderRadius:6,border: Number(editing.expense_amount || 0) > 0 && !editing.expense_comment?.trim() ? '1px solid #dc2626' : '1px solid #fcd34d',fontSize:14}} placeholder="Ex: Fournitures, transport..." />
-                    {Number(editing.expense_amount || 0) > 0 && !editing.expense_comment?.trim() && <div style={{fontSize:11,color:'#dc2626',marginTop:4}}>Obligatoire si montant renseigné</div>}
-                  </label>
 
-                  <div style={{marginTop:8}}>
-                    <div style={{fontWeight:600,marginBottom:6,fontSize:12,color:'#92400e'}}>📸 JUSTIFICATIF (IMAGE) {Number(editing.expense_amount || 0) > 0 && <span style={{color:'#dc2626'}}>*</span>}</div>
-                    <input type="file" accept="image/*" onChange={async (e)=>{
-                      const f = e.target.files && e.target.files[0]
-                      if (!f) return
-                      const data = await new Promise((res, rej)=>{
-                        const r = new FileReader()
-                        r.onload = ()=>res(r.result)
-                        r.onerror = rej
-                        r.readAsDataURL(f)
-                      })
-                      setEditing({...editing, proof_image: data})
-                    }} />
-                    {Number(editing.expense_amount || 0) > 0 && !editing.proof_image && <div style={{fontSize:11,color:'#dc2626',marginTop:4}}>Obligatoire si montant renseigné</div>}
+                  {(!editing.expenses || editing.expenses.length === 0) && (
+                    <div style={{fontSize:13,color:'#b45309',fontStyle:'italic'}}>Aucune note de frais. Cliquez sur « + Ajouter une note » si nécessaire.</div>
+                  )}
 
-                    {editing.proof_image && (
-                      <div style={{marginTop:8}}>
-                        <img src={editing.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:180,border:'2px solid #fcd34d',borderRadius:6,display:'block',marginBottom:8}} />
-                        <div style={{display:'flex',gap:8}}>
-                          <button onClick={()=>setEditing({...editing, proof_image: null})} style={{padding:'6px 12px',background:'#fee2e2',color:'#991b1b',borderRadius:6,border:'1px solid #fca5a5',cursor:'pointer',fontWeight:600,fontSize:13}}>🗑️ Supprimer l'image</button>
-                        </div>
+                  {(editing.expenses||[]).map((exp, idx) => (
+                    <div key={idx} style={{padding:10,background:'#fff',borderRadius:6,border:'1px solid #fcd34d',marginBottom:10,position:'relative'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                        <div style={{fontSize:12,fontWeight:700,color:'#92400e'}}>Note #{idx+1}</div>
+                        <button
+                          type="button"
+                          onClick={()=>{
+                            const next = (editing.expenses||[]).filter((_,i)=>i!==idx)
+                            setEditing({...editing, expenses: next})
+                          }}
+                          style={{padding:'3px 8px',background:'#fee2e2',color:'#991b1b',border:'1px solid #fca5a5',borderRadius:4,cursor:'pointer',fontSize:12,fontWeight:600}}
+                        >✕ Supprimer</button>
                       </div>
-                    )}
-                  </div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:8}}>
+                        <label style={{display:'flex',flexDirection:'column'}}>
+                          <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>MONTANT (€)</div>
+                          <input
+                            type="number" step="0.01"
+                            value={exp.amount ?? ''}
+                            onChange={e=>{
+                              const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,amount:e.target.value?Number(e.target.value):''}:x)
+                              setEditing({...editing, expenses: next})
+                            }}
+                            style={{padding:'7px 9px',borderRadius:6,border:'1px solid #fcd34d',fontSize:14}}
+                            placeholder="0.00"
+                          />
+                        </label>
+                        <label style={{display:'flex',flexDirection:'column'}}>
+                          <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>RAISON / COMMENTAIRE {Number(exp.amount||0)>0 && <span style={{color:'#dc2626'}}>*</span>}</div>
+                          <input
+                            value={exp.comment||''}
+                            onChange={e=>{
+                              const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,comment:e.target.value}:x)
+                              setEditing({...editing, expenses: next})
+                            }}
+                            style={{padding:'7px 9px',borderRadius:6,border: Number(exp.amount||0)>0&&!exp.comment?.trim()?'1px solid #dc2626':'1px solid #fcd34d',fontSize:14}}
+                            placeholder="Ex: Transport, fournitures..."
+                          />
+                          {Number(exp.amount||0)>0&&!exp.comment?.trim()&&<div style={{fontSize:11,color:'#dc2626',marginTop:3}}>Obligatoire</div>}
+                        </label>
+                      </div>
+                      <div>
+                        <div style={{fontWeight:600,marginBottom:4,fontSize:12,color:'#92400e'}}>📸 JUSTIFICATIF {Number(exp.amount||0)>0 && <span style={{color:'#dc2626'}}>*</span>}</div>
+                        {!exp.proof_image && (
+                          <input type="file" accept="image/*" onChange={async (e)=>{
+                            const f = e.target.files && e.target.files[0]
+                            if (!f) return
+                            const data = await new Promise((res,rej)=>{
+                              const reader = new FileReader()
+                              reader.onload = ()=>res(reader.result)
+                              reader.onerror = rej
+                              reader.readAsDataURL(f)
+                            })
+                            const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,proof_image:data}:x)
+                            setEditing({...editing, expenses: next})
+                          }} />
+                        )}
+                        {Number(exp.amount||0)>0&&!exp.proof_image&&<div style={{fontSize:11,color:'#dc2626',marginTop:3}}>Obligatoire si montant renseigné</div>}
+                        {exp.proof_image && (
+                          <div style={{marginTop:6}}>
+                            <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:160,border:'2px solid #fcd34d',borderRadius:6,display:'block',marginBottom:6}} />
+                            <button
+                              type="button"
+                              onClick={()=>{
+                                const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,proof_image:null}:x)
+                                setEditing({...editing, expenses: next})
+                              }}
+                              style={{padding:'5px 10px',background:'#fee2e2',color:'#991b1b',borderRadius:5,border:'1px solid #fca5a5',cursor:'pointer',fontWeight:600,fontSize:12}}
+                            >🗑️ Supprimer l'image</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {(editing.expenses||[]).length > 0 && (
+                    <div style={{textAlign:'right',fontSize:13,fontWeight:700,color:'#b45309',marginTop:4}}>
+                      Total notes de frais: {(editing.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
+                    </div>
+                  )}
                 </div>
               </div>
             )}

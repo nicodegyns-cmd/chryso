@@ -820,34 +820,47 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                 </div>
               )}
 
-              {/* Section Note de frais */}
-              {(viewing.expense_amount || viewing.expense_comment || viewing.proof_image) && (
-                <div style={{padding:12,border:'1px solid #f59e0b',borderRadius:8,background:'#fffbeb',marginBottom:16}}>
-                  <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>🧾 Note de frais</div>
-                  <div style={{display:'grid',gap:12}}>
-                    {viewing.expense_amount && (
-                      <div>
-                        <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>MONTANT</div>
-                        <div style={{fontSize:15,fontWeight:600,color:'#d97706'}}>{viewing.expense_amount} €</div>
+              {/* Section Notes de frais */}
+              {(() => {
+                let viewExpenses = []
+                if (viewing.expenses_json) {
+                  try {
+                    const parsed = typeof viewing.expenses_json === 'string' ? JSON.parse(viewing.expenses_json) : viewing.expenses_json
+                    if (Array.isArray(parsed) && parsed.length > 0) viewExpenses = parsed.filter(e => Number(e.amount||0) > 0)
+                  } catch(e) {}
+                }
+                if (viewExpenses.length === 0 && (viewing.expense_amount || viewing.expense_comment || viewing.proof_image)) {
+                  viewExpenses = [{amount: viewing.expense_amount, comment: viewing.expense_comment, proof_image: viewing.proof_image}]
+                }
+                if (viewExpenses.length === 0) return null
+                return (
+                  <div style={{padding:12,border:'1px solid #f59e0b',borderRadius:8,background:'#fffbeb',marginBottom:16}}>
+                    <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>🧾 Notes de frais</div>
+                    {viewExpenses.map((exp, idx) => (
+                      <div key={idx} style={{marginBottom:10,paddingBottom:10,borderBottom:idx<viewExpenses.length-1?'1px dashed #fcd34d':'none'}}>
+                        {viewExpenses.length > 1 && <div style={{fontSize:12,fontWeight:700,color:'#b45309',marginBottom:6}}>Note #{idx+1}</div>}
+                        <div style={{display:'grid',gap:8}}>
+                          {exp.amount && <div><div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>MONTANT</div><div style={{fontSize:15,fontWeight:600,color:'#d97706'}}>{exp.amount} €</div></div>}
+                          {exp.comment && <div><div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>COMMENTAIRE</div><div style={{fontSize:14,color:'#92400e'}}>{exp.comment}</div></div>}
+                          {exp.proof_image && (
+                            <div>
+                              <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>📸 JUSTIFICATIF</div>
+                              <a href={exp.proof_image} target="_blank" rel="noopener noreferrer">
+                                <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:250,border:'2px solid #fcd34d',borderRadius:6,display:'block',cursor:'pointer'}} />
+                              </a>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
-                    {viewing.expense_comment && (
-                      <div>
-                        <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>COMMENTAIRE</div>
-                        <div style={{fontSize:14,color:'#92400e'}}>{viewing.expense_comment}</div>
-                      </div>
-                    )}
-                    {viewing.proof_image && (
-                      <div>
-                        <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:6}}>📸 JUSTIFICATIF</div>
-                        <a href={viewing.proof_image} target="_blank" rel="noopener noreferrer">
-                          <img src={viewing.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:250,border:'2px solid #fcd34d',borderRadius:6,display:'block',cursor:'pointer'}} />
-                        </a>
+                    ))}
+                    {viewExpenses.length > 1 && (
+                      <div style={{textAlign:'right',fontWeight:700,color:'#b45309',fontSize:13,marginTop:4}}>
+                        Total: {viewExpenses.reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
                       </div>
                     )}
                   </div>
-                </div>
-              )}
+                )
+              })()}
             </div>
 
             <div style={{padding:24,borderTop:'1px solid #e5e7eb',display:'flex',justifyContent:'flex-end',gap:8}}>

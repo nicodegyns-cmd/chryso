@@ -20,10 +20,34 @@ export default async function handler(req, res){
     if (!id) return res.status(400).json({ error: 'missing id' })
 
     // apply allowed updates (Postgres placeholders $n)
-    const allowed = ['hours_actual','garde_hours','sortie_hours','overtime_hours','comments','proof_image','remuneration_infi','remuneration_med','remuneration_sortie_infi','remuneration_sortie_med','status','expense_amount','expense_comment','validated_by_id','validated_by_email']
+    const allowed = ['hours_actual','garde_hours','sortie_hours','overtime_hours','comments','proof_image','remuneration_infi','remuneration_med','remuneration_sortie_infi','remuneration_sortie_med','status','expense_amount','expense_comment','expenses_json','validated_by_id','validated_by_email']
     const updates = []
     const params = []
     let paramIndex = 1
+
+    // If expenses_json is provided, derive expense_amount/comment/proof from it
+    if (Object.prototype.hasOwnProperty.call(req.body, 'expenses_json')) {
+      try {
+        // Ensure column exists
+        await pool.query("ALTER TABLE prestations ADD COLUMN IF NOT EXISTS expenses_json TEXT DEFAULT NULL")
+      } catch(e) {}
+      try {
+        const raw = req.body.expenses_json
+        const arr = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : [])
+        const valid = arr.filter(e => Number(e.amount || 0) > 0)
+        req.body.expenses_json = JSON.stringify(valid)
+        if (!Object.prototype.hasOwnProperty.call(req.body, 'expense_amount')) {
+          req.body.expense_amount = valid.length > 0 ? valid.reduce((s, e) => s + Number(e.amount || 0), 0) : null
+        }
+        if (!Object.prototype.hasOwnProperty.call(req.body, 'expense_comment')) {
+          req.body.expense_comment = valid.map(e => e.comment).filter(Boolean).join('; ') || null
+        }
+        if (!Object.prototype.hasOwnProperty.call(req.body, 'proof_image')) {
+          req.body.proof_image = (valid[0] && valid[0].proof_image) || null
+        }
+      } catch(e) { console.warn('[prestations PATCH id] invalid expenses_json:', e.message) }
+    }
+
     for (const k of allowed) {
       if (Object.prototype.hasOwnProperty.call(req.body, k)) {
         updates.push(`${k} = $${paramIndex++}`)
