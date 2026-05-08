@@ -840,8 +840,12 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         try {
           const errData = await r.json()
           console.error('[saveEdit] API error response:', errData)
+          if (r.status === 403 && errData.code === 'DEADLINE_EXCEEDED') {
+            throw new Error(`⏰ ${errData.error}\n\n${errData.detail}`)
+          }
           throw new Error(`Erreur ${r.status}: ${errData.error || 'Échec enregistrement'}`)
         } catch(parseErr) {
+          if (parseErr.message && parseErr.message.startsWith('⏰')) throw parseErr
           console.error('[saveEdit] Could not parse error response:', parseErr)
           throw new Error(`Erreur ${r.status}: Échec enregistrement`)
         }

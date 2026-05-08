@@ -130,7 +130,14 @@ export default async function handler(req, res) {
         if (prestDateDeadline >= new Date('2026-05-01')) {
           const hoursElapsed = (Date.now() - prestDateDeadline.getTime()) / (1000 * 60 * 60)
           if (hoursElapsed >= 48) {
-            return res.status(403).json({ error: 'Le délai de 48h pour encoder vos heures est dépassé. Veuillez contacter un administrateur.' })
+            const deadlineDate = new Date(prestDateDeadline.getTime() + 48 * 3600 * 1000)
+            const deadlineStr = deadlineDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) + ' à ' + deadlineDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+            const prestStr = prestDateDeadline.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+            return res.status(403).json({
+              error: `Délai dépassé`,
+              detail: `Le délai pour encoder les heures de la prestation du ${prestStr} était le ${deadlineStr} (48h après la prestation).\n\nVeuillez contacter un administrateur pour débloquer cette saisie.`,
+              code: 'DEADLINE_EXCEEDED'
+            })
           }
         }
       }
