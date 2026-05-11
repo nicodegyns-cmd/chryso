@@ -197,7 +197,7 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
       const validatedByEmail = typeof window !== 'undefined' ? localStorage.getItem('email') : null
       const validationPayload = status === "Envoyé à la facturation"
         ? { status, validated_by_id: validatedById ? Number(validatedById) : null, validated_by_email: validatedByEmail }
-        : { status }
+        : { status, validated_by_email: validatedByEmail }
       const r = await fetch(`/api/admin/prestations/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(validationPayload) })
       if (!r.ok) throw new Error('update failed')
       const updated = await r.json()

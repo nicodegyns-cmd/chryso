@@ -50,13 +50,27 @@ export default async function handler(req, res){
 
     for (const k of allowed) {
       if (Object.prototype.hasOwnProperty.call(req.body, k)) {
+        // Skip null validated_by_id — handled below with email fallback
+        if (k === 'validated_by_id' && !req.body[k]) continue
         updates.push(`${k} = $${paramIndex++}`)
         params.push(req.body[k])
       }
     }
     // Auto-set validated_at when status becomes "Envoyé à la facturation"
-    if (req.body.status === "Envoyé à la facturation" && req.body.validated_by_id) {
+    if (req.body.status === "Envoyé à la facturation") {
+      // Always stamp validated_at
       updates.push(`validated_at = NOW()`)
+      // If validated_by_id not set (null or missing), resolve from email
+      if (!req.body.validated_by_id && req.body.validated_by_email) {
+        try {
+          const vq = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1', [req.body.validated_by_email])
+          const vrows = (vq && vq.rows) ? vq.rows : []
+          if (vrows.length > 0) {
+            updates.push(`validated_by_id = $${paramIndex++}`)
+            params.push(vrows[0].id)
+          }
+        } catch (e) { console.warn('[prestations PATCH id] validator email lookup failed:', e.message) }
+      }
     }
     if (updates.length === 0) return res.status(400).json({ error: 'nothing to update' })
 
