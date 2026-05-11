@@ -6,6 +6,7 @@ import UserSidebar from '../../components/UserSidebar'
 import InvoiceStatistics from '../../components/InvoiceStatistics'
 import PrestationChartsAnalytic from '../../components/PrestationChartsAnalytic'
 import ExpenseStatistics from '../../components/ExpenseStatistics'
+import MonthlyTrendChart from '../../components/MonthlyTrendChart'
 
 export default function AdminStatisticsPage() {
   const [activeTab, setActiveTab] = useState('invoices')
@@ -58,6 +59,9 @@ export default function AdminStatisticsPage() {
           <button style={tabStyle('charts')} onClick={() => setActiveTab('charts')}>
             📈 Graphiques par analytique
           </button>
+          <button style={tabStyle('monthly')} onClick={() => setActiveTab('monthly')}>
+            📉 Tendances mensuelles
+          </button>
           <button style={tabStyle('expenses')} onClick={() => setActiveTab('expenses')}>
             🧾 Notes de frais
           </button>
@@ -66,6 +70,7 @@ export default function AdminStatisticsPage() {
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderTop: 'none', borderRadius: '0 8px 8px 8px', padding: 20 }}>
           {activeTab === 'invoices' && <InvoiceStatistics />}
           {activeTab === 'charts' && <PrestationChartsAnalytic />}
+          {activeTab === 'monthly' && <MonthlyTrendChart />}
           {activeTab === 'expenses' && <ExpenseStatistics />}
         </div>
       </main>
