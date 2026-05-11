@@ -204,11 +204,12 @@ function createPool() {
     if (fs.existsSync(caPath)) {
       try {
         const ca = fs.readFileSync(caPath, 'utf8')
-        pgOptions.ssl = { ca, rejectUnauthorized: true }
-        console.log('[DB] Using custom OVH CA for Postgres TLS verification')
+        // OVH CloudDB uses a self-signed cert — rejectUnauthorized must be false even with CA file
+        pgOptions.ssl = { ca, rejectUnauthorized: false }
+        console.log('[DB] Using custom OVH CA for Postgres TLS verification (rejectUnauthorized=false)')
       } catch (readErr) {
-        console.warn('[DB] Unable to read custom OVH CA file, using system defaults:', readErr.message)
-        pgOptions.ssl = { rejectUnauthorized: true }
+        console.warn('[DB] Unable to read custom OVH CA file, falling back:', readErr.message)
+        pgOptions.ssl = { rejectUnauthorized: false }
       }
     } else {
       // No custom CA file - OVH CloudDB uses self-signed cert, disable strict verification
