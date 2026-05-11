@@ -65,9 +65,31 @@ export default async function handler(req, res) {
     )
     const submittedSet = new Set()
     for (const p of prestaResult.rows) {
-      // date comes back as Date object or string depending on driver — normalise
       const d = typeof p.date === 'string' ? p.date.split('T')[0] : p.date.toISOString().split('T')[0]
       submittedSet.add(`${p.user_id}:${d}`)
+    }
+
+    // 3b. Load last manual reminder sent per (user_id, activity_date)
+    const logsMap = {}
+    try {
+      await pool.query(`ALTER TABLE reminder_logs ADD COLUMN IF NOT EXISTS sent_by_email TEXT`).catch(() => {})
+      const logsResult = await pool.query(
+        `SELECT DISTINCT ON (user_id, activity_date)
+           user_id, activity_date::date AS activity_date, sent_at, sent_by_email
+         FROM reminder_logs
+         WHERE reminder_type = 98 AND activity_date >= $1 AND activity_date <= $2
+         ORDER BY user_id, activity_date, sent_at DESC`,
+        [startDate, endDate]
+      )
+      for (const l of logsResult.rows) {
+        const d = typeof l.activity_date === 'string' ? l.activity_date.split('T')[0] : l.activity_date.toISOString().split('T')[0]
+        logsMap[`${l.user_id}:${d}`] = {
+          last_sent_at: l.sent_at,
+          last_sent_by: l.sent_by_email || null,
+        }
+      }
+    } catch (e) {
+      console.warn('[missing-prestations] Could not load reminder_logs:', e.message)
     }
 
     // 4. Determine which eBrigade activities have no matching prestation
@@ -91,6 +113,7 @@ export default async function handler(req, res) {
       const activityDate = new Date(rawDate + 'T12:00:00Z')
       const daysAgo = Math.floor((now.getTime() - activityDate.getTime()) / (1000 * 3600 * 24))
 
+      const log = logsMap[key] || null
       items.push({
         user_id: user.id,
         user_email: user.email,
@@ -101,6 +124,8 @@ export default async function handler(req, res) {
         pay_type: p.TE_LIBELLE || '',
         days_ago: daysAgo,
         ebrigade_code: p.E_CODE || '',
+        last_sent_at: log ? log.last_sent_at : null,
+        last_sent_by: log ? log.last_sent_by : null,
       })
     }
 

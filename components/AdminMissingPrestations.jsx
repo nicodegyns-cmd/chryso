@@ -11,6 +11,22 @@ function urgencyBadge(daysAgo) {
   return <span style={{ background: '#fef9c3', color: '#ca8a04', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>{daysAgo}j</span>
 }
 
+function lastSentBadge(last_sent_at, last_sent_by) {
+  if (!last_sent_at) return null
+  const d = new Date(last_sent_at)
+  const str = d.toLocaleString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return (
+    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 3, lineHeight: 1.4 }}>
+      <span style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '2px 7px', color: '#15803d', fontWeight: 600 }}>
+        ✉️ {str}
+      </span>
+      {last_sent_by && (
+        <span style={{ marginLeft: 5, color: '#9ca3af' }}>par {last_sent_by}</span>
+      )}
+    </div>
+  )
+}
+
 function todayMinus(days) {
   const d = new Date()
   d.setDate(d.getDate() - days)
@@ -23,11 +39,15 @@ export default function AdminMissingPrestations() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [sendingKey, setSendingKey] = useState(null)   // "userId:date" being sent
-  const [sentKeys, setSentKeys] = useState(new Set())  // keys already sent this session
+  const [sendingKey, setSendingKey] = useState(null)
   const [bulkSending, setBulkSending] = useState(false)
   const [bulkResult, setBulkResult] = useState(null)
-  const [groupBy, setGroupBy] = useState('user') // 'user' | 'date'
+  const [groupBy, setGroupBy] = useState('user')
+  const [adminEmail, setAdminEmail] = useState(null)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') setAdminEmail(localStorage.getItem('email'))
+  }, [])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -47,6 +67,20 @@ export default function AdminMissingPrestations() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  function updateItemLog(userId, date, sent_at, sent_by) {
+    setData(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        items: prev.items.map(i =>
+          i.user_id === userId && i.date === date
+            ? { ...i, last_sent_at: sent_at, last_sent_by: sent_by }
+            : i
+        )
+      }
+    })
+  }
+
   async function sendReminder(item) {
     const key = `${item.user_id}:${item.date}`
     setSendingKey(key)
@@ -62,13 +96,17 @@ export default function AdminMissingPrestations() {
           date: item.date,
           activityName: item.activity_name,
           payType: item.pay_type,
+          adminEmail,
         }),
       })
       const result = await resp.json()
-      if (resp.ok) {
-        setSentKeys(prev => new Set([...prev, key]))
-      } else {
+      if (!resp.ok) {
         alert(`Erreur : ${result.error || 'Échec de l\'envoi'}`)
+      } else if (result.sent === false && result.reason === 'Prestation already submitted') {
+        alert('Cette prestation a été soumise entre-temps.')
+        fetchData()
+      } else {
+        updateItemLog(item.user_id, item.date, new Date().toISOString(), adminEmail)
       }
     } catch (e) {
       alert(`Erreur réseau : ${e.message}`)
@@ -79,16 +117,13 @@ export default function AdminMissingPrestations() {
 
   async function sendAllReminders() {
     if (!data?.items?.length) return
-    const toSend = data.items.filter(i => !sentKeys.has(`${i.user_id}:${i.date}`))
-    if (toSend.length === 0) return
-
-    if (!confirm(`Envoyer ${toSend.length} rappel(s) par email ? Cette action ne peut pas être annulée.`)) return
+    if (!confirm(`Envoyer ${data.items.length} rappel(s) par email ? Cette action ne peut pas être annulée.`)) return
 
     setBulkSending(true)
     setBulkResult(null)
     let sent = 0, skipped = 0, failed = 0
 
-    for (const item of toSend) {
+    for (const item of data.items) {
       try {
         const resp = await fetch('/api/admin/send-missing-reminder', {
           method: 'POST',
@@ -101,13 +136,14 @@ export default function AdminMissingPrestations() {
             date: item.date,
             activityName: item.activity_name,
             payType: item.pay_type,
+            adminEmail,
           }),
         })
         const result = await resp.json()
         if (!resp.ok) { failed++; continue }
         if (result.sent) {
           sent++
-          setSentKeys(prev => new Set([...prev, `${item.user_id}:${item.date}`]))
+          updateItemLog(item.user_id, item.date, new Date().toISOString(), adminEmail)
         } else {
           skipped++
         }
@@ -146,7 +182,6 @@ export default function AdminMissingPrestations() {
   }
 
   const items = data?.items || []
-  const unsent = items.filter(i => !sentKeys.has(`${i.user_id}:${i.date}`))
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px', fontFamily: 'Arial, sans-serif' }}>
@@ -180,9 +215,9 @@ export default function AdminMissingPrestations() {
           {loading ? 'Chargement…' : '🔄 Actualiser'}
         </button>
         {items.length > 0 && (
-          <button onClick={sendAllReminders} disabled={bulkSending || unsent.length === 0}
-            style={{ padding: '9px 20px', background: unsent.length === 0 ? '#94a3b8' : '#dc2626', color: '#fff', border: 'none', borderRadius: 6, fontSize: 14, cursor: unsent.length === 0 ? 'default' : 'pointer', fontWeight: 600 }}>
-            {bulkSending ? 'Envoi en cours…' : `📧 Tout envoyer (${unsent.length})`}
+          <button onClick={sendAllReminders} disabled={bulkSending}
+            style={{ padding: '9px 20px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 6, fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>
+            {bulkSending ? 'Envoi en cours…' : `📧 Tout envoyer (${items.length})`}
           </button>
         )}
       </div>
@@ -254,35 +289,35 @@ export default function AdminMissingPrestations() {
                     <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600 }}>Activité</th>
                     <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600 }}>Type</th>
                     <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600 }}>Ancienneté</th>
+                    <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600 }}>Dernier envoi</th>
                     <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600 }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((item, idx) => {
                     const key = `${item.user_id}:${item.date}`
-                    const alreadySent = sentKeys.has(key)
                     const isSending = sendingKey === key
                     return (
-                      <tr key={key} style={{ borderTop: idx > 0 ? '1px solid #f1f5f9' : undefined, background: alreadySent ? '#f0fdf4' : undefined }}>
+                      <tr key={key} style={{ borderTop: idx > 0 ? '1px solid #f1f5f9' : undefined, background: item.last_sent_at ? '#fafffe' : undefined }}>
                         <td style={{ padding: '12px 20px', fontSize: 14, color: '#1e293b', fontFamily: 'monospace' }}>{item.date}</td>
                         <td style={{ padding: '12px 20px', fontSize: 14, color: '#475569' }}>{item.activity_name || '–'}</td>
                         <td style={{ padding: '12px 20px', fontSize: 14, color: '#475569' }}>{item.pay_type || '–'}</td>
                         <td style={{ padding: '12px 20px', textAlign: 'center' }}>{urgencyBadge(item.days_ago)}</td>
+                        <td style={{ padding: '12px 20px' }}>
+                          {item.last_sent_at ? lastSentBadge(item.last_sent_at, item.last_sent_by) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                        </td>
                         <td style={{ padding: '12px 20px', textAlign: 'center' }}>
-                          {alreadySent ? (
-                            <span style={{ color: '#16a34a', fontSize: 13, fontWeight: 600 }}>✅ Envoyé</span>
-                          ) : (
-                            <button
-                              onClick={() => sendReminder(item)}
-                              disabled={isSending || bulkSending}
-                              style={{
-                                padding: '6px 16px', background: isSending ? '#94a3b8' : '#0066cc',
-                                color: '#fff', border: 'none', borderRadius: 6, fontSize: 13,
-                                cursor: isSending ? 'default' : 'pointer', fontWeight: 600,
-                              }}>
-                              {isSending ? '…' : '📧 Rappel'}
-                            </button>
-                          )}
+                          <button
+                            onClick={() => sendReminder(item)}
+                            disabled={isSending || bulkSending}
+                            style={{
+                              padding: '6px 16px',
+                              background: isSending ? '#94a3b8' : item.last_sent_at ? '#6b7280' : '#0066cc',
+                              color: '#fff', border: 'none', borderRadius: 6, fontSize: 13,
+                              cursor: isSending ? 'default' : 'pointer', fontWeight: 600,
+                            }}>
+                            {isSending ? '…' : item.last_sent_at ? '📧 Renvoyer' : '📧 Rappel'}
+                          </button>
                         </td>
                       </tr>
                     )
@@ -312,37 +347,37 @@ export default function AdminMissingPrestations() {
                     <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600 }}>Email</th>
                     <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600 }}>Activité</th>
                     <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600 }}>Ancienneté</th>
+                    <th style={{ padding: '10px 20px', textAlign: 'left', fontWeight: 600 }}>Dernier envoi</th>
                     <th style={{ padding: '10px 20px', textAlign: 'center', fontWeight: 600 }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((item, idx) => {
                     const key = `${item.user_id}:${item.date}`
-                    const alreadySent = sentKeys.has(key)
                     const isSending = sendingKey === key
                     return (
-                      <tr key={key} style={{ borderTop: idx > 0 ? '1px solid #f1f5f9' : undefined, background: alreadySent ? '#f0fdf4' : undefined }}>
+                      <tr key={key} style={{ borderTop: idx > 0 ? '1px solid #f1f5f9' : undefined, background: item.last_sent_at ? '#fafffe' : undefined }}>
                         <td style={{ padding: '12px 20px', fontSize: 14, color: '#1e293b', fontWeight: 600 }}>
                           {item.last_name} {item.first_name}
                         </td>
                         <td style={{ padding: '12px 20px', fontSize: 13, color: '#64748b' }}>{item.user_email}</td>
                         <td style={{ padding: '12px 20px', fontSize: 14, color: '#475569' }}>{item.activity_name || item.pay_type || '–'}</td>
                         <td style={{ padding: '12px 20px', textAlign: 'center' }}>{urgencyBadge(item.days_ago)}</td>
+                        <td style={{ padding: '12px 20px' }}>
+                          {item.last_sent_at ? lastSentBadge(item.last_sent_at, item.last_sent_by) : <span style={{ color: '#d1d5db', fontSize: 13 }}>—</span>}
+                        </td>
                         <td style={{ padding: '12px 20px', textAlign: 'center' }}>
-                          {alreadySent ? (
-                            <span style={{ color: '#16a34a', fontSize: 13, fontWeight: 600 }}>✅ Envoyé</span>
-                          ) : (
-                            <button
-                              onClick={() => sendReminder(item)}
-                              disabled={isSending || bulkSending}
-                              style={{
-                                padding: '6px 16px', background: isSending ? '#94a3b8' : '#0066cc',
-                                color: '#fff', border: 'none', borderRadius: 6, fontSize: 13,
-                                cursor: isSending ? 'default' : 'pointer', fontWeight: 600,
-                              }}>
-                              {isSending ? '…' : '📧 Rappel'}
-                            </button>
-                          )}
+                          <button
+                            onClick={() => sendReminder(item)}
+                            disabled={isSending || bulkSending}
+                            style={{
+                              padding: '6px 16px',
+                              background: isSending ? '#94a3b8' : item.last_sent_at ? '#6b7280' : '#0066cc',
+                              color: '#fff', border: 'none', borderRadius: 6, fontSize: 13,
+                              cursor: isSending ? 'default' : 'pointer', fontWeight: 600,
+                            }}>
+                            {isSending ? '…' : item.last_sent_at ? '📧 Renvoyer' : '📧 Rappel'}
+                          </button>
                         </td>
                       </tr>
                     )
