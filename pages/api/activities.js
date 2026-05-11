@@ -22,6 +22,28 @@ function resolveDurationHours(rawDuration, startTime, endTime) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
+function parseEbrigadeDate(value) {
+  if (!value) return null
+  const s = String(value).trim()
+
+  // ISO-like (YYYY-MM-DD...)
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    return new Date(`${s.slice(0, 10)}T00:00:00Z`)
+  }
+
+  // French-like (DD/MM/YYYY)
+  const fr = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (fr) {
+    const [, dd, mm, yyyy] = fr
+    return new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`)
+  }
+
+  // Fallback parser; normalize to date-only UTC for stable comparisons
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return null
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+}
+
 export default async function handler(req, res){
   // Prevent caching for this endpoint
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
@@ -123,16 +145,20 @@ export default async function handler(req, res){
     console.log('  - Looking for P_ID:', user.liaison_ebrigade_id, '(type:', typeof user.liaison_ebrigade_id, ')')
     console.log('  - Available P_IDs:', allParticipations.slice(0, 10).map(p => ({ P_ID: p.P_ID, type: typeof p.P_ID })))
     console.log('  - Matches found:', userParticipations.length)
-    // Only show participations from April 1st 2026 onwards (system start date)
-    const systemStartDate = new Date('2026-04-01')
+    // Only show participations from system start date onwards.
+    // Keep records if the date cannot be parsed, to avoid hiding valid cards.
+    const systemStartDate = parseEbrigadeDate(process.env.MANUAL_ENTRY_MIN_DATE || '2026-04-01') || new Date('2026-04-01T00:00:00Z')
     const userParticipationsInRange = userParticipations.filter(p => {
       if (!p.EH_DATE_DEBUT) return true
-      return new Date(p.EH_DATE_DEBUT) >= systemStartDate
+      const participationDate = parseEbrigadeDate(p.EH_DATE_DEBUT)
+      if (!participationDate) {
+        console.warn('[activities] Could not parse participation date, keeping row:', p.EH_DATE_DEBUT)
+        return true
+      }
+      return participationDate >= systemStartDate
     })
 
-    const unfilled = userParticipationsInRange.filter(p => !p.hours_actual && !p.remuneration_infi && !p.remuneration_med)
-
-    const activities = unfilled.map(p => {
+    const activities = userParticipationsInRange.map(p => {
       // Extract prefix from eBrigade analytic name (before ' - ' or ' | ')
       const extractPrefix = (name) => {
         const match = name.match(/^([^-|]+?)(?:\s*[-|])/)
