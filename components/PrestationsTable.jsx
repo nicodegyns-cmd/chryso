@@ -39,6 +39,16 @@ function resolveEbrigadeDurationHours(item) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
+function isNonRemuneratedFormation(item) {
+  const type = String(
+    item?.ebrigade_activity_type ||
+    item?.pay_type ||
+    item?.analytic_name ||
+    ''
+  ).toLowerCase()
+  return type.includes('formation')
+}
+
 const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -297,6 +307,12 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       isActivity: p.isActivity,
     })
     console.log('[openEdit] called with:', p, 'items count:', items.length)
+
+    const isPrivilegedRole = role === 'admin' || role === 'moderator' || role === 'moderateur'
+    if (!isPrivilegedRole && isNonRemuneratedFormation(p)) {
+      alert('Ce type de prestation ne permet pas une rémunération.')
+      return
+    }
     
     // If this is an activity (not a prestation), look for existing prestation or create new one
     if (p.isActivity) {
