@@ -592,7 +592,7 @@ L'équipe ${appName}
  * @param {string} [opts.refusalReason] - Reason for refusal if cancelled
  * @returns {Promise<{sent: boolean, error?: string}>}
  */
-async function sendStatusChangeEmail({ userEmail, firstName, status, date, analyticName, payType, invoiceNumber, refusalReason, pdfPath }) {
+async function sendStatusChangeEmail({ userEmail, firstName, status, date, analyticName, payType, invoiceNumber, refusalReason }) {
   try {
     const mailer = getTransporter()
     const appName = process.env.APP_NAME || 'Fénix'
@@ -731,16 +731,6 @@ L'équipe ${appName}
 
     const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'no-reply@sirona-consult.be'
 
-    const fs = require('fs')
-    const attachments = []
-    if (pdfPath && fs.existsSync(pdfPath)) {
-      attachments.push({
-        filename: `Facture-${invoiceNumber || 'prestation'}.pdf`,
-        path: pdfPath,
-        contentType: 'application/pdf'
-      })
-    }
-
     const info = await mailer.sendMail({
       from: { name: appName, address: fromEmail },
       to: userEmail,
@@ -748,7 +738,6 @@ L'équipe ${appName}
       html: htmlContent,
       text: textContent,
       replyTo: fromEmail,
-      attachments,
       headers: {
         ...getEmailHeaders(fromEmail),
         'X-Originating-IP': '[127.0.0.1]',
@@ -766,130 +755,108 @@ L'équipe ${appName}
 }
 
 /**
- * Send a reminder email to a user who hasn't declared their hours yet.
+ * Send a reminder email to a user who hasn't encoded their hours yet.
  * @param {Object} opts
  * @param {string} opts.userEmail
  * @param {string} opts.firstName
- * @param {string|Date} opts.date - prestation date
- * @param {string} opts.analyticName
- * @param {string} opts.payType
- * @param {number} opts.hoursLeft - hours remaining (24 or 12)
- * @param {boolean} opts.isLast - true = final reminder
+ * @param {string} opts.date - ISO date string (YYYY-MM-DD)
+ * @param {string} opts.analyticName - Activity name from eBrigade
+ * @param {string} opts.payType - Pay type label
+ * @param {number} opts.hoursLeft - 24 for first reminder, 12 for final
+ * @param {boolean} opts.isLast - true for final reminder
  */
 async function sendReminderEmail({ userEmail, firstName, date, analyticName, payType, hoursLeft, isLast }) {
   try {
     const mailer = getTransporter()
     const appName = process.env.APP_NAME || 'Fénix'
     const appUrl = process.env.APP_URL || 'https://www.sirona-consult.be'
+    const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@nexio7.be'
 
-    let formattedDate = date || '-'
-    try {
-      if (date) {
-        formattedDate = new Date(date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-        formattedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)
-      }
-    } catch(e) { /* use raw date */ }
+    // Format date to French locale
+    const dateObj = new Date(date + 'T12:00:00Z')
+    const dateFr = dateObj.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
-    const color = isLast ? '#dc2626' : '#f59e0b'
-    const bg = isLast ? '#fee2e2' : '#fffbeb'
-    const textColor = isLast ? '#991b1b' : '#92400e'
-    const icon = isLast ? '🚨' : '⏰'
-    const title = isLast ? 'Dernier rappel — Encodage des heures' : 'Rappel — Encodage des heures'
-    const urgency = isLast
-      ? `Il ne vous reste plus que <strong>${hoursLeft}h</strong> pour encoder vos heures. Passé ce délai, votre demande ne pourra plus être traitée.`
-      : `Il vous reste <strong>${hoursLeft}h</strong> pour encoder vos heures de prestation.`
+    const urgencyColor = isLast ? '#d32f2f' : '#e65100'
+    const urgencyBg = isLast ? '#ffebee' : '#fff3e0'
+    const urgencyBorder = isLast ? '#d32f2f' : '#ff9800'
+    const subject = isLast
+      ? `[${appName}] ⚠️ DERNIER RAPPEL — Encodez vos heures avant minuit`
+      : `[${appName}] Rappel — Encodage de vos heures de prestation`
 
-    const activityDisplay = analyticName || '-'
-    const payTypeRow = payType
-      ? `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 140px;">Type</td><td style="padding: 6px 0; font-weight: 600; color: #1f2937;">${payType}</td></tr>`
-      : ''
-
-    const htmlContent = `<!DOCTYPE html>
+    const htmlContent = `
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} — ${appName}</title>
+  <title>${subject}</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f9f9f9;">
   <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
 
-    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid ${color}; padding-bottom: 20px;">
-      <h1 style="color: ${color}; margin: 0; font-size: 28px;">${icon} ${title}</h1>
+    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0066cc; padding-bottom: 20px;">
+      <h1 style="color: #0066cc; margin: 0; font-size: 24px;">${appName}</h1>
+      <p style="margin: 8px 0 0 0; color: #555; font-size: 15px;">Rappel d'encodage de prestations</p>
     </div>
 
     <p style="margin-top: 0;">Bonjour ${firstName || 'Utilisateur'},</p>
 
-    <p>Vous avez une prestation dont les heures n'ont pas encore été déclarées.</p>
+    <p>Nous vous rappelons que vous n'avez pas encore encodé vos heures pour la prestation suivante :</p>
 
-    <div style="background-color: ${bg}; border-left: 4px solid ${color}; padding: 16px; margin: 20px 0; border-radius: 4px;">
-      <p style="margin: 0; color: ${textColor}; font-size: 15px; font-weight: bold;">${urgency}</p>
+    <div style="background-color: #f0f7ff; border-left: 4px solid #0066cc; padding: 16px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 4px 0;"><strong>Date :</strong> ${dateFr}</p>
+      ${analyticName ? `<p style="margin: 4px 0;"><strong>Activité :</strong> ${analyticName}</p>` : ''}
+      ${payType ? `<p style="margin: 4px 0;"><strong>Type :</strong> ${payType}</p>` : ''}
     </div>
 
-    <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
-      <p style="margin: 0 0 12px; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Prestation concernée</p>
-      <table style="width: 100%; border-collapse: collapse;">
-        <tr>
-          <td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 140px;">Date</td>
-          <td style="padding: 6px 0; font-weight: 600; color: #1f2937;">${formattedDate}</td>
-        </tr>
-        <tr>
-          <td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 140px;">Activité</td>
-          <td style="padding: 6px 0; font-weight: 600; color: #1f2937;">${activityDisplay}</td>
-        </tr>
-        ${payTypeRow}
-      </table>
+    <div style="background-color: ${urgencyBg}; border-left: 4px solid ${urgencyBorder}; padding: 16px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; color: ${urgencyColor}; font-weight: bold;">
+        ${isLast ? '⚠️ DERNIER RAPPEL' : '⏰ Rappel'} — Il vous reste environ <strong>${hoursLeft} heures</strong> pour encoder vos heures.
+      </p>
+      ${isLast ? `<p style="margin: 8px 0 0 0; color: ${urgencyColor}; font-size: 14px;">Passé ce délai, la saisie ne sera plus possible et vous devrez contacter l'administration.</p>` : ''}
     </div>
 
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${appUrl}/dashboard" style="display: inline-block; background-color: ${color}; color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px;">
-        ${icon} Encoder mes heures maintenant
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${appUrl}/prestations" style="display: inline-block; background-color: #0066cc; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 16px; font-weight: bold;">
+        Encoder mes heures maintenant
       </a>
     </div>
 
-    <p style="color: #666; font-size: 13px;">
-      Ou connectez-vous directement sur :
-      <a href="${appUrl}" style="color: ${color}; font-weight: bold;">${appUrl}</a>
+    <p style="color: #666; font-size: 13px; margin-top: 30px;">
+      Si vous avez déjà encodé vos heures, ignorez ce message. Si vous rencontrez un problème, contactez l'administration.
     </p>
 
     <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #999; font-size: 12px;">
       <p style="margin: 4px 0;">© ${new Date().getFullYear()} ${appName}. Tous droits réservés.</p>
-      <p style="margin: 4px 0;">Cet email a été envoyé automatiquement. Veuillez ne pas y répondre.</p>
+      <p style="margin: 4px 0;">Cet email est envoyé automatiquement, merci de ne pas y répondre.</p>
     </div>
-
   </div>
 </body>
 </html>`
 
-    const textContent = `${icon} ${title} — ${appName}
+    const textContent = `Bonjour ${firstName || 'Utilisateur'},
 
-Bonjour ${firstName || 'Utilisateur'},
+Rappel : vous n'avez pas encore encodé vos heures pour la prestation du ${dateFr}${analyticName ? ` (${analyticName})` : ''}.
 
-Il vous reste ${hoursLeft}h pour encoder vos heures de prestation.
+Il vous reste environ ${hoursLeft} heures pour encoder vos heures.
+${isLast ? 'DERNIER RAPPEL : passé ce délai, la saisie ne sera plus possible.\n' : ''}
+Encodez vos heures ici : ${appUrl}/prestations
 
-Prestation concernée :
-- Date : ${formattedDate}
-- Activité : ${activityDisplay}${payType ? '\n- Type : ' + payType : ''}
+Si vous avez déjà encodé vos heures, ignorez ce message.
 
-Encodez vos heures sur : ${appUrl}/dashboard
-
-Cordialement,
-L'équipe ${appName}
-`.trim()
+— ${appName}`
 
     if (!mailer) {
-      console.log('[EmailService] Reminder email would be sent to:', userEmail, `— ${hoursLeft}h left`)
-      return { sent: false, error: 'SMTP not configured - logged to console only' }
+      console.log(`[EmailService] [MOCK] Reminder email to ${userEmail}:`, subject)
+      return { sent: false, error: 'SMTP not configured' }
     }
 
-    const fromEmail = process.env.SMTP_FROM || process.env.GMAIL_USER || 'no-reply@sirona-consult.be'
-
     const info = await mailer.sendMail({
-      from: { name: appName, address: fromEmail },
+      from: `"${appName}" <${fromEmail}>`,
       to: userEmail,
-      subject: `${appName} — ${icon} ${hoursLeft}h restantes pour encoder vos heures`,
-      html: htmlContent,
+      subject,
       text: textContent,
+      html: htmlContent,
       replyTo: fromEmail,
       headers: {
         ...getEmailHeaders(fromEmail),
@@ -899,7 +866,7 @@ L'équipe ${appName}
       }
     })
 
-    console.log('[EmailService] Reminder email sent:', { to: userEmail, hoursLeft, messageId: info.messageId })
+    console.log('[EmailService] Reminder email sent:', { to: userEmail, hoursLeft, isLast, messageId: info.messageId })
     return { sent: true, messageId: info.messageId }
   } catch (err) {
     console.error('[EmailService] Error sending reminder email:', err.message)
