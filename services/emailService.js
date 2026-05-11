@@ -934,7 +934,7 @@ async function sendMissingPrestationReminder({ userEmail, firstName, lastName, d
     </div>
 
     <div style="text-align: center; margin: 30px 0;">
-      <a href="mailto:admin@sirona-consult.be?subject=Prestation%20manquante%20du%20${encodeURIComponent(date)}"
+      <a href="mailto:supportfenix@nexio7.be?subject=Prestation%20manquante%20du%20${encodeURIComponent(date)}"
          style="display: inline-block; background-color: #0066cc; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 16px; font-weight: bold;">
         Contacter l'administration
       </a>
