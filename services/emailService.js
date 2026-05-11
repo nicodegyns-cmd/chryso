@@ -874,6 +874,122 @@ Si vous avez déjà encodé vos heures, ignorez ce message.
   }
 }
 
+/**
+ * Send a "missing prestation" email to a user whose activity has no submitted hours.
+ * This is a manual admin-triggered reminder for past unsubmitted activities.
+ * @param {Object} opts
+ * @param {string} opts.userEmail
+ * @param {string} opts.firstName
+ * @param {string} opts.lastName
+ * @param {string} opts.date - ISO date string (YYYY-MM-DD)
+ * @param {string} opts.activityName
+ * @param {string} opts.payType
+ */
+async function sendMissingPrestationReminder({ userEmail, firstName, lastName, date, activityName, payType }) {
+  try {
+    const mailer = getTransporter()
+    const appName = process.env.APP_NAME || 'Fénix'
+    const appUrl = process.env.APP_URL || 'https://www.sirona-consult.be'
+    const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@nexio7.be'
+
+    const dateObj = new Date(date + 'T12:00:00Z')
+    const dateFr = dateObj.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Utilisateur'
+
+    const subject = `[${appName}] Rappel — Encodage manquant pour une prestation`
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f9f9f9;">
+  <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0066cc; padding-bottom: 20px;">
+      <h1 style="color: #0066cc; margin: 0; font-size: 24px;">${appName}</h1>
+      <p style="margin: 8px 0 0 0; color: #555; font-size: 15px;">Encodage de prestation manquant</p>
+    </div>
+
+    <p style="margin-top: 0;">Bonjour ${fullName},</p>
+
+    <p>Nous avons constaté qu'aucune heure n'a été encodée pour la prestation suivante :</p>
+
+    <div style="background-color: #f0f7ff; border-left: 4px solid #0066cc; padding: 16px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 4px 0;"><strong>Date :</strong> ${dateFr}</p>
+      ${activityName ? `<p style="margin: 4px 0;"><strong>Activité :</strong> ${activityName}</p>` : ''}
+      ${payType ? `<p style="margin: 4px 0;"><strong>Type :</strong> ${payType}</p>` : ''}
+    </div>
+
+    <div style="background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 16px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; color: #e65100; font-weight: bold;">
+        ⚠️ Le délai normal d'encodage est dépassé.
+      </p>
+      <p style="margin: 8px 0 0 0; color: #555; font-size: 14px;">
+        Si vous avez effectué cette prestation et souhaitez être rémunéré(e), veuillez contacter l'administration le plus rapidement possible en mentionnant la date concernée.
+      </p>
+    </div>
+
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="mailto:admin@sirona-consult.be?subject=Prestation%20manquante%20du%20${encodeURIComponent(date)}"
+         style="display: inline-block; background-color: #0066cc; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 16px; font-weight: bold;">
+        Contacter l'administration
+      </a>
+    </div>
+
+    <p style="color: #666; font-size: 13px; margin-top: 30px;">
+      Si vous n'avez pas effectué cette prestation, ignorez ce message.
+    </p>
+
+    <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #999; font-size: 12px;">
+      <p style="margin: 4px 0;">© ${new Date().getFullYear()} ${appName}. Tous droits réservés.</p>
+      <p style="margin: 4px 0;">Cet email est envoyé automatiquement, merci de ne pas y répondre directement.</p>
+    </div>
+  </div>
+</body>
+</html>`
+
+    const textContent = `Bonjour ${fullName},
+
+Nous avons constaté qu'aucune heure n'a été encodée pour votre prestation du ${dateFr}${activityName ? ` (${activityName})` : ''}.
+
+Le délai normal d'encodage est dépassé. Si vous avez effectué cette prestation, veuillez contacter l'administration au plus vite en mentionnant la date concernée.
+
+Si vous n'avez pas effectué cette prestation, ignorez ce message.
+
+— ${appName}`
+
+    if (!mailer) {
+      console.log(`[EmailService] [MOCK] Missing prestation reminder to ${userEmail}:`, subject)
+      return { sent: false, error: 'SMTP not configured' }
+    }
+
+    const info = await mailer.sendMail({
+      from: `"${appName}" <${fromEmail}>`,
+      to: userEmail,
+      subject,
+      text: textContent,
+      html: htmlContent,
+      replyTo: fromEmail,
+      headers: {
+        ...getEmailHeaders(fromEmail),
+        'X-Originating-IP': '[127.0.0.1]',
+        'Bounces-To': fromEmail,
+        'Errors-To': fromEmail,
+      }
+    })
+
+    console.log('[EmailService] Missing prestation reminder sent:', { to: userEmail, date, messageId: info.messageId })
+    return { sent: true, messageId: info.messageId }
+  } catch (err) {
+    console.error('[EmailService] Error sending missing prestation reminder:', err.message)
+    return { sent: false, error: err.message }
+  }
+}
+
 module.exports = {
   send,
   sendUserCreationEmail,
@@ -882,4 +998,5 @@ module.exports = {
   sendPasswordResetEmail,
   sendStatusChangeEmail,
   sendReminderEmail,
+  sendMissingPrestationReminder,
 }
