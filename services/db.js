@@ -211,9 +211,9 @@ function createPool() {
         pgOptions.ssl = { rejectUnauthorized: true }
       }
     } else {
-      // No custom CA file - let Node.js use system CA bundle (standard for OVH CloudDB)
-      pgOptions.ssl = { rejectUnauthorized: true }
-      console.log('[DB] Using system CA bundle for Postgres TLS verification')
+      // No custom CA file - OVH CloudDB uses self-signed cert, disable strict verification
+      pgOptions.ssl = { rejectUnauthorized: false }
+      console.log('[DB] No custom CA found — TLS rejectUnauthorized=false (OVH self-signed)')
     }
     
     // Allow override if explicitly disabled
