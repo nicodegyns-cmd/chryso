@@ -60,6 +60,11 @@ export default function ManualHourEntry() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const searchRef = useRef(null)
+  const ribFileRef = useRef(null)
+  const [ribStatus, setRibStatus] = useState(null) // null | 'none' | 'pending' | 'approved' | 'rejected'
+  const [ribUploading, setRibUploading] = useState(false)
+  const [ribError, setRibError] = useState('')
+  const [ribSuccess, setRibSuccess] = useState('')
 
   useEffect(() => {
     fetch('/api/admin/users').then(r => r.ok ? r.json() : null).then(d => { if (d) setAllUsers(d.users || []) }).catch(() => {})
@@ -90,11 +95,46 @@ export default function ManualHourEntry() {
   const handleUserSelect = (user) => {
     setSelectedUser(user); setSearchQuery(userName(user)); setShowSuggestions(false)
     setSelectedCard(null); setSaveError(''); setSaveSuccess(''); setFormData(emptyForm())
+    setRibStatus(null); setRibError(''); setRibSuccess('')
+    fetch('/api/documents?email=' + encodeURIComponent(user.email))
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const docs = (d && d.documents) || []
+        const rib = docs[0] || null
+        setRibStatus(rib ? (rib.validation_status || 'pending') : 'none')
+      })
+      .catch(() => setRibStatus('none'))
   }
 
   const handleClearUser = () => {
     setSelectedUser(null); setSearchQuery(''); setCards([]); setSelectedCard(null)
     setSaveError(''); setSaveSuccess(''); setFormData(emptyForm())
+    setRibStatus(null); setRibError(''); setRibSuccess('')
+  }
+
+  const handleRibUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf')
+    if (!isPdf) { setRibError('Veuillez sélectionner un fichier PDF'); return }
+    if (file.size > 5 * 1024 * 1024) { setRibError('Le fichier ne doit pas dépasser 5 MB'); return }
+    setRibUploading(true); setRibError(''); setRibSuccess('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('email', selectedUser.email)
+      fd.append('documentType', 'RIB')
+      const r = await fetch('/api/documents/upload', { method: 'POST', body: fd })
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || `Erreur ${r.status}`) }
+      setRibStatus('pending')
+      setRibSuccess(`RIB uploadé pour ${userName(selectedUser)} — en attente de validation`)
+      if (ribFileRef.current) ribFileRef.current.value = ''
+      setTimeout(() => setRibSuccess(''), 6000)
+    } catch (err) {
+      setRibError(err.message || 'Erreur lors de l\'upload')
+    } finally {
+      setRibUploading(false)
+    }
   }
 
   const handleCardClick = (card) => {
@@ -285,6 +325,56 @@ export default function ManualHourEntry() {
 
       {saveSuccess && (
         <div className={styles.section}><div className={styles.success}>{saveSuccess}</div></div>
+      )}
+
+      {/* Section RIB */}
+      {selectedUser && (
+        <div className={styles.section}>
+          <h3>3. RIB de l'utilisateur</h3>
+          <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 12px' }}>
+            Uploadez un RIB PDF pour cet utilisateur — il entrera dans le flux de validation admin.
+          </p>
+
+          {/* Statut actuel */}
+          {ribStatus === 'approved' && (
+            <div style={{ padding: '10px 16px', background: '#d1fae5', border: '1px solid #6ee7b7', borderRadius: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#065f46' }}>
+              <span style={{ fontSize: 18 }}>✅</span> RIB validé
+            </div>
+          )}
+          {ribStatus === 'pending' && (
+            <div style={{ padding: '10px 16px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#92400e' }}>
+              <span style={{ fontSize: 18 }}>⏳</span> RIB en attente de validation
+            </div>
+          )}
+          {ribStatus === 'rejected' && (
+            <div style={{ padding: '10px 16px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#991b1b' }}>
+              <span style={{ fontSize: 18 }}>❌</span> RIB rejeté — vous pouvez en soumettre un nouveau
+            </div>
+          )}
+          {ribStatus === 'none' && (
+            <div style={{ padding: '10px 16px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#374151' }}>
+              <span style={{ fontSize: 18 }}>📄</span> Aucun RIB soumis
+            </div>
+          )}
+
+          {/* Upload */}
+          {ribStatus !== 'approved' && ribStatus !== null && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <input
+                ref={ribFileRef}
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={handleRibUpload}
+                disabled={ribUploading}
+                style={{ fontSize: 13 }}
+              />
+              {ribUploading && <span style={{ fontSize: 13, color: '#6b7280' }}>Upload en cours…</span>}
+            </div>
+          )}
+
+          {ribError && <div style={{ marginTop: 8, fontSize: 13, color: '#dc2626', fontWeight: 600 }}>{ribError}</div>}
+          {ribSuccess && <div style={{ marginTop: 8, fontSize: 13, color: '#059669', fontWeight: 600 }}>{ribSuccess}</div>}
+        </div>
       )}
     </div>
 
