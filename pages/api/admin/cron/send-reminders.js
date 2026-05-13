@@ -4,9 +4,9 @@
  * Strategy: query eBrigade directly for recent activities, cross-reference with our prestations
  * table, and send reminders to users who haven't submitted yet.
  *
- * Rules (based on activity date midnight):
- *   - R1: 24h ≤ elapsed < 36h → reminder 1 (24h remaining)
- *   - R2: 36h ≤ elapsed < 48h → reminder 2 / final (12h remaining)
+ * Rules (based on actual activity end time EH_DATE_FIN):
+ *   - R1: 24h ≤ elapsed < 36h → reminder 1 (24h remaining before 48h deadline)
+ *   - R2: 36h ≤ elapsed < 48h → reminder 2 / final (12h remaining before 48h deadline)
  *
  * Reminder tracking: reminder_logs table (user_id, activity_date, ebrigade_code, reminder_type)
  *
@@ -108,14 +108,28 @@ export default async function handler(req, res) {
         const user = usersByPID[pid]
         if (!user) continue
 
-        // Extract activity date (eBrigade: EH_DATE_DEBUT is "YYYY-MM-DD HH:MM:SS" or similar)
-        const rawDate = p.EH_DATE_DEBUT || ''
-        if (!rawDate) continue
-        const dateStr = rawDate.split(' ')[0].split('T')[0] // → "YYYY-MM-DD"
+        // Extract activity date from EH_DATE_DEBUT (start), use EH_DATE_FIN (end) for deadline
+        const rawDateDebut = p.EH_DATE_DEBUT || ''
+        if (!rawDateDebut) continue
+        const dateStr = rawDateDebut.split(' ')[0].split('T')[0] // → "YYYY-MM-DD" (date de début)
 
-        // Calculate elapsed hours from midnight (UTC) of the activity date
-        const midnight = new Date(dateStr + 'T00:00:00Z')
-        const elapsedHours = (now.getTime() - midnight.getTime()) / (1000 * 3600)
+        // Calculate elapsed hours from actual end time of the activity
+        // EH_DATE_FIN format: "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DDTHH:MM:SS"
+        const rawDateFin = p.EH_DATE_FIN || ''
+        let endTime
+        if (rawDateFin) {
+          // Parse end datetime; replace space with T for ISO compatibility
+          endTime = new Date(rawDateFin.replace(' ', 'T'))
+          // If end time is before start time (overnight: e.g. 20h→08h), end is on the next day
+          const rawDebut = new Date(rawDateDebut.replace(' ', 'T'))
+          if (endTime <= rawDebut) {
+            endTime = new Date(endTime.getTime() + 24 * 3600 * 1000)
+          }
+        } else {
+          // Fallback: use midnight of the start date
+          endTime = new Date(dateStr + 'T00:00:00Z')
+        }
+        const elapsedHours = (now.getTime() - endTime.getTime()) / (1000 * 3600)
 
         let reminderType = null
         if (elapsedHours >= 24 && elapsedHours < 36) {
