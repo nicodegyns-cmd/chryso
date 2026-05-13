@@ -125,17 +125,33 @@ export default async function handler(req, res) {
       // Admins can bypass this with is_admin_override: true
       const { is_admin_override } = req.body || {}
       if (date && !is_admin_override) {
-        const prestDateDeadline = new Date(date)
-        prestDateDeadline.setHours(0, 0, 0, 0)
-        if (prestDateDeadline >= new Date('2026-05-01')) {
-          const hoursElapsed = (Date.now() - prestDateDeadline.getTime()) / (1000 * 60 * 60)
+        const prestDateObj = new Date(date)
+        prestDateObj.setHours(0, 0, 0, 0)
+        if (prestDateObj >= new Date('2026-05-01')) {
+          // Compute the actual end datetime of the prestation.
+          // For night shifts the end time may be the next day, so 48h must be
+          // counted from when the prestation actually finished, not from midnight.
+          let prestEndDatetime = new Date(prestDateObj)
+          if (ebrigade_end_time) {
+            const [endH, endM] = String(ebrigade_end_time).split(':').map(Number)
+            prestEndDatetime = new Date(prestDateObj)
+            prestEndDatetime.setHours(endH, endM, 0, 0)
+            // If end <= start the shift is overnight: it ends the following day
+            if (ebrigade_start_time) {
+              const [startH, startM] = String(ebrigade_start_time).split(':').map(Number)
+              if (endH * 60 + endM <= startH * 60 + startM) {
+                prestEndDatetime.setDate(prestEndDatetime.getDate() + 1)
+              }
+            }
+          }
+          const hoursElapsed = (Date.now() - prestEndDatetime.getTime()) / (1000 * 60 * 60)
           if (hoursElapsed >= 48) {
-            const deadlineDate = new Date(prestDateDeadline.getTime() + 48 * 3600 * 1000)
+            const deadlineDate = new Date(prestEndDatetime.getTime() + 48 * 3600 * 1000)
             const deadlineStr = deadlineDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) + ' à ' + deadlineDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-            const prestStr = prestDateDeadline.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+            const prestStr = prestDateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
             return res.status(403).json({
               error: `Délai dépassé`,
-              detail: `Le délai pour encoder les heures de la prestation du ${prestStr} était le ${deadlineStr} (48h après la prestation).\n\nVeuillez contacter un administrateur pour débloquer cette saisie.`,
+              detail: `Le délai pour encoder les heures de la prestation du ${prestStr} était le ${deadlineStr} (48h après la fin de la prestation).\n\nVeuillez contacter un administrateur pour débloquer cette saisie.`,
               code: 'DEADLINE_EXCEEDED'
             })
           }
