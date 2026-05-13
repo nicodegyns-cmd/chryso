@@ -536,8 +536,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     }
 
     // Prevent saving if status is locked (submitted or approved)
+    // Only for existing prestations — new ones get their status set just before this check
     const lockedStatuses = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation']
-    if (lockedStatuses.includes(editing.status)) {
+    if (!isNewPrestation && lockedStatuses.includes(editing.status)) {
       alert('Cette prestation ne peut plus être modifiée.')
       return
     }
