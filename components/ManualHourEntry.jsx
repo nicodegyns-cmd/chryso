@@ -7,6 +7,7 @@ const emptyForm = () => ({
   sortie_hours: '',
   overtime_hours: '',
   comments: '',
+  expenses: [],
 })
 
 function parseTimeToMinutes(value) {
@@ -115,6 +116,16 @@ export default function ManualHourEntry() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!selectedUser || !selectedCard) return
+    // Validate expenses before saving
+    const expenses = formData.expenses || []
+    for (let i = 0; i < expenses.length; i++) {
+      const exp = expenses[i]
+      if (Number(exp.amount || 0) > 0) {
+        if (!exp.comment?.trim()) { setSaveError(`Note de frais #${i + 1} : veuillez renseigner une raison.`); return }
+        if (!exp.proof_image) { setSaveError(`Note de frais #${i + 1} : veuillez joindre une pièce justificative.`); return }
+      }
+    }
+
     setSaving(true); setSaveError(''); setSaveSuccess('')
     try {
       const ptSubmit = (selectedCard?.pay_type || '').toLowerCase()
@@ -157,6 +168,7 @@ export default function ManualHourEntry() {
         sortie_hours: sortieHoursSubmit,
         overtime_hours: overtimeHoursSubmit,
         comments: formData.comments || null,
+        expenses_json: formData.expenses && formData.expenses.filter(e => Number(e.amount || 0) > 0).length > 0 ? JSON.stringify(formData.expenses.filter(e => Number(e.amount || 0) > 0)) : null,
         analytic_id: selectedCard.analytic_id || null, analytic_name: selectedCard.analytic_name || null,
         ebrigade_id: selectedCard.ebrigade_id || null,
         ebrigade_personnel_id: selectedCard.ebrigade_personnel_id || null,
@@ -167,7 +179,6 @@ export default function ManualHourEntry() {
         ebrigade_duration_hours: resolveCardDurationHours(selectedCard),
         ebrigade_start_time: selectedCard.startTime || null, ebrigade_end_time: selectedCard.endTime || null,
         status: "En attente d'approbation",
-        is_admin_override: true,
       }
       const res = await fetch('/api/admin/prestations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || err.message || `Erreur ${res.status}`) }
@@ -412,6 +423,97 @@ export default function ManualHourEntry() {
                       placeholder="Ajouter un commentaire..."
                       style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, resize: 'vertical', fontFamily: 'inherit' }} />
                   </label>
+                </div>
+
+                {/* Notes de frais */}
+                <div style={{ padding: 12, border: '1px solid #f59e0b', borderRadius: 8, background: '#fffbeb' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#92400e' }}>🧾 Notes de frais (si applicable)</div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, expenses: [...(prev.expenses || []), { amount: '', comment: '', proof_image: null }] }))}
+                      style={{ padding: '5px 12px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                    >+ Ajouter une note</button>
+                  </div>
+
+                  {(!formData.expenses || formData.expenses.length === 0) && (
+                    <div style={{ fontSize: 13, color: '#b45309', fontStyle: 'italic' }}>Aucune note de frais. Cliquez sur « + Ajouter une note » si nécessaire.</div>
+                  )}
+
+                  {(formData.expenses || []).map((exp, idx) => (
+                    <div key={idx} style={{ padding: 10, background: '#fff', borderRadius: 6, border: '1px solid #fcd34d', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Note #{idx + 1}</div>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, expenses: (prev.expenses || []).filter((_, i) => i !== idx) }))}
+                          style={{ padding: '3px 8px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                        >✕ Supprimer</button>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
+                        <label style={{ display: 'flex', flexDirection: 'column' }}>
+                          <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 4 }}>MONTANT (€)</div>
+                          <input
+                            type="number" step="0.01" min="0"
+                            value={exp.amount ?? ''}
+                            onChange={e => setFormData(prev => ({ ...prev, expenses: (prev.expenses || []).map((x, i) => i === idx ? { ...x, amount: e.target.value ? Number(e.target.value) : '' } : x) }))}
+                            style={{ padding: '7px 9px', borderRadius: 6, border: '1px solid #fcd34d', fontSize: 14 }}
+                            placeholder="0.00"
+                          />
+                        </label>
+                        <label style={{ display: 'flex', flexDirection: 'column' }}>
+                          <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 4 }}>RAISON / COMMENTAIRE {Number(exp.amount || 0) > 0 && <span style={{ color: '#dc2626' }}>*</span>}</div>
+                          <input
+                            value={exp.comment || ''}
+                            onChange={e => setFormData(prev => ({ ...prev, expenses: (prev.expenses || []).map((x, i) => i === idx ? { ...x, comment: e.target.value } : x) }))}
+                            style={{ padding: '7px 9px', borderRadius: 6, border: Number(exp.amount || 0) > 0 && !exp.comment?.trim() ? '1px solid #dc2626' : '1px solid #fcd34d', fontSize: 14 }}
+                            placeholder="Ex: Transport, fournitures..."
+                          />
+                          {Number(exp.amount || 0) > 0 && !exp.comment?.trim() && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>Obligatoire</div>}
+                        </label>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 12, color: '#92400e' }}>📸 JUSTIFICATIF {Number(exp.amount || 0) > 0 && <span style={{ color: '#dc2626' }}>*</span>}</div>
+                        {!exp.proof_image && (
+                          <input type="file" accept="image/*,application/pdf" style={{ fontSize: 13 }} onChange={async (e) => {
+                            const f = e.target.files && e.target.files[0]
+                            if (!f) return
+                            const data = await new Promise((res, rej) => {
+                              const reader = new FileReader()
+                              reader.onload = () => res(reader.result)
+                              reader.onerror = rej
+                              reader.readAsDataURL(f)
+                            })
+                            setFormData(prev => ({ ...prev, expenses: (prev.expenses || []).map((x, i) => i === idx ? { ...x, proof_image: data, proof_name: f.name } : x) }))
+                          }} />
+                        )}
+                        {Number(exp.amount || 0) > 0 && !exp.proof_image && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>Obligatoire si montant renseigné</div>}
+                        {exp.proof_image && (
+                          <div style={{ marginTop: 6 }}>
+                            {exp.proof_image.startsWith('data:application/pdf') ? (
+                              <div style={{ padding: '10px 12px', background: '#fff7ed', border: '2px solid #fcd34d', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                                <span style={{ fontSize: 20 }}>📄</span>
+                                <span style={{ fontSize: 13, color: '#92400e', fontWeight: 600, wordBreak: 'break-all' }}>{exp.proof_name || 'document.pdf'}</span>
+                              </div>
+                            ) : (
+                              <img src={exp.proof_image} alt="justificatif" style={{ maxWidth: '100%', maxHeight: 160, border: '2px solid #fcd34d', borderRadius: 6, display: 'block', marginBottom: 6 }} />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, expenses: (prev.expenses || []).map((x, i) => i === idx ? { ...x, proof_image: null, proof_name: null } : x) }))}
+                              style={{ padding: '5px 10px', background: '#fee2e2', color: '#991b1b', borderRadius: 5, border: '1px solid #fca5a5', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}
+                            >🗑️ Supprimer</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {(formData.expenses || []).filter(e => Number(e.amount || 0) > 0).length > 1 && (
+                    <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 700, color: '#b45309', marginTop: 4 }}>
+                      Total: {(formData.expenses || []).reduce((s, e) => s + Number(e.amount || 0), 0).toFixed(2)} €
+                    </div>
+                  )}
                 </div>
 
               </div>
