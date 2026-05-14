@@ -233,6 +233,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     "En attente d'approbation",
     "En attente d'envoie",
     'Envoyé à la facturation',
+    'Facturé',
     'Annulé'
   ], [])
 
@@ -245,6 +246,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     const label = s || '-'
     const color = (
       s === "Envoyé à la facturation" ? '#16a34a' :
+      s === 'Facturé' ? '#14532d' :
       s === "En attente d'envoie" ? '#0366d6' :
       s === "En attente d'approbation" ? '#f59e0b' :
       s === 'À saisir' ? '#9ca3af' :
@@ -537,7 +539,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
     // Prevent saving if status is locked (submitted or approved)
     // Only for existing prestations — new ones get their status set just before this check
-    const lockedStatuses = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation']
+    const lockedStatuses = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation', 'Facturé']
     if (!isNewPrestation && lockedStatuses.includes(editing.status)) {
       alert('Cette prestation ne peut plus être modifiée.')
       return
@@ -1090,7 +1092,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   // Prefer showing the prestation reference (`request_ref`) as a 5-digit code when available
                   const ref = '#' + editing.id
                   if (role === 'admin') return `📋 Détails demande ${ref}`
-                  if (editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation') return `👁️ Consulter prestation ${ref}`
+                  if (editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation' || editing.status === 'Facturé') return `👁️ Consulter prestation ${ref}`
                   return `✏️ Modifier prestation ${ref}`
                 })()
               }</h3>
@@ -1098,13 +1100,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
             <div style={{padding:24}}>
 
-            {(editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation') && role !== 'admin' && (
-              <div style={{padding:12,background: editing.status === 'Envoyé à la facturation' ? '#dcfce7' : editing.status === "En attente d'approbation" ? '#ede9fe' : '#fef3c7',border:`1px solid ${editing.status === 'Envoyé à la facturation' ? '#86efac' : editing.status === "En attente d'approbation" ? '#c4b5fd' : '#fcd34d'}`,borderRadius:6,marginBottom:12,color: editing.status === 'Envoyé à la facturation' ? '#166534' : editing.status === "En attente d'approbation" ? '#5b21b6' : '#92400e',fontSize:13}}>
-                <strong>{editing.status === 'Envoyé à la facturation' ? '✅ Cette prestation a été envoyée à la facturation' : editing.status === "En attente d'approbation" ? "🔒 Cette prestation est en attente d'approbation" : "🔒 Cette demande est en attente d'envoie"}</strong> — Vous pouvez consulter les informations mais vous ne pouvez plus les modifier.
+            {(editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation' || editing.status === 'Facturé') && role !== 'admin' && (
+              <div style={{padding:12,background: editing.status === 'Facturé' ? '#bbf7d0' : editing.status === 'Envoyé à la facturation' ? '#dcfce7' : editing.status === "En attente d'approbation" ? '#ede9fe' : '#fef3c7',border:`1px solid ${editing.status === 'Facturé' ? '#6ee7b7' : editing.status === 'Envoyé à la facturation' ? '#86efac' : editing.status === "En attente d'approbation" ? '#c4b5fd' : '#fcd34d'}`,borderRadius:6,marginBottom:12,color: editing.status === 'Facturé' ? '#14532d' : editing.status === 'Envoyé à la facturation' ? '#166534' : editing.status === "En attente d'approbation" ? '#5b21b6' : '#92400e',fontSize:13}}>
+                <strong>{editing.status === 'Facturé' ? '✅ Cette prestation a été facturée' : editing.status === 'Envoyé à la facturation' ? '✅ Cette prestation a été envoyée à la facturation' : editing.status === "En attente d'approbation" ? "🔒 Cette prestation est en attente d'approbation" : "🔒 Cette demande est en attente d'envoie"}</strong> — Vous pouvez consulter les informations mais vous ne pouvez plus les modifier.
               </div>
             )}
 
-            {(editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation') && role !== 'admin' ? (
+            {(editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation' || editing.status === 'Facturé') && role !== 'admin' ? (
               // User read-only view for blocked prestations: show submitted values with styled sections
               <div className="edit-grid" style={{gridTemplateColumns:'1fr',gap:16}}>
                 {console.log('[PrestationsTable] Rendering READ-ONLY view for blocked prestation. role:', role)}
@@ -1445,7 +1447,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
                 <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:12}}>
               {(() => {
-                const locked = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation'].includes(editing.status)
+                const locked = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation', 'Facturé'].includes(editing.status)
                 return (
                   <>
                     {role === 'admin' && editing.id && (

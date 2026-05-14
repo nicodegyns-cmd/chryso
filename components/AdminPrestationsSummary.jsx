@@ -92,7 +92,7 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
   const [activityRates, setActivityRates] = useState({})
   const [activityNames, setActivityNames] = useState({})
   const [currentPage, setCurrentPage] = useState(1)
-  const statuses = ["", "A saisir", "En attente d'approbation", "En attente d'envoie", "Envoyé à la facturation", "Annulé"]
+  const statuses = ["", "A saisir", "En attente d'approbation", "En attente d'envoie", "Envoyé à la facturation", "Facturé", "Annulé"]
   const [viewing, setViewing] = useState(null)
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false)
   const [bulkValidating, setBulkValidating] = useState(false)
@@ -451,10 +451,12 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                     fontWeight:600,
                     background: it.status === "En attente d'envoie" ? '#fef3c7' : 
                                 it.status === "Envoyé à la facturation" ? '#dcfce7' :
+                                it.status === "Facturé" ? '#bbf7d0' :
                                 it.status === "Annulé" ? '#fee2e2' :
                                 it.status === "A saisir" ? '#fecaca' : '#e0e7ff',
                     color: it.status === "En attente d'envoie" ? '#92400e' :
                            it.status === "Envoyé à la facturation" ? '#166534' :
+                           it.status === "Facturé" ? '#14532d' :
                            it.status === "Annulé" ? '#991b1b' :
                            it.status === "A saisir" ? '#b91c1c' : '#3730a3'
                   }}>
@@ -481,6 +483,13 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                   <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                     <button disabled={!!savingIds[it.id]} onClick={()=>setViewing(it)} style={{padding:'6px 12px',borderRadius:6,border:'1px solid #d1d5db',background:'#e0e7ff',color:'#3730a3',cursor:'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}>👁️ Voir</button>
                     {it.pdf_url && <a href={it.pdf_url.replace(/^\/exports\//, '/api/exports/download?file=')} download style={{padding:'6px 12px',borderRadius:6,border:'1px solid #c7d2fe',background:'#e0e7ff',color:'#3730a3',cursor:'pointer',fontWeight:600,fontSize:13,textDecoration:'none',display:'inline-block',transition:'all 0.2s'}}>📄 Facture</a>}
+                    {it.status === "Envoyé à la facturation" && (
+                      <button
+                        disabled={!!savingIds[it.id]}
+                        onClick={()=>{ if(confirm('Marquer cette prestation comme Facturé ? Cette action est irréversible.')) updateStatus(it.id, 'Facturé') }}
+                        style={{padding:'6px 12px',borderRadius:6,border:'1px solid #6ee7b7',background:'#d1fae5',color:'#065f46',cursor: savingIds[it.id] ? 'not-allowed' : 'pointer',fontWeight:600,fontSize:13,transition:'all 0.2s'}}
+                      >✅ Marquer Facturé</button>
+                    )}
                     {it.status === "En attente d'approbation" && (
                       <>
                         <button

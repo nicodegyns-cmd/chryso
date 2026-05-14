@@ -434,11 +434,15 @@ export default async function handler(req, res) {
       }
       console.log('[PATCH] validaterId resolved:', validaterId, '(from', validated_by_id ? 'id' : 'email', ')')
 
-      // Guard: prevent reverting a prestation that's already been sent to facturation
-      if (status && status !== 'Envoyé à la facturation' && status !== 'Annulé') {
+      // Guard: prevent reverting a prestation that's already been sent to facturation or marked Facturé
+      if (status) {
         try {
           const currentRow = await pool.query('SELECT status FROM prestations WHERE id = $1', [id])
-          if (currentRow.rows[0]?.status === 'Envoyé à la facturation') {
+          const currentStatus = currentRow.rows[0]?.status
+          if (currentStatus === 'Facturé') {
+            return res.status(409).json({ error: 'Cette prestation est déjà facturée et ne peut plus être modifiée.' })
+          }
+          if (currentStatus === 'Envoyé à la facturation' && status !== 'Facturé' && status !== 'Annulé') {
             return res.status(409).json({ error: 'Cette prestation a déjà été envoyée à la facturation et ne peut plus être modifiée.' })
           }
         } catch(e) { console.warn('[PATCH] status guard check failed:', e.message) }
