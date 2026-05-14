@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       return []
     }
 
-    const q = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at FROM analytics WHERE is_active = 1 ORDER BY id DESC')
+    const q = await pool.query('SELECT id, name, analytic_type, code, entite, distribution, description, is_active, created_by, created_at FROM analytics WHERE is_active::integer = 1 ORDER BY id DESC')
     const rows = (q && q.rows) ? q.rows : []
     const mapped = rows.map(r => ({
       id: r.id,

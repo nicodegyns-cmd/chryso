@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     const result = await query(
       `SELECT id, email, first_name, last_name, address, fonction, company, role, ninami, niss, bce, account
        FROM users
-       WHERE is_active = 1
+       WHERE is_active::integer = 1
          AND onboarding_status = 'active'
          AND role IN ('INFI', 'MED')
        ORDER BY last_name ASC, first_name ASC`

@@ -51,7 +51,7 @@ export default async function handler(req, res) {
     const usersResult = await pool.query(
       `SELECT id, email, first_name, last_name, liaison_ebrigade_id
        FROM users
-       WHERE liaison_ebrigade_id IS NOT NULL AND is_active = 1`
+       WHERE liaison_ebrigade_id IS NOT NULL AND is_active::integer = 1`
     )
     const usersByPID = {}
     for (const u of usersResult.rows) {

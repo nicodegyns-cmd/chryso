@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   try {
     const result = await db.query(
-      'SELECT id, first_name, last_name, email, role FROM users WHERE is_active = 1 ORDER BY first_name, last_name',
+      'SELECT id, first_name, last_name, email, role FROM users WHERE is_active::integer = 1 ORDER BY first_name, last_name',
       []
     )
 
