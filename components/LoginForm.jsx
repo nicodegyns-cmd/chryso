@@ -40,6 +40,7 @@ export default function LoginForm() {
         if (low === 'admin') return 'admin'
         if (low.includes('moder') || low.includes('modér')) return 'moderator'
         if (low === 'comptabilite' || low.includes('comptab')) return 'comptabilite'
+        if (low === 'pharmacien' || low.includes('pharmac')) return 'pharmacien'
         return 'user'
       }
       const normalized = Array.from(new Set(rawRoles.map(norm)))
@@ -66,6 +67,7 @@ export default function LoginForm() {
         if (r === 'admin') router.push('/admin')
         else if (r === 'comptabilite') router.push('/comptabilite')
         else if (r === 'moderator') router.push('/moderator')
+        else if (r === 'pharmacien') router.push('/invoices')
         else router.push('/dashboard')
       }, 200)
     } catch (err) {
