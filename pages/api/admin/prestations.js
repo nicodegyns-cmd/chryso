@@ -132,7 +132,8 @@ export default async function handler(req, res) {
         }
       }
 
-      // Block user hour encoding after 48h deadline (applies to prestations from 2026-05-01)
+      // Block user hour encoding after 72h (applies to prestations from 2026-05-01)
+      // Displayed deadline to user is 48h (buffer of 1 day before actual block)
       // Admins can bypass this with is_admin_override: true
       const { is_admin_override } = req.body || {}
       if (date && !is_admin_override) {
@@ -140,7 +141,7 @@ export default async function handler(req, res) {
         prestDateDeadline.setHours(0, 0, 0, 0)
         if (prestDateDeadline >= new Date('2026-05-01')) {
           const hoursElapsed = (Date.now() - prestDateDeadline.getTime()) / (1000 * 60 * 60)
-          if (hoursElapsed >= 48) {
+          if (hoursElapsed >= 72) {
             const deadlineDate = new Date(prestDateDeadline.getTime() + 48 * 3600 * 1000)
             const deadlineStr = deadlineDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) + ' à ' + deadlineDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
             const prestStr = prestDateDeadline.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
