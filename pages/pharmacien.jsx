@@ -26,6 +26,48 @@ export default function PharmacienPage() {
   const [form, setForm] = useState({ hours: '', analyticId: '', comment: '' })
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  // RIB state
+  const [ribStatus, setRibStatus] = useState(null) // null | 'none' | 'pending' | 'approved' | 'rejected'
+  const [ribUploading, setRibUploading] = useState(false)
+  const [ribError, setRibError] = useState('')
+  const [ribSuccess, setRibSuccess] = useState('')
+  const ribFileRef = React.useRef(null)
+
+  const loadRib = (userEmail) => {
+    fetch('/api/documents?email=' + encodeURIComponent(userEmail))
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const docs = (d && d.documents) || []
+        const rib = docs[0] || null
+        setRibStatus(rib ? (rib.validation_status || 'pending') : 'none')
+      })
+      .catch(() => setRibStatus('none'))
+  }
+
+  const handleRibUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf')
+    if (!isPdf) { setRibError('Veuillez sélectionner un fichier PDF'); return }
+    if (file.size > 5 * 1024 * 1024) { setRibError('Le fichier ne doit pas dépasser 5 MB'); return }
+    setRibUploading(true); setRibError(''); setRibSuccess('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('email', email)
+      fd.append('documentType', 'RIB')
+      const r = await fetch('/api/documents/upload', { method: 'POST', body: fd })
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || `Erreur ${r.status}`) }
+      setRibStatus('pending')
+      setRibSuccess('RIB soumis — en attente de validation par l\'administrateur')
+      if (ribFileRef.current) ribFileRef.current.value = ''
+      setTimeout(() => setRibSuccess(''), 6000)
+    } catch (err) {
+      setRibError(err.message || 'Erreur lors de l\'upload')
+    } finally {
+      setRibUploading(false)
+    }
+  }
 
   useEffect(() => {
     const e = typeof window !== 'undefined' ? localStorage.getItem('email') : null
@@ -41,6 +83,7 @@ export default function PharmacienPage() {
       setPrestations(all)
       setAnalytics((anaData.analytics || []).filter(a => a.is_active !== false))
     }).finally(() => setLoading(false))
+    loadRib(e)
   }, [])
 
   const year = viewDate.getFullYear()
@@ -252,6 +295,76 @@ export default function PharmacienPage() {
                 <span style={{ width: 14, height: 14, borderRadius: 3, background: '#fefce8', border: '1px solid #fde68a', display: 'inline-block' }} />
                 Aujourd'hui (vide)
               </span>
+            </div>
+          </div>
+        )}
+
+        {/* RIB Section */}
+        {!loading && (
+          <div style={{ maxWidth: 720, margin: '24px auto 0' }}>
+            <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', padding: '20px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#1f2937' }}>📄 Mon RIB</h3>
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
+                Votre RIB est nécessaire pour le traitement des paiements.
+              </p>
+
+              {ribStatus === 'approved' && (
+                <div style={{ padding: '12px 16px', background: '#d1fae5', border: '1px solid #6ee7b7', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#065f46', fontWeight: 600 }}>
+                  <span style={{ fontSize: 20 }}>✅</span> RIB validé — aucune action requise
+                </div>
+              )}
+              {ribStatus === 'pending' && (
+                <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#92400e', fontWeight: 600 }}>
+                  <span style={{ fontSize: 20 }}>⏳</span> RIB soumis — en attente de validation
+                </div>
+              )}
+              {ribStatus === 'rejected' && (
+                <div style={{ padding: '12px 16px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 10, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#991b1b', fontWeight: 600 }}>
+                  <span style={{ fontSize: 20 }}>❌</span> RIB rejeté — veuillez en soumettre un nouveau
+                </div>
+              )}
+              {ribStatus === 'none' && (
+                <div style={{ padding: '12px 16px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 10, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#374151' }}>
+                  <span style={{ fontSize: 20 }}>📂</span> Aucun RIB soumis
+                </div>
+              )}
+
+              {ribStatus !== 'approved' && ribStatus !== null && ribStatus !== 'pending' && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {ribStatus === 'rejected' ? 'Soumettre un nouveau RIB (PDF)' : 'Soumettre votre RIB (PDF)'}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <label style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px',
+                      background: ribUploading ? '#f3f4f6' : '#7e22ce', color: ribUploading ? '#9ca3af' : '#fff',
+                      borderRadius: 10, cursor: ribUploading ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 14,
+                      border: 'none', transition: 'background 0.15s'
+                    }}>
+                      <input ref={ribFileRef} type="file" accept="application/pdf,.pdf" onChange={handleRibUpload} disabled={ribUploading} style={{ display: 'none' }} />
+                      {ribUploading ? '⏳ Upload en cours…' : '📤 Choisir un fichier PDF'}
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {ribStatus === 'pending' && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Remplacer le RIB</div>
+                  <label style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px',
+                    background: ribUploading ? '#f3f4f6' : '#f3f4f6', color: ribUploading ? '#9ca3af' : '#374151',
+                    borderRadius: 10, cursor: ribUploading ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: 14,
+                    border: '1px solid #d1d5db', transition: 'background 0.15s'
+                  }}>
+                    <input ref={ribFileRef} type="file" accept="application/pdf,.pdf" onChange={handleRibUpload} disabled={ribUploading} style={{ display: 'none' }} />
+                    {ribUploading ? '⏳ Upload en cours…' : '🔄 Remplacer le RIB'}
+                  </label>
+                </div>
+              )}
+
+              {ribError && <div style={{ marginTop: 10, padding: '8px 14px', background: '#fee2e2', color: '#991b1b', borderRadius: 8, fontSize: 13, fontWeight: 600 }}>{ribError}</div>}
+              {ribSuccess && <div style={{ marginTop: 10, padding: '8px 14px', background: '#d1fae5', color: '#065f46', borderRadius: 8, fontSize: 13, fontWeight: 600 }}>{ribSuccess}</div>}
             </div>
           </div>
         )}
