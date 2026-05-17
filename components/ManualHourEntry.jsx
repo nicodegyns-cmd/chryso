@@ -159,7 +159,7 @@ export default function ManualHourEntry() {
     const activityType = card.hour_entry_type === 'garde' || card.hour_entry_type === 'simple' ? card.hour_entry_type : null
     setModalTypeOverride(activityType)
     const resolvedDuration = resolveCardDurationHours(card)
-    setFormData({ hours_actual: resolvedDuration ? String(resolvedDuration) : '', garde_hours: '', sortie_hours: '', overtime_hours: '', comments: '' })
+    setFormData({ hours_actual: resolvedDuration ? String(resolvedDuration) : '', garde_hours: '', sortie_hours: '', overtime_hours: '', comments: '', expenses: [], travel_zone: '' })
   }
 
   const handlePharmacienSubmit = async (e) => {
@@ -601,7 +601,7 @@ export default function ManualHourEntry() {
                 </div>
 
                 {/* Zone de déplacement APS */}
-                {(selectedCard?.pay_type || '').toLowerCase().includes('aps') && (
+                {((selectedCard?.pay_type || '').toLowerCase().includes('aps') || (selectedCard?.ebrigade_activity_name || selectedCard?.analytic_name || '').toLowerCase().includes('aps')) && (
                   <div style={{ padding: 12, border: '1px solid #3b82f6', borderRadius: 8, background: '#eff6ff' }}>
                     <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14, color: '#1e40af' }}>🚗 Zone de déplacement</div>
                     <select
