@@ -62,8 +62,8 @@ export default async function handler(req, res) {
         FROM prestations p
         WHERE LOWER(p.pay_type) = 'pharmacien'
           AND ${dateFilter}
-        GROUP BY month
-        ORDER BY month
+        GROUP BY EXTRACT(MONTH FROM p.date::date)::int
+        ORDER BY EXTRACT(MONTH FROM p.date::date)::int
       `, params)
       byMonth = byMonthQ.rows
     }
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
     // By analytic
     const byAnalyticQ = await pool.query(`
       SELECT
-        COALESCE(a.name, p.analytic_name, 'Non assigné') AS analytic_name,
+        COALESCE(a.name, 'Non assigné') AS analytic_name,
         ROUND(SUM(p.hours_actual)::numeric, 1) AS total_hours,
         COUNT(DISTINCT p.date::date || '_' || p.user_id) AS total_days,
         COUNT(DISTINCT p.user_id) AS pharmaciens_count
@@ -80,7 +80,7 @@ export default async function handler(req, res) {
       LEFT JOIN analytics a ON a.id = u.pharmacien_analytic_id
       WHERE LOWER(p.pay_type) = 'pharmacien'
         AND ${dateFilter}
-      GROUP BY analytic_name
+      GROUP BY COALESCE(a.name, 'Non assigné')
       ORDER BY total_hours DESC
     `, params)
 
