@@ -167,6 +167,28 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   const editingIsAPS = _editPayTypeLower.includes('aps')
   const editingIsRMP = _editPayTypeLower.includes('rmp')
 
+  const APS_TRAVEL_ZONES = [
+    { value: '', label: '— Sélectionner une zone —', amount: null },
+    { value: 'bruxelles', label: 'Bruxelles', amount: 0 },
+    { value: 'brabant_wallon', label: 'Brabant Wallon', amount: 30 },
+    { value: 'liege_hainaut_namur', label: 'Liège / Hainaut / Namur', amount: 60 },
+    { value: 'luxembourg', label: 'Luxembourg', amount: 100 },
+  ]
+
+  function handleTravelZoneChange(zoneValue) {
+    const zone = APS_TRAVEL_ZONES.find(z => z.value === zoneValue)
+    // Remove any existing travel zone expense
+    const otherExpenses = (editing.expenses || []).filter(e => !e.is_travel_zone)
+    let newExpenses = otherExpenses
+    if (zone && zone.amount > 0) {
+      newExpenses = [
+        { amount: zone.amount, comment: `Frais de déplacement - ${zone.label}`, proof_image: null, is_travel_zone: true },
+        ...otherExpenses
+      ]
+    }
+    setEditing({ ...editing, travel_zone: zoneValue, expenses: newExpenses })
+  }
+
   useEffect(() => {
     // Fetch both prestations and available activities
     async function load() {
@@ -575,7 +597,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
             alert(`⚠️ Note de frais #${i+1}: veuillez renseigner une raison.`)
             return
           }
-          if (!exp.proof_image) {
+          if (!exp.proof_image && !exp.is_travel_zone) {
             alert(`⚠️ Note de frais #${i+1}: veuillez joindre une pièce justificative.`)
             return
           }
@@ -1339,6 +1361,35 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   </label>
                 </div>
 
+                {/* Zone de déplacement APS */}
+                {editingIsAPS && (
+                  <div style={{padding:12,border:'1px solid #3b82f6',borderRadius:8,background:'#eff6ff'}}>
+                    <div style={{fontWeight:700,marginBottom:10,fontSize:14,color:'#1e40af'}}>🚗 Zone de déplacement</div>
+                    <select
+                      value={editing.travel_zone || ''}
+                      onChange={e => handleTravelZoneChange(e.target.value)}
+                      style={{width:'100%',padding:'9px 12px',borderRadius:6,border:'1px solid #93c5fd',fontSize:15,background:'#fff',color:'#1e3a8a',fontWeight:500}}
+                    >
+                      {APS_TRAVEL_ZONES.map(z => (
+                        <option key={z.value} value={z.value}>
+                          {z.label}{z.amount != null && z.value ? ` — ${z.amount} €` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {editing.travel_zone && (
+                      <div style={{marginTop:8,fontSize:13,color:'#1d4ed8',fontWeight:600}}>
+                        {(() => {
+                          const z = APS_TRAVEL_ZONES.find(x => x.value === editing.travel_zone)
+                          if (!z || z.amount === null) return null
+                          return z.amount === 0
+                            ? '✅ Aucun frais de déplacement pour Bruxelles'
+                            : `✅ Frais de déplacement ajoutés : ${z.amount} €`
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Section Notes de frais (multiple) */}
                 <div style={{padding:12,border:'1px solid #f59e0b',borderRadius:8,background:'#fffbeb'}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
@@ -1396,41 +1447,49 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                         </label>
                       </div>
                       <div>
-                        <div style={{fontWeight:600,marginBottom:4,fontSize:12,color:'#92400e'}}>� JUSTIFICATIF {Number(exp.amount||0)>0 && <span style={{color:'#dc2626'}}>*</span>}</div>
-                        {!exp.proof_image && (
-                          <input type="file" accept="image/*,application/pdf" style={{fontSize:14}} onChange={async (e)=>{
-                            const f = e.target.files && e.target.files[0]
-                            if (!f) return
-                            const data = await new Promise((res,rej)=>{
-                              const reader = new FileReader()
-                              reader.onload = ()=>res(reader.result)
-                              reader.onerror = rej
-                              reader.readAsDataURL(f)
-                            })
-                            const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,proof_image:data,proof_name:f.name}:x)
-                            setEditing({...editing, expenses: next})
-                          }} />
-                        )}
-                        {Number(exp.amount||0)>0&&!exp.proof_image&&<div style={{fontSize:11,color:'#dc2626',marginTop:3}}>Obligatoire si montant renseigné</div>}
-                        {exp.proof_image && (
-                          <div style={{marginTop:6}}>
-                            {exp.proof_image.startsWith('data:application/pdf') ? (
-                              <div style={{padding:'10px 12px',background:'#fff7ed',border:'2px solid #fcd34d',borderRadius:6,display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                                <span style={{fontSize:20}}>📄</span>
-                                <span style={{fontSize:13,color:'#92400e',fontWeight:600,wordBreak:'break-all'}}>{exp.proof_name || 'document.pdf'}</span>
-                              </div>
-                            ) : (
-                              <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:160,border:'2px solid #fcd34d',borderRadius:6,display:'block',marginBottom:6}} />
-                            )}
-                            <button
-                              type="button"
-                              onClick={()=>{
-                                const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,proof_image:null,proof_name:null}:x)
-                                setEditing({...editing, expenses: next})
-                              }}
-                              style={{padding:'5px 10px',background:'#fee2e2',color:'#991b1b',borderRadius:5,border:'1px solid #fca5a5',cursor:'pointer',fontWeight:600,fontSize:12}}
-                            >🗑️ Supprimer</button>
+                        {exp.is_travel_zone ? (
+                          <div style={{fontSize:13,color:'#1d4ed8',fontWeight:500,padding:'6px 10px',background:'#eff6ff',borderRadius:6,border:'1px solid #93c5fd'}}>
+                            🚗 Frais de déplacement officiel — aucun justificatif requis
                           </div>
+                        ) : (
+                          <>
+                            <div style={{fontWeight:600,marginBottom:4,fontSize:12,color:'#92400e'}}>  JUSTIFICATIF {Number(exp.amount||0)>0 && <span style={{color:'#dc2626'}}>*</span>}</div>
+                            {!exp.proof_image && (
+                              <input type="file" accept="image/*,application/pdf" style={{fontSize:14}} onChange={async (e)=>{
+                                const f = e.target.files && e.target.files[0]
+                                if (!f) return
+                                const data = await new Promise((res,rej)=>{
+                                  const reader = new FileReader()
+                                  reader.onload = ()=>res(reader.result)
+                                  reader.onerror = rej
+                                  reader.readAsDataURL(f)
+                                })
+                                const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,proof_image:data,proof_name:f.name}:x)
+                                setEditing({...editing, expenses: next})
+                              }} />
+                            )}
+                            {Number(exp.amount||0)>0&&!exp.proof_image&&<div style={{fontSize:11,color:'#dc2626',marginTop:3}}>Obligatoire si montant renseigné</div>}
+                            {exp.proof_image && (
+                              <div style={{marginTop:6}}>
+                                {exp.proof_image.startsWith('data:application/pdf') ? (
+                                  <div style={{padding:'10px 12px',background:'#fff7ed',border:'2px solid #fcd34d',borderRadius:6,display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                                    <span style={{fontSize:20}}>📄</span>
+                                    <span style={{fontSize:13,color:'#92400e',fontWeight:600,wordBreak:'break-all'}}>{exp.proof_name || 'document.pdf'}</span>
+                                  </div>
+                                ) : (
+                                  <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:160,border:'2px solid #fcd34d',borderRadius:6,display:'block',marginBottom:6}} />
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={()=>{
+                                    const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,proof_image:null,proof_name:null}:x)
+                                    setEditing({...editing, expenses: next})
+                                  }}
+                                  style={{padding:'5px 10px',background:'#fee2e2',color:'#991b1b',borderRadius:5,border:'1px solid #fca5a5',cursor:'pointer',fontWeight:600,fontSize:12}}
+                                > Supprimer</button>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
