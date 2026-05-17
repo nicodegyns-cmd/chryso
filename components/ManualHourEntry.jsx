@@ -78,9 +78,16 @@ export default function ManualHourEntry() {
   const [pharmDate, setPharmDate] = useState('')
   const [pharmHours, setPharmHours] = useState('')
   const [pharmComment, setPharmComment] = useState('')
+  const [pharmAnalyticId, setPharmAnalyticId] = useState('')
+  const [pharmAnalyticName, setPharmAnalyticName] = useState('')
   const [pharmSaving, setPharmSaving] = useState(false)
   const [pharmError, setPharmError] = useState('')
   const [pharmSuccess, setPharmSuccess] = useState('')
+  const [analytics, setAnalytics] = useState([])
+
+  useEffect(() => {
+    fetch('/api/admin/analytics').then(r => r.ok ? r.json() : null).then(d => { if (d) setAnalytics((d.analytics || []).filter(a => a.is_active !== false)) }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch('/api/admin/users').then(r => r.ok ? r.json() : null).then(d => { if (d) setAllUsers(d.users || []) }).catch(() => {})
@@ -168,19 +175,22 @@ export default function ManualHourEntry() {
     if (!pharmHours || Number(pharmHours) <= 0) { setPharmError("Veuillez entrer un nombre d'heures valide."); return }
     setPharmSaving(true); setPharmError(''); setPharmSuccess('')
     try {
+      const selectedAnalytic = analytics.find(a => String(a.id) === String(pharmAnalyticId))
       const payload = {
         user_email: selectedUser.email, email: selectedUser.email,
         date: pharmDate,
         pay_type: 'Pharmacien',
         hours_actual: parseFloat(pharmHours),
         comments: pharmComment || null,
+        analytic_id: selectedAnalytic ? selectedAnalytic.id : null,
+        analytic_name: selectedAnalytic ? selectedAnalytic.name : null,
         status: "Validé",
         is_admin_override: true,
       }
       const res = await fetch('/api/admin/prestations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || `Erreur ${res.status}`) }
       setPharmSuccess(`Session enregistrée pour ${userName(selectedUser)} - ${formatDate(pharmDate)}`)
-      setPharmDate(''); setPharmHours(''); setPharmComment('')
+      setPharmDate(''); setPharmHours(''); setPharmComment(''); setPharmAnalyticId(''); setPharmAnalyticName('')
       setTimeout(() => setPharmSuccess(''), 5000)
     } catch (err) { setPharmError(err.message || "Erreur lors de l'enregistrement") } finally { setPharmSaving(false) }
   }
@@ -342,6 +352,14 @@ export default function ManualHourEntry() {
                   style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }} />
               </label>
             </div>
+            <label>
+              <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>ANALYTIQUE *</div>
+              <select value={pharmAnalyticId} onChange={e => setPharmAnalyticId(e.target.value)} required
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }}>
+                <option value=''>— Sélectionner un analytique —</option>
+                {analytics.map(a => <option key={a.id} value={a.id}>{a.name}{a.code ? ` (${a.code})` : ''}</option>)}
+              </select>
+            </label>
             <label>
               <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>COMMENTAIRE (optionnel)</div>
               <input type="text" value={pharmComment} onChange={e => setPharmComment(e.target.value)}
