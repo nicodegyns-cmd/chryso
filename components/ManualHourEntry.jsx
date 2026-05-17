@@ -174,7 +174,7 @@ export default function ManualHourEntry() {
         pay_type: 'Pharmacien',
         hours_actual: parseFloat(pharmHours),
         comments: pharmComment || null,
-        status: "En attente d'approbation",
+        status: "Validé",
         is_admin_override: true,
       }
       const res = await fetch('/api/admin/prestations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
