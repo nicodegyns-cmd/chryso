@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     const byUserQ = await pool.query(`
       SELECT
         p.user_id,
-        COALESCE(u.first_name || ' ' || u.last_name, p.user_email) AS full_name,
+        COALESCE(u.first_name || ' ' || u.last_name, u.email, p.user_id::text) AS full_name,
         a.name AS analytic_name,
         ROUND(SUM(p.hours_actual)::numeric, 1) AS total_hours,
         COUNT(DISTINCT p.date::date) AS total_days,
