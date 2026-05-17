@@ -846,10 +846,15 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       }
 
       // Always set status to "En attente d'approbation" for non-admin/moderator users
-      if (!role || (role !== 'admin' && role !== 'moderator')){
-        effective.status = "En attente d'approbation"
-      }
+      // Pharmacien entries bypass approval workflow — pure stats tracking
       const payLower = (effective.pay_type || '').toLowerCase()
+      if (!role || (role !== 'admin' && role !== 'moderator')){
+        if (payLower.includes('pharmacien')) {
+          effective.status = 'Validé'
+        } else {
+          effective.status = "En attente d'approbation"
+        }
+      }
       if (payLower.includes('permanence')){
         delete effective.remuneration_infi
         delete effective.remuneration_med

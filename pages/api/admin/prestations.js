@@ -118,6 +118,9 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'user_email required' })
       }
 
+      // Pharmacien entries bypass approval workflow — force Validé regardless of submitted status
+      const effectiveStatus = (pay_type || '').toLowerCase().includes('pharmacien') ? 'Validé' : status
+
       // Prevent submitting a prestation for a future date
       if (date) {
         const today = new Date()
@@ -390,7 +393,7 @@ export default async function handler(req, res) {
           finalExpenseComment,
           finalProofImage,
           finalExpensesJson,
-          status || 'À saisir',
+          effectiveStatus || 'À saisir',
           ebrigade_id || null,
           ebrigade_personnel_id || null,
           ebrigade_personnel_name || null,
