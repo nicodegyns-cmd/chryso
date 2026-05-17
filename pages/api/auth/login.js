@@ -63,6 +63,7 @@ export default async function handler(req, res) {
       if (low === 'admin') return 'admin'
       if (low === 'comptabilite' || low.includes('comptab')) return 'comptabilite'
       if (low.includes('moder')) return 'moderator'
+      if (low === 'pharmacien' || low.includes('pharmac')) return 'pharmacien'
       if (low === 'user') return 'user'
       // Default to 'user' for unrecognized roles instead of silently dropping them
       console.warn('[api/login] unrecognized role:', r, '-> defaulting to user')

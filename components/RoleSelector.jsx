@@ -7,6 +7,7 @@ const ROLE_LABELS = {
   admin: 'Administrateur',
   comptabilite: 'Comptabilité',
   moderator: 'Modérateur',
+  pharmacien: 'Pharmacien',
   user: 'Utilisateur'
 }
 
@@ -69,6 +70,7 @@ export default function RoleSelector() {
       if (r === 'admin') router.push('/admin')
       else if (r === 'comptabilite') router.push('/comptabilite')
       else if (r === 'moderator') router.push('/moderator')
+      else if (r === 'pharmacien') router.push('/')
       else router.push('/')
     }, 100)
   }
