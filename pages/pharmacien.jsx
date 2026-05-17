@@ -19,11 +19,11 @@ export default function PharmacienPage() {
   const today = new Date(); today.setHours(0,0,0,0)
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [prestations, setPrestations] = useState([])
-  const [analytics, setAnalytics] = useState([])
+  const [userAnalytic, setUserAnalytic] = useState(null) // { id, name } from user profile
   const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState('')
   const [modal, setModal] = useState(null) // { date: 'YYYY-MM-DD', existing: null|prestation }
-  const [form, setForm] = useState({ hours: '', analyticId: '', comment: '' })
+  const [form, setForm] = useState({ hours: '', comment: '' })
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   // RIB state
@@ -77,11 +77,13 @@ export default function PharmacienPage() {
     setEmail(e)
     Promise.all([
       fetch(`/api/prestations?email=${encodeURIComponent(e)}`).then(r => r.json()).catch(() => ({})),
-      fetch('/api/admin/analytics').then(r => r.json()).catch(() => ({})),
-    ]).then(([prestData, anaData]) => {
+      fetch(`/api/users/profile?email=${encodeURIComponent(e)}`).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([prestData, profileData]) => {
       const all = (prestData.prestations || []).filter(p => (p.pay_type || '').toLowerCase().includes('pharmacien'))
       setPrestations(all)
-      setAnalytics((anaData.analytics || []).filter(a => a.is_active !== false))
+      if (profileData && profileData.pharmacien_analytic_id) {
+        setUserAnalytic({ id: profileData.pharmacien_analytic_id, name: profileData.analytic_name })
+      }
     }).finally(() => setLoading(false))
     loadRib(e)
   }, [])
@@ -117,24 +119,23 @@ export default function PharmacienPage() {
     const key = toLocalISODate(day)
     const entries = byDate[key] || []
     setModal({ date: key, entries })
-    setForm({ hours: '', analyticId: analytics[0] ? String(analytics[0].id) : '', comment: '' })
+    setForm({ hours: '', comment: '' })
     setSaveError('')
   }
 
   async function handleSave() {
     if (!form.hours || Number(form.hours) <= 0) { setSaveError("Nombre d'heures requis"); return }
-    if (!form.analyticId) { setSaveError('Sélectionnez un analytique'); return }
+    if (!userAnalytic) { setSaveError('Aucun analytique configuré — contactez un administrateur'); return }
     setSaving(true); setSaveError('')
     try {
-      const analytic = analytics.find(a => String(a.id) === form.analyticId)
       const payload = {
         user_email: email, email,
         date: modal.date,
         pay_type: 'Pharmacien',
         hours_actual: parseFloat(form.hours),
         comments: form.comment || null,
-        analytic_id: analytic ? analytic.id : null,
-        analytic_name: analytic ? analytic.name : null,
+        analytic_id: userAnalytic.id,
+        analytic_name: userAnalytic.name,
         status: 'Validé',
         is_admin_override: true,
       }
@@ -412,18 +413,12 @@ export default function PharmacienPage() {
                   />
                 </label>
 
-                <label>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Analytique *</div>
-                  <select
-                    value={form.analyticId} onChange={e => setForm(f => ({ ...f, analyticId: e.target.value }))}
-                    style={{ width: '100%', padding: '11px 14px', border: '2px solid #e9d5ff', borderRadius: 10, fontSize: 15, boxSizing: 'border-box', background: '#fff', outline: 'none' }}
-                    onFocus={e => { e.target.style.borderColor = '#7e22ce' }}
-                    onBlur={e => { e.target.style.borderColor = '#e9d5ff' }}
-                  >
-                    <option value=''>— Sélectionner —</option>
-                    {analytics.map(a => <option key={a.id} value={a.id}>{a.name}{a.code ? ` (${a.code})` : ''}</option>)}
-                  </select>
-                </label>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Analytique</div>
+                  <div style={{ padding: '11px 14px', border: '2px solid #e9d5ff', borderRadius: 10, fontSize: 15, background: '#f5f3ff', color: '#5b21b6', fontWeight: 600 }}>
+                    {userAnalytic ? userAnalytic.name : <span style={{ color: '#ef4444', fontWeight: 500 }}>Non configuré — contactez un admin</span>}
+                  </div>
+                </div>
 
                 <label>
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Commentaire</div>
