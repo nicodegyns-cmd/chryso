@@ -73,7 +73,7 @@ export default function PharmacienPage() {
     const e = typeof window !== 'undefined' ? localStorage.getItem('email') : null
     const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null
     if (!e) { router.push('/login'); return }
-    if (role && role !== 'pharmacien') { router.push('/'); return }
+    if (role && !role.toLowerCase().includes('pharmacien') && role !== 'admin') { router.push('/'); return }
     setEmail(e)
     Promise.all([
       fetch(`/api/prestations?email=${encodeURIComponent(e)}`).then(r => r.json()).catch(() => ({})),

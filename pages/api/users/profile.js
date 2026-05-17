@@ -10,7 +10,7 @@ export default async function handler(req, res) {
       `SELECT u.pharmacien_analytic_id, a.name AS analytic_name
        FROM users u
        LEFT JOIN analytics a ON a.id = u.pharmacien_analytic_id
-       WHERE u.email = $1 AND u.role = 'pharmacien'
+       WHERE u.email = $1 AND LOWER(u.role) LIKE '%pharmacien%'
        LIMIT 1`,
       [email]
     )
