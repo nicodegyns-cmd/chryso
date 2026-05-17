@@ -8,7 +8,15 @@ const emptyForm = () => ({
   overtime_hours: '',
   comments: '',
   expenses: [],
+  travel_zone: '',
 })
+
+const APS_TRAVEL_ZONES = [
+  { value: '', label: '— Sélectionner une zone —', amount: null },
+  { value: 'brabant_wallon', label: 'Brabant Wallon', amount: 30 },
+  { value: 'liege_hainaut_namur', label: 'Liège / Hainaut / Namur', amount: 60 },
+  { value: 'luxembourg', label: 'Luxembourg', amount: 100 },
+]
 
 function parseTimeToMinutes(value) {
   if (!value) return null
@@ -162,7 +170,7 @@ export default function ManualHourEntry() {
       const exp = expenses[i]
       if (Number(exp.amount || 0) > 0) {
         if (!exp.comment?.trim()) { setSaveError(`Note de frais #${i + 1} : veuillez renseigner une raison.`); return }
-        if (!exp.proof_image) { setSaveError(`Note de frais #${i + 1} : veuillez joindre une pièce justificative.`); return }
+        if (!exp.proof_image && !exp.is_travel_zone) { setSaveError(`Note de frais #${i + 1} : veuillez joindre une pièce justificative.`); return }
       }
     }
 
@@ -208,6 +216,7 @@ export default function ManualHourEntry() {
         sortie_hours: sortieHoursSubmit,
         overtime_hours: overtimeHoursSubmit,
         comments: formData.comments || null,
+        travel_zone: formData.travel_zone || null,
         expenses_json: formData.expenses && formData.expenses.filter(e => Number(e.amount || 0) > 0).length > 0 ? JSON.stringify(formData.expenses.filter(e => Number(e.amount || 0) > 0)) : null,
         analytic_id: selectedCard.analytic_id || null, analytic_name: selectedCard.analytic_name || null,
         ebrigade_id: selectedCard.ebrigade_id || null,
@@ -515,6 +524,41 @@ export default function ManualHourEntry() {
                       style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, resize: 'vertical', fontFamily: 'inherit' }} />
                   </label>
                 </div>
+
+                {/* Zone de déplacement APS */}
+                {(selectedCard?.pay_type || '').toLowerCase().includes('aps') && (
+                  <div style={{ padding: 12, border: '1px solid #3b82f6', borderRadius: 8, background: '#eff6ff' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14, color: '#1e40af' }}>🚗 Zone de déplacement</div>
+                    <select
+                      value={formData.travel_zone || ''}
+                      onChange={e => {
+                        const zoneValue = e.target.value
+                        const zone = APS_TRAVEL_ZONES.find(z => z.value === zoneValue)
+                        const otherExpenses = (formData.expenses || []).filter(ex => !ex.is_travel_zone)
+                        let newExpenses = otherExpenses
+                        if (zone && zone.amount > 0) {
+                          newExpenses = [
+                            { amount: zone.amount, comment: `Frais de déplacement - ${zone.label}`, proof_image: null, is_travel_zone: true },
+                            ...otherExpenses
+                          ]
+                        }
+                        setFormData(prev => ({ ...prev, travel_zone: zoneValue, expenses: newExpenses }))
+                      }}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid #93c5fd', fontSize: 15, background: '#fff', color: '#1e3a8a', fontWeight: 500 }}
+                    >
+                      {APS_TRAVEL_ZONES.map(z => (
+                        <option key={z.value} value={z.value}>
+                          {z.label}{z.amount != null && z.value ? ` — ${z.amount} €` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {formData.travel_zone && (() => {
+                      const z = APS_TRAVEL_ZONES.find(x => x.value === formData.travel_zone)
+                      if (!z || z.amount === null) return null
+                      return <div style={{ marginTop: 8, fontSize: 13, color: '#1d4ed8', fontWeight: 600 }}>✅ Frais de déplacement ajoutés : {z.amount} €</div>
+                    })()}
+                  </div>
+                )}
 
                 {/* Notes de frais */}
                 <div style={{ padding: 12, border: '1px solid #f59e0b', borderRadius: 8, background: '#fffbeb' }}>
