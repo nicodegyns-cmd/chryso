@@ -55,6 +55,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
   const [moderatorAnalyticIds, setModeratorAnalyticIds] = useState([])
   const [canViewStatistics, setCanViewStatistics] = useState(false)
   const [analyticsList, setAnalyticsList] = useState([])
+  const [pharmacienAnalyticId, setPharmacienAnalyticId] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -190,6 +191,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
         setModeratorAnalyticIds([])
       }
       setCanViewStatistics(!!initial.can_view_statistics)
+      setPharmacienAnalyticId(initial.pharmacien_analytic_id ? String(initial.pharmacien_analytic_id) : '')
     } else {
       // reset when creating new
       setEmail('')
@@ -237,6 +239,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
       liaisonId: liaisonId === 'none' ? null : liaisonId,
       moderatorAnalyticIds: isModerator && moderatorAnalyticIds.length > 0 ? moderatorAnalyticIds.join(',') : null,
       canViewStatistics,
+      pharmacienAnalyticId: pharmacienAnalyticId ? parseInt(pharmacienAnalyticId, 10) : null,
     }
 
     // `onCreate` should return a Promise from the parent
@@ -659,6 +662,33 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
                   <div style={{marginTop:8,fontSize:12,color:'#0369a1'}}>
                     ✅ {moderatorAnalyticIds.length} analytique(s) sélectionnée(s)
                     <button type="button" onClick={() => setModeratorAnalyticIds([])} style={{marginLeft:8,fontSize:11,color:'#dc2626',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>Tout effacer</button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Section: Analytique Pharmacien (visible seulement si rôle pharmacien coché) */}
+            {(Array.isArray(role) ? role.includes('pharmacien') : role === 'pharmacien') && (
+              <div style={{borderLeft:'3px solid #a855f7',paddingLeft:16}}>
+                <strong style={{display:'block',marginBottom:8,color:'#1f2937',fontSize:14}}>💊 Analytique du pharmacien</strong>
+                <small style={{display:'block',marginBottom:10,color:'#6b7280',fontSize:12}}>
+                  Sélectionnez l'analytique rattachée à ce pharmacien. Elle sera automatiquement utilisée sur les factures forfaitaires.
+                </small>
+                <select
+                  value={pharmacienAnalyticId}
+                  onChange={e => setPharmacienAnalyticId(e.target.value)}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d8b4fe',borderRadius:6,fontSize:14,background:'#faf5ff'}}
+                >
+                  <option value="">-- Aucune analytique assignée --</option>
+                  {analyticsList.filter(a => a.is_active !== false).map(a => (
+                    <option key={a.id} value={String(a.id)}>
+                      {a.name}{a.code ? ` (${a.code})` : ''}{a.entite ? ` — ${a.entite}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {pharmacienAnalyticId && (
+                  <div style={{marginTop:6,fontSize:12,color:'#7e22ce'}}>
+                    ✅ Analytique sélectionnée : <strong>{analyticsList.find(a => String(a.id) === pharmacienAnalyticId)?.name || pharmacienAnalyticId}</strong>
                   </div>
                 )}
               </div>

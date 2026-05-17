@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     const pool = getPool()
     const { status } = req.query
 
-    // Get all pharmacien prestations
+    // Get all pharmacien prestations, with analytic info from user's pharmacien_analytic_id
     let sql = `
       SELECT 
         p.id,
@@ -28,9 +28,17 @@ export default async function handler(req, res) {
         u.address,
         u.bce,
         u.company,
-        CONCAT(u.first_name, ' ', u.last_name) AS user_name
+        u.pharmacien_analytic_id,
+        CONCAT(u.first_name, ' ', u.last_name) AS user_name,
+        an.id AS analytic_id,
+        an.name AS analytic_name,
+        an.code AS analytic_code,
+        an.entite AS analytic_entite,
+        an.analytic_type AS analytic_identifier,
+        an.account_number AS analytic_account_number
       FROM prestations p
       LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN analytics an ON u.pharmacien_analytic_id = an.id
       WHERE LOWER(p.pay_type) = 'pharmacien'
     `
 
@@ -82,6 +90,13 @@ export default async function handler(req, res) {
           address: row.address,
           bce: row.bce,
           company: row.company,
+          pharmacien_analytic_id: row.pharmacien_analytic_id || null,
+          analytic_id: row.analytic_id || null,
+          analytic_name: row.analytic_name || null,
+          analytic_code: row.analytic_code || null,
+          analytic_entite: row.analytic_entite || null,
+          analytic_identifier: row.analytic_identifier || null,
+          analytic_account_number: row.analytic_account_number || null,
           period_key: periodKey,
           period_label: periodLabel,
           year: parseInt(year),

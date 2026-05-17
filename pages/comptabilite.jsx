@@ -250,7 +250,7 @@ export default function ComptabilitePage() {
           overtime_hours: 0,
           unit_price: 400,
           comments: `Forfait pharmacien demi-mois ${group.period_label} — ${group.prestations.length} session(s), ${(group.total_hours || 0).toFixed(2)}h au total`,
-          analytic_id: null,
+          analytic_id: group.analytic_id || null,
         })
       })
       if (!invoiceRes.ok) {
@@ -707,6 +707,12 @@ export default function ComptabilitePage() {
                               <span style={{padding:'3px 10px',background:'#faf5ff',border:'1px solid #d8b4fe',borderRadius:6,fontSize:12,color:'#7e22ce',fontWeight:600}}>📅 Période: {group.period_label}</span>
                               <span style={{padding:'3px 10px',background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:6,fontSize:12,color:'#15803d',fontWeight:600}}>⏱ {(group.total_hours || 0).toFixed(2)}h travaillées</span>
                               <span style={{padding:'3px 10px',background:'#fffbeb',border:'1px solid #fcd34d',borderRadius:6,fontSize:12,color:'#92400e',fontWeight:700}}>💶 Forfait: {group.forfait_amount}€</span>
+                              {group.analytic_name && (
+                                <span style={{padding:'3px 10px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:6,fontSize:12,color:'#166534',fontWeight:600}}>📊 {group.analytic_name}{group.analytic_code ? ` (${group.analytic_code})` : ''}</span>
+                              )}
+                              {!group.analytic_name && (
+                                <span style={{padding:'3px 10px',background:'#fef3c7',border:'1px solid #fcd34d',borderRadius:6,fontSize:12,color:'#92400e'}}>⚠️ Aucune analytique assignée</span>
+                              )}
                             </div>
                           </div>
                           <button

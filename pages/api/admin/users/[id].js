@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
   if (method === 'GET') {
     try {
-      const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids, onboarding_status, is_active, invitation_token, can_view_statistics FROM users WHERE id = $1', [id])
+      const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids, onboarding_status, is_active, invitation_token, can_view_statistics, pharmacien_analytic_id FROM users WHERE id = $1', [id])
       const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
       if (!rows || rows.length === 0) return res.status(404).json({ error: 'not_found' })
       const u = rows[0]
@@ -24,13 +24,19 @@ export default async function handler(req, res) {
 
   if (method === 'PUT' || method === 'PATCH') {
     const body = req.body || {}
-    const { email, role, firstName, lastName, ninami, telephone, adresse, niss, bce, societe, compte, fonction, liaisonId, acceptedCgu, acceptedPrivacy, moderatorAnalyticIds, canViewStatistics } = body
+    const { email, role, firstName, lastName, ninami, telephone, adresse, niss, bce, societe, compte, fonction, liaisonId, acceptedCgu, acceptedPrivacy, moderatorAnalyticIds, canViewStatistics, pharmacienAnalyticId } = body
     try {
       // Ensure the can_view_statistics column exists (idempotent migration)
       try {
         await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view_statistics BOOLEAN DEFAULT FALSE')
       } catch (e) {
         console.warn('[api/admin/users/[id]] can_view_statistics column migration skipped:', e.message)
+      }
+      // Ensure pharmacien_analytic_id column exists
+      try {
+        await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS pharmacien_analytic_id INTEGER DEFAULT NULL')
+      } catch (e) {
+        console.warn('[api/admin/users/[id]] pharmacien_analytic_id column migration skipped:', e.message)
       }
       const normalizeRoles = (r) => {
         const items = Array.isArray(r) ? r.map(String) : (r ? String(r).split(',') : [])
@@ -41,6 +47,7 @@ export default async function handler(req, res) {
             if (v === 'admin') return 'admin'
             if (v.includes('moder')) return 'moderator'
             if (v === 'comptabilite' || v.includes('comptab') || v.includes('comptable')) return 'comptabilite'
+            if (v === 'pharmacien') return 'pharmacien'
             return null
           }).filter(Boolean)
         return Array.from(new Set(mapped)).join(',') || null
@@ -112,6 +119,10 @@ export default async function handler(req, res) {
         setClauses.push(`can_view_statistics = $${paramIdx++}`)
         params.push(!!canViewStatistics)
       }
+      if (typeof pharmacienAnalyticId !== 'undefined') {
+        setClauses.push(`pharmacien_analytic_id = $${paramIdx++}`)
+        params.push(pharmacienAnalyticId || null)
+      }
       
       // Always update timestamp
       setClauses.push(`updated_at = NOW()`)
@@ -147,7 +158,7 @@ export default async function handler(req, res) {
       const sql = `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramIdx}`
       await pool.query(sql, params)
       
-      const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids, onboarding_status, is_active, invitation_token, can_view_statistics FROM users WHERE id = $1', [id])
+      const q = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids, onboarding_status, is_active, invitation_token, can_view_statistics, pharmacien_analytic_id FROM users WHERE id = $1', [id])
       const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
       const updatedUser = rows[0]
 
@@ -176,7 +187,7 @@ export default async function handler(req, res) {
           }
         }
 
-      const finalQ = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids, onboarding_status, is_active, invitation_token, can_view_statistics FROM users WHERE id = $1', [id])
+      const finalQ = await pool.query('SELECT id, email, role, first_name, last_name, ninami, telephone, address, niss, bce, company, account, fonction, liaison_ebrigade_id, must_complete_profile, accepted_cgu, accepted_privacy, moderator_analytic_ids, onboarding_status, is_active, invitation_token, can_view_statistics, pharmacien_analytic_id FROM users WHERE id = $1', [id])
       const finalRows = (finalQ && finalQ.rows) ? finalQ.rows : Array.isArray(finalQ) ? finalQ[0] : []
       return res.status(200).json({ user: finalRows[0] })
     } catch (err) {
