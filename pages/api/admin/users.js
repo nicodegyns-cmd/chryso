@@ -17,6 +17,10 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
+      // Ensure pharmacien_analytic_id column exists (idempotent)
+      try {
+        await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS pharmacien_analytic_id INTEGER DEFAULT NULL')
+      } catch (e) {}
       const q = await pool.query('SELECT id, email, role, first_name, last_name, liaison_ebrigade_id, fonction, must_complete_profile, accepted_cgu, accepted_privacy, is_active, onboarding_status, moderator_analytic_ids, telephone, address, ninami, niss, bce, company, account, invitation_excluded, can_view_statistics, pharmacien_analytic_id FROM users ORDER BY id DESC')
       const rows = (q && q.rows) ? q.rows : Array.isArray(q) ? q[0] : []
       // return rows as-is; `role` may contain comma-separated canonical codes
