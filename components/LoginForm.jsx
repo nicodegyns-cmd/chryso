@@ -67,7 +67,7 @@ export default function LoginForm() {
         if (r === 'admin') router.push('/admin')
         else if (r === 'comptabilite') router.push('/comptabilite')
         else if (r === 'moderator') router.push('/moderator')
-        else if (r === 'pharmacien') router.push('/invoices')
+        else if (r === 'pharmacien') router.push('/pharmacien')
         else router.push('/dashboard')
       }, 200)
     } catch (err) {

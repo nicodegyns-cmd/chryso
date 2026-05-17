@@ -20,7 +20,7 @@ export default function Home() {
         return
       }
       if (role === 'pharmacien') {
-        router.replace('/invoices')
+        router.replace('/pharmacien')
         return
       }
       if (role) {
