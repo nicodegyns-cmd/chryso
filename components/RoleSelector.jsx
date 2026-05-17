@@ -70,7 +70,7 @@ export default function RoleSelector() {
       if (r === 'admin') router.push('/admin')
       else if (r === 'comptabilite') router.push('/comptabilite')
       else if (r === 'moderator') router.push('/moderator')
-      else if (r === 'pharmacien') router.push('/')
+      else if (r === 'pharmacien') router.push('/invoices')
       else router.push('/')
     }, 100)
   }

@@ -19,6 +19,10 @@ export default function Home() {
         router.replace('/comptabilite')
         return
       }
+      if (role === 'pharmacien') {
+        router.replace('/invoices')
+        return
+      }
       if (role) {
         router.replace('/dashboard')
         return
