@@ -596,7 +596,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
             <div style={{borderLeft:'3px solid #ec4899',paddingLeft:16}}>
               <strong style={{display:'block',marginBottom:12,color:'#1f2937',fontSize:14}}>🔐 Rôles et permissions</strong>
               <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
-                {['INFI','MED','admin','moderator','comptabilite'].map((r) => (
+                {['INFI','MED','pharmacien','admin','moderator','comptabilite'].map((r) => (
                   <label key={r} style={{display:'inline-flex',alignItems:'center',gap:8,cursor:'pointer',padding:'8px',borderRadius:6,transition:'background 0.2s',background:'transparent'}}>
                     <input
                       type="checkbox"
@@ -617,7 +617,7 @@ export default function CreateUserModal({ open, onClose, onCreate, initial }) {
                       }}
                       style={{width:18,height:18,cursor:'pointer'}}
                     />
-                    <span style={{fontSize:13,color:'#374151'}}>{r === 'comptabilite' ? '💰 Comptabilité' : r}</span>
+                    <span style={{fontSize:13,color:'#374151'}}>{r === 'comptabilite' ? '💰 Comptabilité' : r === 'pharmacien' ? '💊 Pharmacien' : r}</span>
                   </label>
                 ))}
               </div>

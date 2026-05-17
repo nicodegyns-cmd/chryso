@@ -223,8 +223,8 @@ export default function UserTable() {
                             borderRadius:20,
                             fontSize:11,
                             fontWeight:600,
-                            background:r === 'admin' ? '#fecdd3' : r === 'moderator' ? '#dbeafe' : r === 'INFI' ? '#dcfce7' : '#fef3c7',
-                            color:r === 'admin' ? '#991b1b' : r === 'moderator' ? '#0c4a6e' : r === 'INFI' ? '#166534' : '#92400e'
+                            background:r === 'admin' ? '#fecdd3' : r === 'moderator' ? '#dbeafe' : r === 'INFI' ? '#dcfce7' : r === 'pharmacien' ? '#fae8ff' : '#fef3c7',
+                            color:r === 'admin' ? '#991b1b' : r === 'moderator' ? '#0c4a6e' : r === 'INFI' ? '#166534' : r === 'pharmacien' ? '#7e22ce' : '#92400e'
                           }}
                         >
                           {r}

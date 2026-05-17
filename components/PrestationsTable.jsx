@@ -68,6 +68,14 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   // read role from localStorage into reactive state so updates are picked up
   const [clientRole, setClientRole] = useState(typeof window !== 'undefined' ? localStorage.getItem('role') : null)
 
+  // pharmacien session modal
+  const [pharmacienModal, setPharmacienModal] = useState(false)
+  const [pharmacienDate, setPharmacienDate] = useState('')
+  const [pharmacienHours, setPharmacienHours] = useState('')
+  const [pharmacienComment, setPharmacienComment] = useState('')
+  const [pharmacienSaving, setPharmacienSaving] = useState(false)
+  const [pharmacienError, setPharmacienError] = useState('')
+
   // Ref to store openEdit function for imperative access
   const openEditRef = useRef(null)
 
@@ -115,6 +123,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   }, [])
   // keep existing code using `role` working by aliasing to `clientRole`
   const role = clientRole || null
+  const isPharmacien = role && (role === 'pharmacien' || role.split(',').some(r => r.trim() === 'pharmacien'))
 
   // Derived flags for the edit modal rendering
   // Always use ANALYTIQUE if available (from eBrigade or local activity)
@@ -523,6 +532,27 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   
   // Update ref for imperative access to openEdit
   openEditRef.current = openEdit
+
+  async function submitPharmacienSession() {
+    if (!pharmacienDate) { setPharmacienError('Veuillez sélectionner une date.'); return }
+    if (!pharmacienHours || Number(pharmacienHours) <= 0) { setPharmacienError("Veuillez entrer un nombre d'heures valide."); return }
+    setPharmacienSaving(true); setPharmacienError('')
+    try {
+      const payload = {
+        user_email: email, email,
+        date: pharmacienDate,
+        pay_type: 'Pharmacien',
+        hours_actual: parseFloat(pharmacienHours),
+        comments: pharmacienComment || null,
+        status: "En attente d'approbation",
+      }
+      const res = await fetch('/api/admin/prestations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || `Erreur ${res.status}`) }
+      setPharmacienModal(false); setPharmacienDate(''); setPharmacienHours(''); setPharmacienComment('')
+      const prestRes = await fetch(`/api/prestations?email=${encodeURIComponent(email)}`)
+      if (prestRes.ok) { const d = await prestRes.json(); setItems(d.prestations || []) }
+    } catch (err) { setPharmacienError(err.message || "Erreur lors de l'enregistrement") } finally { setPharmacienSaving(false) }
+  }
 
   // responsive: detect mobile width to render simplified cards
   const [isMobile, setIsMobile] = useState(false)
@@ -985,7 +1015,17 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       </div>
 
       <div className="card">
-        <h3>Mes prestations</h3>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <h3 style={{margin:0}}>Mes prestations</h3>
+          {isPharmacien && (
+            <button
+              onClick={() => { setPharmacienModal(true); setPharmacienDate(today); setPharmacienHours(''); setPharmacienComment(''); setPharmacienError('') }}
+              style={{padding:'6px 14px',background:'#7e22ce',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:600,cursor:'pointer'}}
+            >
+              + Ajouter une session
+            </button>
+          )}
+        </div>
         {filtered.length === 0 ? (
           <div className="small-muted">Aucune prestation trouvée.</div>
         ) : (
@@ -1084,6 +1124,44 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           </div>
         )}
       </div>
+
+      {/* Pharmacien session modal */}
+      {pharmacienModal && (
+        <div onClick={() => setPharmacienModal(false)} style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1100,padding:20}}>
+          <div onClick={e => e.stopPropagation()} style={{background:'#fff',borderRadius:12,padding:24,width:'100%',maxWidth:440,boxShadow:'0 20px 25px -5px rgba(0,0,0,0.15)'}}>
+            <h3 style={{margin:'0 0 16px',color:'#7e22ce',display:'flex',alignItems:'center',gap:8}}>💊 Nouvelle session pharmacien</h3>
+            <div style={{display:'grid',gap:12}}>
+              <label>
+                <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:4}}>DATE DE TRAVAIL *</div>
+                <input type="date" value={pharmacienDate} onChange={e=>setPharmacienDate(e.target.value)}
+                  max={today} style={{width:'100%',padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}} />
+              </label>
+              <label>
+                <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:4}}>HEURES TRAVAILLÉES *</div>
+                <input type="number" step="0.25" min="0.25" max="24" value={pharmacienHours} onChange={e=>setPharmacienHours(e.target.value)}
+                  placeholder="ex: 8" style={{width:'100%',padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}} />
+              </label>
+              <label>
+                <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:4}}>COMMENTAIRE (optionnel)</div>
+                <textarea value={pharmacienComment} onChange={e=>setPharmacienComment(e.target.value)}
+                  placeholder="Remarques éventuelles..." rows={2}
+                  style={{width:'100%',padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,resize:'vertical'}} />
+              </label>
+              {pharmacienError && <div style={{padding:'8px 12px',background:'#fee2e2',color:'#991b1b',borderRadius:6,fontSize:13}}>{pharmacienError}</div>}
+              <div style={{padding:'8px 12px',background:'#faf5ff',border:'1px solid #d8b4fe',borderRadius:6,fontSize:12,color:'#7e22ce'}}>
+                💡 Les heures sont enregistrées pour le suivi. La facturation se fait sous forme d'un <strong>forfait de 400€ par demi-mois</strong>.
+              </div>
+              <div style={{display:'flex',gap:10,justifyContent:'flex-end',paddingTop:8}}>
+                <button onClick={() => setPharmacienModal(false)} style={{padding:'8px 16px',borderRadius:6,border:'1px solid #d1d5db',background:'#f9fafb',cursor:'pointer',fontSize:13}}>Annuler</button>
+                <button onClick={submitPharmacienSession} disabled={pharmacienSaving}
+                  style={{padding:'8px 20px',borderRadius:6,border:'none',background:pharmacienSaving?'#9ca3af':'#7e22ce',color:'white',fontWeight:600,cursor:pharmacienSaving?'not-allowed':'pointer',fontSize:13}}>
+                  {pharmacienSaving ? '⏳ Envoi...' : '✅ Enregistrer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit / View modal */}
       {editing && (

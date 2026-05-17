@@ -74,6 +74,14 @@ export default function ManualHourEntry() {
   const [ribError, setRibError] = useState('')
   const [ribSuccess, setRibSuccess] = useState('')
 
+  // pharmacien direct session state
+  const [pharmDate, setPharmDate] = useState('')
+  const [pharmHours, setPharmHours] = useState('')
+  const [pharmComment, setPharmComment] = useState('')
+  const [pharmSaving, setPharmSaving] = useState(false)
+  const [pharmError, setPharmError] = useState('')
+  const [pharmSuccess, setPharmSuccess] = useState('')
+
   useEffect(() => {
     fetch('/api/admin/users').then(r => r.ok ? r.json() : null).then(d => { if (d) setAllUsers(d.users || []) }).catch(() => {})
   }, [])
@@ -152,6 +160,29 @@ export default function ManualHourEntry() {
     setModalTypeOverride(activityType)
     const resolvedDuration = resolveCardDurationHours(card)
     setFormData({ hours_actual: resolvedDuration ? String(resolvedDuration) : '', garde_hours: '', sortie_hours: '', overtime_hours: '', comments: '' })
+  }
+
+  const handlePharmacienSubmit = async (e) => {
+    e.preventDefault()
+    if (!pharmDate) { setPharmError('Veuillez sélectionner une date.'); return }
+    if (!pharmHours || Number(pharmHours) <= 0) { setPharmError("Veuillez entrer un nombre d'heures valide."); return }
+    setPharmSaving(true); setPharmError(''); setPharmSuccess('')
+    try {
+      const payload = {
+        user_email: selectedUser.email, email: selectedUser.email,
+        date: pharmDate,
+        pay_type: 'Pharmacien',
+        hours_actual: parseFloat(pharmHours),
+        comments: pharmComment || null,
+        status: "En attente d'approbation",
+        is_admin_override: true,
+      }
+      const res = await fetch('/api/admin/prestations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || `Erreur ${res.status}`) }
+      setPharmSuccess(`Session enregistrée pour ${userName(selectedUser)} - ${formatDate(pharmDate)}`)
+      setPharmDate(''); setPharmHours(''); setPharmComment('')
+      setTimeout(() => setPharmSuccess(''), 5000)
+    } catch (err) { setPharmError(err.message || "Erreur lors de l'enregistrement") } finally { setPharmSaving(false) }
   }
 
   const handleCloseModal = () => {
@@ -284,6 +315,50 @@ export default function ManualHourEntry() {
           </div>
         )}
       </div>
+
+      {/* Section spécifique Pharmacien */}
+      {selectedUser && (() => {
+        const userRole = selectedUser.role || ''
+        const roles = Array.isArray(userRole) ? userRole : String(userRole).split(',').map(s => s.trim())
+        return roles.includes('pharmacien')
+      })() && (
+        <div className={styles.section}>
+          <h3 style={{ color: '#7e22ce' }}>💊 2. Saisie des heures — Pharmacien</h3>
+          <div style={{ padding: '12px 16px', background: '#faf5ff', border: '1px solid #d8b4fe', borderRadius: 8, marginBottom: 16, fontSize: 13, color: '#7e22ce' }}>
+            Forfait <strong>400€ / demi-mois</strong> — Les heures saisies ici sont enregistrées pour le suivi du temps. La facturation se fait à raison d'un forfait de 400€ par période de 15 jours.
+          </div>
+          <form onSubmit={handlePharmacienSubmit} style={{ display: 'grid', gap: 12, maxWidth: 480 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <label>
+                <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>DATE *</div>
+                <input type="date" value={pharmDate} onChange={e => setPharmDate(e.target.value)} required
+                  max={new Date().toISOString().slice(0, 10)}
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }} />
+              </label>
+              <label>
+                <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>HEURES TRAVAILLÉES *</div>
+                <input type="number" step="0.25" min="0.25" max="24" value={pharmHours} onChange={e => setPharmHours(e.target.value)}
+                  placeholder="ex: 8" required
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }} />
+              </label>
+            </div>
+            <label>
+              <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>COMMENTAIRE (optionnel)</div>
+              <input type="text" value={pharmComment} onChange={e => setPharmComment(e.target.value)}
+                placeholder="Remarques éventuelles..."
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }} />
+            </label>
+            {pharmError && <div style={{ padding: '8px 12px', background: '#fee2e2', color: '#991b1b', borderRadius: 6, fontSize: 13 }}>{pharmError}</div>}
+            {pharmSuccess && <div style={{ padding: '8px 12px', background: '#d1fae5', color: '#065f46', borderRadius: 6, fontSize: 13 }}>{pharmSuccess}</div>}
+            <div>
+              <button type="submit" disabled={pharmSaving}
+                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: pharmSaving ? '#9ca3af' : '#7e22ce', color: 'white', fontWeight: 700, fontSize: 14, cursor: pharmSaving ? 'not-allowed' : 'pointer' }}>
+                {pharmSaving ? '⏳ Enregistrement...' : '✅ Enregistrer la session'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {selectedUser && (
         <div className={styles.section}>

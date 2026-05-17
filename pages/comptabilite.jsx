@@ -28,8 +28,11 @@ export default function ComptabilitePage() {
   const [confirmPaymentItem, setConfirmPaymentItem] = useState(null)
   const [exportingAll, setExportingAll] = useState(false)
   const [exportingIds, setExportingIds] = useState({})
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+
+  // pharmacien forfaits
+  const [pharmacienGroups, setPharmacienGroups] = useState([])
+  const [pharmacienLoading, setPharmacienLoading] = useState(false)
+  const [generatingForfait, setGeneratingForfait] = useState({})
 
   const userRole = useLocalStorage('role', null)
   const userEmail = useLocalStorage('email', '')
@@ -83,6 +86,11 @@ export default function ComptabilitePage() {
   // Fetch prestations sent to billing
   useEffect(() => {
     fetchPrestations()
+  }, [filterStatus])
+
+  // Fetch pharmacien forfaits
+  useEffect(() => {
+    fetchPharmacienForfaits()
   }, [filterStatus])
 
   // Fetch approved RIB documents count (for badge)
@@ -204,6 +212,72 @@ export default function ComptabilitePage() {
     }
   }
 
+  async function fetchPharmacienForfaits() {
+    setPharmacienLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (filterStatus === 'sent_to_billing') params.append('status', 'sent_to_billing')
+      else if (filterStatus === 'invoiced') params.append('status', 'invoiced')
+      else if (filterStatus === 'all') params.append('status', 'all')
+      else params.append('status', 'sent_to_billing')
+
+      const res = await fetch(`/api/comptabilite/pharmacien-forfaits?${params.toString()}`)
+      if (!res.ok) throw new Error('Erreur récupération forfaits pharmacien')
+      const data = await res.json()
+      setPharmacienGroups(data.groups || [])
+    } catch (err) {
+      console.warn('[comptabilite] pharmacien forfaits error:', err.message)
+      setPharmacienGroups([])
+    } finally {
+      setPharmacienLoading(false)
+    }
+  }
+
+  async function generateForfaitInvoice(group) {
+    const ok = confirm(`💊 Générer la facture forfait 400€ pour ${group.user_name} — période ${group.period_label} ?\n\nCela va créer une facture de 400€ et marquer les ${group.prestations.length} session(s) comme « Facturé ».`)
+    if (!ok) return
+    setGeneratingForfait(prev => ({ ...prev, [group.group_key]: true }))
+    try {
+      const prestationIds = group.prestations.map(p => p.id)
+      // Generate the forfait PDF invoice (1h fictive × 400€ = forfait 400€)
+      const invoiceRes = await fetch('/api/admin/manual-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: group.user_id,
+          garde_hours: 1,
+          sortie_hours: 0,
+          overtime_hours: 0,
+          unit_price: 400,
+          comments: `Forfait pharmacien demi-mois ${group.period_label} — ${group.prestations.length} session(s), ${(group.total_hours || 0).toFixed(2)}h au total`,
+          analytic_id: null,
+        })
+      })
+      if (!invoiceRes.ok) {
+        const errData = await invoiceRes.json().catch(() => ({}))
+        throw new Error(errData.error || 'Erreur génération facture')
+      }
+      const invoiceData = await invoiceRes.json()
+      // Mark all prestations in this period as "Facturé"
+      for (const id of prestationIds) {
+        await fetch(`/api/admin/prestations/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Facturé' })
+        })
+      }
+      if (invoiceData.pdf_url) {
+        window.open(invoiceData.pdf_url, '_blank')
+      }
+      alert(`✅ Facture forfait 400€ générée pour ${group.user_name} — ${group.period_label}`)
+      fetchPharmacienForfaits()
+    } catch (err) {
+      alert('❌ Erreur: ' + err.message)
+    } finally {
+      setGeneratingForfait(prev => { const n = { ...prev }; delete n[group.group_key]; return n })
+    }
+  }
+
   async function exportForAnalytic(analyticId, analyticName) {
     const analyticPrestations = filteredPrestations.filter(p => {
       const pId = p.analytic_id != null ? String(p.analytic_id) : 'unassigned'
@@ -263,7 +337,7 @@ export default function ComptabilitePage() {
   }
 
   async function exportAll() {
-    const pending = filteredPrestations.filter(p => p && p.status === 'sent_to_billing')
+    const pending = safePrestations.filter(p => p && p.status === 'sent_to_billing')
     if (pending.length === 0) {
       alert('❌ Aucune prestation à facturer (statut "À facturer")')
       return
@@ -307,17 +381,13 @@ export default function ComptabilitePage() {
 
   const filteredPrestations = safePrestations.filter(p => {
     const query = (searchQuery || '').toLowerCase()
-    const matchSearch = (
+    return (
       (p.user_name || '').toString().toLowerCase().includes(query) ||
       (p.first_name || '').toString().toLowerCase().includes(query) ||
       (p.last_name || '').toString().toLowerCase().includes(query) ||
       (p.email || '').toString().toLowerCase().includes(query) ||
       (p.activity_type || '').toString().toLowerCase().includes(query)
     )
-    const prestDate = p.date ? p.date.slice(0, 10) : ''
-    const matchFrom = !dateFrom || prestDate >= dateFrom
-    const matchTo = !dateTo || prestDate <= dateTo
-    return matchSearch && matchFrom && matchTo
   })
 
   // Basic stats for cards
@@ -423,63 +493,7 @@ export default function ComptabilitePage() {
                 <option value="all">Toutes</option>
               </select>
             </div>
-
-            {/* Date From */}
-            <div>
-              <label style={{display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151'}}>
-                📅 Date de début
-              </label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  fontSize: 14,
-                  background: 'white'
-                }}
-              />
-            </div>
-
-            {/* Date To */}
-            <div>
-              <label style={{display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151'}}>
-                📅 Date de fin
-              </label>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={e => setDateTo(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  fontSize: 14,
-                  background: 'white'
-                }}
-              />
-            </div>
           </div>
-
-          {/* Active date filter badge */}
-          {(dateFrom || dateTo) && (
-            <div style={{marginTop: 12, display: 'flex', alignItems: 'center', gap: 10}}>
-              <span style={{fontSize: 13, color: '#374151'}}>
-                Filtre actif : {dateFrom ? `du ${new Date(dateFrom).toLocaleDateString('fr-FR')}` : ''}{dateFrom && dateTo ? ' ' : ''}{dateTo ? `au ${new Date(dateTo).toLocaleDateString('fr-FR')}` : ''}
-                {' '}— {filteredPrestations.length} prestation{filteredPrestations.length !== 1 ? 's' : ''}
-              </span>
-              <button
-                onClick={() => { setDateFrom(''); setDateTo('') }}
-                style={{padding: '4px 10px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, cursor: 'pointer', color: '#374151'}}
-              >
-                ✕ Effacer
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Export Button — Global */}
@@ -671,6 +685,57 @@ export default function ComptabilitePage() {
                 </div>
               )
             })}
+
+            {/* Pharmacien Forfaits Section */}
+            {(pharmacienGroups.length > 0 || pharmacienLoading) && (
+              <div style={{marginTop: 40}}>
+                <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20}}>
+                  <h2 style={{fontSize:20,fontWeight:700,color:'#7e22ce',margin:0}}>💊 Forfaits Pharmaciens</h2>
+                  <span style={{padding:'3px 10px',background:'#faf5ff',border:'1px solid #d8b4fe',borderRadius:20,fontSize:12,color:'#7e22ce',fontWeight:600}}>400€ / demi-mois</span>
+                </div>
+                {pharmacienLoading ? (
+                  <div style={{padding:20,color:'#6b7280',fontSize:14}}>⏳ Chargement des forfaits pharmaciens...</div>
+                ) : (
+                  <div style={{display:'grid',gap:16}}>
+                    {pharmacienGroups.map(group => (
+                      <div key={group.group_key} style={{background:'white',borderRadius:10,border:'2px solid #d8b4fe',padding:20,boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}}>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:12}}>
+                          <div>
+                            <div style={{fontWeight:700,fontSize:16,color:'#1f2937'}}>{group.user_name}</div>
+                            <div style={{fontSize:13,color:'#6b7280',marginTop:2}}>{group.email}</div>
+                            <div style={{marginTop:8,display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                              <span style={{padding:'3px 10px',background:'#faf5ff',border:'1px solid #d8b4fe',borderRadius:6,fontSize:12,color:'#7e22ce',fontWeight:600}}>📅 Période: {group.period_label}</span>
+                              <span style={{padding:'3px 10px',background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:6,fontSize:12,color:'#15803d',fontWeight:600}}>⏱ {(group.total_hours || 0).toFixed(2)}h travaillées</span>
+                              <span style={{padding:'3px 10px',background:'#fffbeb',border:'1px solid #fcd34d',borderRadius:6,fontSize:12,color:'#92400e',fontWeight:700}}>💶 Forfait: {group.forfait_amount}€</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => generateForfaitInvoice(group)}
+                            disabled={!!generatingForfait[group.group_key]}
+                            style={{padding:'10px 20px',background:generatingForfait[group.group_key]?'#9ca3af':'#7e22ce',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:700,cursor:generatingForfait[group.group_key]?'not-allowed':'pointer',whiteSpace:'nowrap'}}
+                          >
+                            {generatingForfait[group.group_key] ? '⏳ Génération...' : '📄 Générer facture 400€'}
+                          </button>
+                        </div>
+                        {/* Sessions list */}
+                        <div style={{marginTop:14,borderTop:'1px solid #f3e8ff',paddingTop:12}}>
+                          <div style={{fontSize:12,color:'#9ca3af',fontWeight:600,marginBottom:8}}>SESSIONS ({group.prestations.length})</div>
+                          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                            {group.prestations.map(p => (
+                              <div key={p.id} style={{padding:'5px 10px',background:'#faf5ff',border:'1px solid #e9d5ff',borderRadius:6,fontSize:12,color:'#6b21a8'}}>
+                                <strong>{p.date ? new Date(p.date + 'T00:00:00').toLocaleDateString('fr-FR') : '-'}</strong>
+                                {p.hours_actual != null ? <span style={{marginLeft:6,color:'#7e22ce'}}>{p.hours_actual}h</span> : null}
+                                {p.comments ? <span style={{marginLeft:6,color:'#9ca3af',fontStyle:'italic'}}>{p.comments}</span> : null}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </main>

@@ -25,9 +25,6 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "   Trying SSH with heredoc..." -ForegroundColor Gray
     $content = Get-Content $file -Raw
     
-    # Escape content for shell
-    $escapedContent = $content -replace "'", "'\"'\"'"
-    
     ssh -o StrictHostKeyChecking=accept-new "${user}@${host}" @"
 cat > ${remoteDir}/pages/api/activities.js << 'EOFJS'
 $content
@@ -57,7 +54,7 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "`n📝 Next steps:" -ForegroundColor Cyan
     Write-Host "   1. Refresh your browser" -ForegroundColor Gray
     Write-Host "   2. Check that activites now show DATE, TYPE, ANALYTIQUE" -ForegroundColor Gray
-    Write-Host "   3. Click 'Déclarer heures' to test" -ForegroundColor Gray
+    Write-Host "   3. Click Declarer heures to test" -ForegroundColor Gray
 } else {
     Write-Host "⚠️  Deployment finished with warnings" -ForegroundColor Yellow
 }
