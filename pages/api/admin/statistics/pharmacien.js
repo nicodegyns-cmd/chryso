@@ -46,7 +46,7 @@ export default async function handler(req, res) {
       LEFT JOIN analytics a ON a.id = u.pharmacien_analytic_id
       WHERE LOWER(p.pay_type) = 'pharmacien'
         AND ${dateFilter}
-      GROUP BY p.user_id, full_name, a.name
+      GROUP BY p.user_id, COALESCE(u.first_name || ' ' || u.last_name, u.email, p.user_id::text), a.name
       ORDER BY total_hours DESC
     `, params)
 
