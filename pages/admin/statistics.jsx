@@ -8,6 +8,7 @@ import PrestationChartsAnalytic from '../../components/PrestationChartsAnalytic'
 import ExpenseStatistics from '../../components/ExpenseStatistics'
 import MonthlyTrendChart from '../../components/MonthlyTrendChart'
 import AdminMissingPrestations from '../../components/AdminMissingPrestations'
+import PharmacienStatistics from '../../components/PharmacienStatistics'
 
 export default function AdminStatisticsPage() {
   const [activeTab, setActiveTab] = useState('invoices')
@@ -69,6 +70,9 @@ export default function AdminStatisticsPage() {
           <button style={tabStyle('missing')} onClick={() => setActiveTab('missing')}>
             ⚠️ Saisies manquantes
           </button>
+          <button style={tabStyle('pharmacien')} onClick={() => setActiveTab('pharmacien')}>
+            💊 Pharmaciens
+          </button>
         </div>
 
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderTop: 'none', borderRadius: '0 8px 8px 8px', padding: 20 }}>
@@ -77,6 +81,7 @@ export default function AdminStatisticsPage() {
           {activeTab === 'monthly' && <MonthlyTrendChart />}
           {activeTab === 'expenses' && <ExpenseStatistics />}
           {activeTab === 'missing' && <AdminMissingPrestations />}
+          {activeTab === 'pharmacien' && <PharmacienStatistics />}
         </div>
       </main>
     </div>
