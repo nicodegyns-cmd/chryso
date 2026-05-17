@@ -653,12 +653,14 @@ export default function ManualHourEntry() {
                   {(formData.expenses || []).map((exp, idx) => (
                     <div key={idx} style={{ padding: 10, background: '#fff', borderRadius: 6, border: '1px solid #fcd34d', marginBottom: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Note #{idx + 1}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Note #{idx + 1}{exp.is_travel_zone && <span style={{ marginLeft: 6, fontSize: 11, color: '#1d4ed8', fontWeight: 500 }}>🚗 Zone de déplacement</span>}</div>
+                        {!exp.is_travel_zone && (
                         <button
                           type="button"
                           onClick={() => setFormData(prev => ({ ...prev, expenses: (prev.expenses || []).filter((_, i) => i !== idx) }))}
                           style={{ padding: '3px 8px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
                         >✕ Supprimer</button>
+                        )}
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
                         <label style={{ display: 'flex', flexDirection: 'column' }}>
@@ -666,17 +668,19 @@ export default function ManualHourEntry() {
                           <input
                             type="number" step="0.01" min="0"
                             value={exp.amount ?? ''}
-                            onChange={e => setFormData(prev => ({ ...prev, expenses: (prev.expenses || []).map((x, i) => i === idx ? { ...x, amount: e.target.value ? Number(e.target.value) : '' } : x) }))}
-                            style={{ padding: '7px 9px', borderRadius: 6, border: '1px solid #fcd34d', fontSize: 14 }}
+                            readOnly={!!exp.is_travel_zone}
+                            onChange={exp.is_travel_zone ? undefined : e => setFormData(prev => ({ ...prev, expenses: (prev.expenses || []).map((x, i) => i === idx ? { ...x, amount: e.target.value ? Number(e.target.value) : '' } : x) }))}
+                            style={{ padding: '7px 9px', borderRadius: 6, border: '1px solid #fcd34d', fontSize: 14, background: exp.is_travel_zone ? '#f0f9ff' : '', color: exp.is_travel_zone ? '#1e40af' : '', cursor: exp.is_travel_zone ? 'not-allowed' : '' }}
                             placeholder="0.00"
                           />
                         </label>
                         <label style={{ display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 4 }}>RAISON / COMMENTAIRE {Number(exp.amount || 0) > 0 && <span style={{ color: '#dc2626' }}>*</span>}</div>
+                          <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 4 }}>RAISON / COMMENTAIRE {Number(exp.amount || 0) > 0 && !exp.is_travel_zone && <span style={{ color: '#dc2626' }}>*</span>}</div>
                           <input
                             value={exp.comment || ''}
-                            onChange={e => setFormData(prev => ({ ...prev, expenses: (prev.expenses || []).map((x, i) => i === idx ? { ...x, comment: e.target.value } : x) }))}
-                            style={{ padding: '7px 9px', borderRadius: 6, border: Number(exp.amount || 0) > 0 && !exp.comment?.trim() ? '1px solid #dc2626' : '1px solid #fcd34d', fontSize: 14 }}
+                            readOnly={!!exp.is_travel_zone}
+                            onChange={exp.is_travel_zone ? undefined : e => setFormData(prev => ({ ...prev, expenses: (prev.expenses || []).map((x, i) => i === idx ? { ...x, comment: e.target.value } : x) }))}
+                            style={{ padding: '7px 9px', borderRadius: 6, border: !exp.is_travel_zone && Number(exp.amount || 0) > 0 && !exp.comment?.trim() ? '1px solid #dc2626' : '1px solid #fcd34d', fontSize: 14, background: exp.is_travel_zone ? '#f0f9ff' : '', color: exp.is_travel_zone ? '#1e40af' : '', cursor: exp.is_travel_zone ? 'not-allowed' : '' }}
                             placeholder="Ex: Transport, fournitures..."
                           />
                           {Number(exp.amount || 0) > 0 && !exp.comment?.trim() && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>Obligatoire</div>}
