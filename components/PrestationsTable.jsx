@@ -169,7 +169,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
   const APS_TRAVEL_ZONES = [
     { value: '', label: '— Sélectionner une zone —', amount: null },
-    { value: 'bruxelles', label: 'Bruxelles', amount: 0 },
     { value: 'brabant_wallon', label: 'Brabant Wallon', amount: 30 },
     { value: 'liege_hainaut_namur', label: 'Liège / Hainaut / Namur', amount: 60 },
     { value: 'luxembourg', label: 'Luxembourg', amount: 100 },
@@ -1381,9 +1380,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                         {(() => {
                           const z = APS_TRAVEL_ZONES.find(x => x.value === editing.travel_zone)
                           if (!z || z.amount === null) return null
-                          return z.amount === 0
-                            ? '✅ Aucun frais de déplacement pour Bruxelles'
-                            : `✅ Frais de déplacement ajoutés : ${z.amount} €`
+                          return `✅ Frais de déplacement ajoutés : ${z.amount} €`
                         })()}
                       </div>
                     )}
