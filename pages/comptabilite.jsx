@@ -340,6 +340,44 @@ export default function ComptabilitePage() {
     }
   }
 
+  const [recompiling, setRecompiling] = useState(false)
+
+  async function recompilePdf() {
+    const invoiced = filteredPrestations.filter(p => p && p.status === 'Facturé')
+    if (invoiced.length === 0) {
+      alert('Aucune prestation facturée dans la sélection actuelle')
+      return
+    }
+    const ok = confirm(`📄 Recompiler un PDF avec les ${invoiced.length} facture(s) déjà générées ?\n\nCela ne change aucun statut, ne renvoie pas d'emails.`)
+    if (!ok) return
+    setRecompiling(true)
+    try {
+      const body = { prestation_ids: invoiced.map(p => p.id) }
+      const res = await fetch('/api/comptabilite/recompile-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Erreur lors de la recompilation')
+      }
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `Recompilation_Factures_${new Date().toISOString().split('T')[0]}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      alert('❌ Erreur : ' + err.message)
+    } finally {
+      setRecompiling(false)
+    }
+  }
+
   async function exportAll() {
     const pending = safePrestations.filter(p => p && p.status === 'sent_to_billing')
     if (pending.length === 0) {
@@ -553,6 +591,31 @@ export default function ComptabilitePage() {
               {exportingAll
                 ? '⏳ Génération en cours... (peut prendre 1-2 min)'
                 : `📤 Exporter toutes les factures (${pendingCount} prestations)`}
+            </button>
+          </div>
+        )}
+
+        {/* Recompile Button — for already invoiced */}
+        {filterStatus === 'invoiced' && filteredPrestations.filter(p => p.status === 'Facturé').length > 0 && (
+          <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: 16}}>
+            <button
+              onClick={recompilePdf}
+              disabled={recompiling}
+              style={{
+                padding: '12px 24px',
+                background: recompiling ? '#9ca3af' : '#0891b2',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                cursor: recompiling ? 'not-allowed' : 'pointer',
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: '0 2px 6px rgba(8,145,178,0.3)',
+              }}
+            >
+              {recompiling
+                ? '⏳ Compilation en cours...'
+                : `📄 Retelecharger la compilation PDF (${filteredPrestations.filter(p => p.status === 'Facturé').length} factures)`}
             </button>
           </div>
         )}
