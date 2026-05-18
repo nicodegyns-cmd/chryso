@@ -31,7 +31,8 @@ export default function ComptabilitePage() {
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [filterAnalytic, setFilterAnalytic] = useState('')
-  const [filterInvoiceNumber, setFilterInvoiceNumber] = useState('')
+  const [filterInvoiceNumbers, setFilterInvoiceNumbers] = useState([])
+  const [invoiceFilterOpen, setInvoiceFilterOpen] = useState(false)
 
   // pharmacien forfaits
   const [pharmacienGroups, setPharmacienGroups] = useState([])
@@ -90,7 +91,7 @@ export default function ComptabilitePage() {
   // Fetch prestations sent to billing
   useEffect(() => {
     fetchPrestations()
-  }, [filterStatus, filterDateFrom, filterDateTo, filterInvoiceNumber])
+  }, [filterStatus, filterDateFrom, filterDateTo])
 
   // Fetch pharmacien forfaits
   useEffect(() => {
@@ -204,7 +205,6 @@ export default function ComptabilitePage() {
       }
       if (filterDateFrom) params.append('date_from', filterDateFrom)
       if (filterDateTo) params.append('date_to', filterDateTo)
-      if (filterInvoiceNumber) params.append('invoice_number', filterInvoiceNumber)
 
       const res = await fetch(`/api/comptabilite/prestations?${params.toString()}`)
       if (!res.ok) throw new Error('Erreur lors de la récupération')
@@ -427,6 +427,16 @@ export default function ComptabilitePage() {
   // Guard against null entries returned by APIs
   const safePrestations = (prestations || []).filter(Boolean)
 
+  // Build unique invoice number list from loaded prestations (sorted)
+  const invoiceNumberOptions = [...new Set(
+    safePrestations.map(p => p.invoice_number).filter(Boolean)
+  )].sort((a, b) => {
+    // Sort by year then sequence: "2026-001" → compare numerically
+    const [ay = 0, an = 0] = (a || '').split('-').map(Number)
+    const [by = 0, bn = 0] = (b || '').split('-').map(Number)
+    return ay !== by ? ay - by : an - bn
+  })
+
   // Build unique analytic list from loaded prestations
   const analyticOptions = Array.from(
     safePrestations.reduce((map, p) => {
@@ -454,7 +464,7 @@ export default function ComptabilitePage() {
         ? (p.analytic_id == null)
         : String(p.analytic_id) === filterAnalytic
     )
-    const matchInvoice = !filterInvoiceNumber || (p.invoice_number || '').toLowerCase().includes(filterInvoiceNumber.toLowerCase())
+    const matchInvoice = filterInvoiceNumbers.length === 0 || filterInvoiceNumbers.includes(p.invoice_number || '')
     return matchSearch && matchFrom && matchTo && matchAnalytic && matchInvoice
   })
 
@@ -600,25 +610,71 @@ export default function ComptabilitePage() {
               </select>
             </div>
 
-            {/* Invoice Number Filter */}
-            <div>
-              <label style={{display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151'}}>📄 N° Facture</label>
-              <div style={{display: 'flex', gap: 6, alignItems: 'center'}}>
-                <input
-                  type="text"
-                  placeholder="Ex: 2026-001"
-                  value={filterInvoiceNumber}
-                  onChange={e => setFilterInvoiceNumber(e.target.value)}
-                  style={{flex: 1, padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14}}
-                />
-                {filterInvoiceNumber && (
-                  <button onClick={() => setFilterInvoiceNumber('')}
-                    title="Effacer"
-                    style={{padding:'10px 12px', border:'1px solid #d1d5db', borderRadius:6, background:'#f3f4f6', cursor:'pointer', fontSize:13, fontWeight:600, color:'#374151'}}>
-                    ✕
-                  </button>
+            {/* Invoice Number Multi-Select Filter */}
+            <div style={{position: 'relative'}}>
+              <label style={{display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151'}}>
+                📄 N° Facture
+                {filterInvoiceNumbers.length > 0 && (
+                  <span style={{marginLeft: 6, background: '#4f46e5', color: 'white', borderRadius: 10, padding: '1px 7px', fontSize: 11}}>
+                    {filterInvoiceNumbers.length}
+                  </span>
                 )}
-              </div>
+              </label>
+              <button
+                onClick={() => setInvoiceFilterOpen(o => !o)}
+                style={{
+                  width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6,
+                  fontSize: 14, background: 'white', textAlign: 'left', cursor: 'pointer',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  color: filterInvoiceNumbers.length > 0 ? '#4f46e5' : '#6b7280'
+                }}
+              >
+                <span>
+                  {filterInvoiceNumbers.length === 0
+                    ? 'Toutes les factures'
+                    : filterInvoiceNumbers.length === 1
+                      ? filterInvoiceNumbers[0]
+                      : `${filterInvoiceNumbers[0]} + ${filterInvoiceNumbers.length - 1} autre(s)`
+                  }
+                </span>
+                <span style={{fontSize: 10}}>{invoiceFilterOpen ? '▲' : '▼'}</span>
+              </button>
+              {invoiceFilterOpen && (
+                <div style={{
+                  position: 'absolute', zIndex: 100, top: '100%', left: 0, right: 0,
+                  background: 'white', border: '1px solid #d1d5db', borderRadius: 6,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.12)', maxHeight: 220, overflowY: 'auto', marginTop: 2
+                }}>
+                  {filterInvoiceNumbers.length > 0 && (
+                    <div
+                      onClick={() => setFilterInvoiceNumbers([])}
+                      style={{padding: '8px 12px', fontSize: 12, color: '#ef4444', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontWeight: 600}}
+                    >
+                      ✕ Tout effacer
+                    </div>
+                  )}
+                  {invoiceNumberOptions.length === 0 && (
+                    <div style={{padding: '8px 12px', fontSize: 13, color: '#9ca3af'}}>Aucun n° de facture disponible</div>
+                  )}
+                  {invoiceNumberOptions.map(num => (
+                    <label key={num} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 12px', cursor: 'pointer', fontSize: 13,
+                      background: filterInvoiceNumbers.includes(num) ? '#eef2ff' : 'transparent'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={filterInvoiceNumbers.includes(num)}
+                        onChange={() => setFilterInvoiceNumbers(prev =>
+                          prev.includes(num) ? prev.filter(n => n !== num) : [...prev, num]
+                        )}
+                        style={{accentColor: '#4f46e5'}}
+                      />
+                      {num}
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
