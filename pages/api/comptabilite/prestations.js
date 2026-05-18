@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
   try {
     const pool = getPool()
-    const { status } = req.query
+    const { status, date_from, date_to } = req.query
 
     let sql = `
       SELECT 
@@ -107,6 +107,15 @@ export default async function handler(req, res) {
       params.push('Envoyé à la facturation')
     }
     // status === 'all' → no filter, show everything
+
+    if (date_from) {
+      params.push(date_from)
+      sql += ` AND p.date::date >= $${params.length}`
+    }
+    if (date_to) {
+      params.push(date_to)
+      sql += ` AND p.date::date <= $${params.length}`
+    }
 
     sql += ` ORDER BY p.date DESC, p.created_at DESC`
 

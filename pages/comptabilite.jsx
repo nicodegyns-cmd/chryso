@@ -28,6 +28,8 @@ export default function ComptabilitePage() {
   const [confirmPaymentItem, setConfirmPaymentItem] = useState(null)
   const [exportingAll, setExportingAll] = useState(false)
   const [exportingIds, setExportingIds] = useState({})
+  const [filterDateFrom, setFilterDateFrom] = useState('')
+  const [filterDateTo, setFilterDateTo] = useState('')
 
   // pharmacien forfaits
   const [pharmacienGroups, setPharmacienGroups] = useState([])
@@ -86,7 +88,7 @@ export default function ComptabilitePage() {
   // Fetch prestations sent to billing
   useEffect(() => {
     fetchPrestations()
-  }, [filterStatus])
+  }, [filterStatus, filterDateFrom, filterDateTo])
 
   // Fetch pharmacien forfaits
   useEffect(() => {
@@ -198,6 +200,8 @@ export default function ComptabilitePage() {
       } else if (filterStatus === 'all') {
         params.append('status', 'all')
       }
+      if (filterDateFrom) params.append('date_from', filterDateFrom)
+      if (filterDateTo) params.append('date_to', filterDateTo)
 
       const res = await fetch(`/api/comptabilite/prestations?${params.toString()}`)
       if (!res.ok) throw new Error('Erreur lors de la récupération')
@@ -381,13 +385,17 @@ export default function ComptabilitePage() {
 
   const filteredPrestations = safePrestations.filter(p => {
     const query = (searchQuery || '').toLowerCase()
-    return (
+    const matchSearch = (
       (p.user_name || '').toString().toLowerCase().includes(query) ||
       (p.first_name || '').toString().toLowerCase().includes(query) ||
       (p.last_name || '').toString().toLowerCase().includes(query) ||
       (p.email || '').toString().toLowerCase().includes(query) ||
       (p.activity_type || '').toString().toLowerCase().includes(query)
     )
+    const dateVal = (p.date || p.created_at || '').slice(0, 10)
+    const matchFrom = !filterDateFrom || dateVal >= filterDateFrom
+    const matchTo = !filterDateTo || dateVal <= filterDateTo
+    return matchSearch && matchFrom && matchTo
   })
 
   // Basic stats for cards
@@ -492,6 +500,29 @@ export default function ComptabilitePage() {
                 <option value="paid">Payées</option>
                 <option value="all">Toutes</option>
               </select>
+            </div>
+
+            {/* Date From */}
+            <div>
+              <label style={{display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151'}}>📅 Du</label>
+              <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
+                style={{width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14}} />
+            </div>
+
+            {/* Date To */}
+            <div>
+              <label style={{display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151'}}>Au</label>
+              <div style={{display:'flex', gap:6, alignItems:'center'}}>
+                <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)}
+                  style={{flex:1, padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14}} />
+                {(filterDateFrom || filterDateTo) && (
+                  <button onClick={() => { setFilterDateFrom(''); setFilterDateTo('') }}
+                    title="Effacer les dates"
+                    style={{padding:'10px 12px', border:'1px solid #d1d5db', borderRadius:6, background:'#f3f4f6', cursor:'pointer', fontSize:13, fontWeight:600, color:'#374151'}}>
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
