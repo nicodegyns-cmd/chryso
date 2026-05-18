@@ -30,6 +30,7 @@ export default function ComptabilitePage() {
   const [exportingIds, setExportingIds] = useState({})
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
+  const [filterAnalytic, setFilterAnalytic] = useState('')
 
   // pharmacien forfaits
   const [pharmacienGroups, setPharmacienGroups] = useState([])
@@ -352,7 +353,10 @@ export default function ComptabilitePage() {
     if (!ok) return
     setRecompiling(true)
     try {
-      const body = { prestation_ids: invoiced.map(p => p.id) }
+      const body = {
+        prestation_ids: invoiced.map(p => p.id),
+        ...(filterAnalytic && filterAnalytic !== 'unassigned' ? { analytic_id: Number(filterAnalytic) } : {})
+      }
       const res = await fetch('/api/comptabilite/recompile-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -421,6 +425,16 @@ export default function ComptabilitePage() {
   // Guard against null entries returned by APIs
   const safePrestations = (prestations || []).filter(Boolean)
 
+  // Build unique analytic list from loaded prestations
+  const analyticOptions = Array.from(
+    safePrestations.reduce((map, p) => {
+      const id = p.analytic_id != null ? String(p.analytic_id) : 'unassigned'
+      const name = p.analytic_name || 'Non assigné'
+      if (!map.has(id)) map.set(id, name)
+      return map
+    }, new Map())
+  ).sort((a, b) => a[1].localeCompare(b[1]))
+
   const filteredPrestations = safePrestations.filter(p => {
     const query = (searchQuery || '').toLowerCase()
     const matchSearch = (
@@ -433,7 +447,12 @@ export default function ComptabilitePage() {
     const dateVal = (p.date || p.created_at || '').slice(0, 10)
     const matchFrom = !filterDateFrom || dateVal >= filterDateFrom
     const matchTo = !filterDateTo || dateVal <= filterDateTo
-    return matchSearch && matchFrom && matchTo
+    const matchAnalytic = !filterAnalytic || (
+      filterAnalytic === 'unassigned'
+        ? (p.analytic_id == null)
+        : String(p.analytic_id) === filterAnalytic
+    )
+    return matchSearch && matchFrom && matchTo && matchAnalytic
   })
 
   // Basic stats for cards
@@ -561,6 +580,21 @@ export default function ComptabilitePage() {
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* Analytic Filter */}
+            <div>
+              <label style={{display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151'}}>📊 Analytique</label>
+              <select
+                value={filterAnalytic}
+                onChange={e => setFilterAnalytic(e.target.value)}
+                style={{width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, background: 'white'}}
+              >
+                <option value="">Toutes les analytiques</option>
+                {analyticOptions.map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
