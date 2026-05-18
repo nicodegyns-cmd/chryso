@@ -142,18 +142,32 @@ export default async function handler(req, res) {
       overtime_hours,
       unit_price,       // prix unitaire (€/h)
       comments,
+      is_forfait,       // mode forfait
+      forfait_amount,   // montant fixe du forfait
+      period_from,      // début de période (forfait)
+      period_to,        // fin de période (forfait)
     } = req.body || {}
 
     // Validation des champs obligatoires
     if (!user_id) return res.status(400).json({ error: 'user_id est requis' })
     if (!date) return res.status(400).json({ error: 'La date de prestation est requise' })
-    if (!unit_price || Number(unit_price) <= 0) return res.status(400).json({ error: 'Le prix unitaire doit être positif' })
+
+    const isForfait = !!is_forfait
+    const forfaitAmt = isForfait ? Number(forfait_amount) : 0
+    const periodFrom = period_from || date
+    const periodTo = period_to || date
+
+    if (isForfait) {
+      if (!forfaitAmt || forfaitAmt <= 0) return res.status(400).json({ error: 'Le montant du forfait doit être positif' })
+    } else {
+      if (!unit_price || Number(unit_price) <= 0) return res.status(400).json({ error: 'Le prix unitaire doit être positif' })
+    }
 
     const gardeH = Number(garde_hours) || 0
     const sortieH = Number(sortie_hours) || 0
     const overtimeH = Number(overtime_hours) || 0
 
-    if (gardeH + sortieH === 0) {
+    if (!isForfait && gardeH + sortieH === 0) {
       return res.status(400).json({ error: 'Au moins des heures de garde ou de sortie sont requises' })
     }
 
@@ -178,15 +192,13 @@ export default async function handler(req, res) {
     }
 
     // Calculer le tarif et la rémunération
-    const unitPriceNum = Number(unit_price)
+    const unitPriceNum = isForfait ? 0 : Number(unit_price)
     const isMed = (user.role || '').toUpperCase().includes('MED')
 
     const baseHours = gardeH + sortieH
-    const totalRemuneration = +(
-      unitPriceNum * gardeH +
-      unitPriceNum * sortieH +
-      unitPriceNum * overtimeH
-    ).toFixed(2)
+    const totalRemuneration = isForfait
+      ? forfaitAmt
+      : +(unitPriceNum * gardeH + unitPriceNum * sortieH + unitPriceNum * overtimeH).toFixed(2)
 
     // Numéro de facture
     const year = new Date().getFullYear()
@@ -212,7 +224,7 @@ export default async function handler(req, res) {
       `INSERT INTO prestations
         (user_id, analytic_id, date, garde_hours, sortie_hours, overtime_hours,
          remuneration_infi, remuneration_med, status, pay_type, comments, invoice_number, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Facturé', 'Manuel', $9, $10, NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Facturé', $9, $10, $11, NOW())
        RETURNING id`,
       [
         user_id,
@@ -223,6 +235,7 @@ export default async function handler(req, res) {
         overtimeH,
         isMed ? 0 : totalRemuneration,
         isMed ? totalRemuneration : 0,
+        isForfait ? 'Forfait' : 'Manuel',
         comments || null,
         invoiceNumber,
       ]
@@ -243,20 +256,27 @@ export default async function handler(req, res) {
     let analyticTotal = 0
     const codeRef = insertedId ? `#${insertedId}` : 'MANUEL'
 
-    if (gardeH > 0) {
-      const gAmt = +(unitPriceNum * gardeH).toFixed(2)
-      tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${escHtml(activityLabel)} / Garde</td><td>${gardeH}</td><td>${fmt(unitPriceNum)}€</td><td>${fmt(gAmt)}€</td></tr>`
-      analyticTotal += gAmt
-    }
-    if (sortieH > 0) {
-      const sAmt = +(unitPriceNum * sortieH).toFixed(2)
-      tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${escHtml(activityLabel)} / Sortie</td><td>${sortieH}</td><td>${fmt(unitPriceNum)}€</td><td>${fmt(sAmt)}€</td></tr>`
-      analyticTotal += sAmt
-    }
-    if (overtimeH > 0) {
-      const oAmt = +(unitPriceNum * overtimeH).toFixed(2)
-      tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${escHtml(activityLabel)}</td><td>${overtimeH}</td><td>${fmt(unitPriceNum)}€</td><td>${fmt(oAmt)}€</td></tr>`
-      analyticTotal += oAmt
+    if (isForfait) {
+      const periodFromFmt = new Date(periodFrom).toLocaleDateString('fr-FR')
+      const periodToFmt = new Date(periodTo).toLocaleDateString('fr-FR')
+      tableBodyHtml += `<tr><td>Forfait ${escHtml(activityLabel)} — période du ${periodFromFmt} au ${periodToFmt}</td><td style="text-align:center">—</td><td style="text-align:center">Forfait</td><td>${fmt(forfaitAmt)}€</td></tr>`
+      analyticTotal = forfaitAmt
+    } else {
+      if (gardeH > 0) {
+        const gAmt = +(unitPriceNum * gardeH).toFixed(2)
+        tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${escHtml(activityLabel)} / Garde</td><td>${gardeH}</td><td>${fmt(unitPriceNum)}€</td><td>${fmt(gAmt)}€</td></tr>`
+        analyticTotal += gAmt
+      }
+      if (sortieH > 0) {
+        const sAmt = +(unitPriceNum * sortieH).toFixed(2)
+        tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${escHtml(activityLabel)} / Sortie</td><td>${sortieH}</td><td>${fmt(unitPriceNum)}€</td><td>${fmt(sAmt)}€</td></tr>`
+        analyticTotal += sAmt
+      }
+      if (overtimeH > 0) {
+        const oAmt = +(unitPriceNum * overtimeH).toFixed(2)
+        tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${escHtml(activityLabel)}</td><td>${overtimeH}</td><td>${fmt(unitPriceNum)}€</td><td>${fmt(oAmt)}€</td></tr>`
+        analyticTotal += oAmt
+      }
     }
 
     tableBodyHtml += `
@@ -301,8 +321,8 @@ export default async function handler(req, res) {
       grandTotal,
       analyticRef,
       analyticAccount: analytic?.account_number || '',
-      dateMin: prestDate,
-      dateMax: prestDate,
+      dateMin: isForfait ? new Date(periodFrom).toLocaleDateString('fr-FR') : prestDate,
+      dateMax: isForfait ? new Date(periodTo).toLocaleDateString('fr-FR') : prestDate,
     })
 
     // Générer le PDF avec Puppeteer

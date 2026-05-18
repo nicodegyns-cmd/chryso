@@ -13,7 +13,6 @@ export default function FacturationPage() {
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [editingInvoice, setEditingInvoice] = useState(null)
-  const [recompiling, setRecompiling] = useState(false)
 
   // Manual invoice modal
   const [manualInvoiceOpen, setManualInvoiceOpen] = useState(false)
@@ -34,38 +33,10 @@ export default function FacturationPage() {
     hours_actual: '',   // mode simple
     unit_price: '',
     comments: '',
+    period_from: new Date().toISOString().split('T')[0],
+    period_to: new Date().toISOString().split('T')[0],
+    forfait_amount: '',
   })
-
-  async function recompileInvoices() {
-    setRecompiling(true)
-    try {
-      const body = {}
-      if (analyticFilter) body.analytic_id = analyticFilter
-      if (filterDateFrom) body.date_from = filterDateFrom
-      if (filterDateTo) body.date_to = filterDateTo
-      const res = await fetch('/api/comptabilite/recompile-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        alert('Erreur : ' + (err.error || res.statusText))
-        return
-      }
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `Compilation_Factures_${new Date().toISOString().split('T')[0]}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch (e) {
-      alert('Erreur lors de la recompilation : ' + e.message)
-    } finally {
-      setRecompiling(false)
-    }
-  }
 
   async function openManualInvoice() {
     setManualInvoiceOpen(true)
@@ -79,6 +50,9 @@ export default function FacturationPage() {
       date: new Date().toISOString().split('T')[0],
       total_duration: '', garde_hours: '', sortie_hours: '', overtime_hours: '',
       hours_actual: '', unit_price: '', comments: '',
+      period_from: new Date().toISOString().split('T')[0],
+      period_to: new Date().toISOString().split('T')[0],
+      forfait_amount: '',
     })
     try {
       const res = await fetch('/api/admin/users')
@@ -113,6 +87,52 @@ export default function FacturationPage() {
 
   async function submitManualInvoice() {
     if (!selectedManualUser) return alert('Veuillez sélectionner un utilisateur')
+
+    // Forfait mode
+    if (manualType === 'forfait') {
+      if (!manualForm.period_from || !manualForm.period_to) return alert('Veuillez saisir la période')
+      if (manualForm.period_to < manualForm.period_from) return alert('La date de fin doit être après la date de début')
+      if (!manualForm.forfait_amount || Number(manualForm.forfait_amount) <= 0) return alert('Le montant du forfait doit être positif')
+      setManualInvoiceSubmitting(true)
+      try {
+        const res = await fetch('/api/admin/manual-invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: selectedManualUser.id,
+            analytic_id: selectedManualAnalytic?.id || null,
+            activity_label: selectedManualAnalytic?.name || '',
+            date: manualForm.period_from,
+            is_forfait: true,
+            forfait_amount: Number(manualForm.forfait_amount),
+            period_from: manualForm.period_from,
+            period_to: manualForm.period_to,
+            comments: manualForm.comments,
+          }),
+        })
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.error || 'Erreur lors de la génération')
+        }
+        const blob = await res.blob()
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `facture-forfait-${manualForm.period_from}-${manualForm.period_to}.pdf`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        setManualInvoiceOpen(false)
+        fetchInvoices()
+      } catch (err) {
+        alert('❌ Erreur : ' + err.message)
+      } finally {
+        setManualInvoiceSubmitting(false)
+      }
+      return
+    }
+
     if (!manualForm.date) return alert('Veuillez saisir la date de la prestation')
     if (!manualForm.unit_price || Number(manualForm.unit_price) <= 0) return alert('Le prix unitaire doit être positif')
 
@@ -269,46 +289,24 @@ export default function FacturationPage() {
                 Gérez vos factures, paiements et relevés de comptes
               </p>
             </div>
-            <div style={{display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end'}}>
-              <button
-                onClick={recompileInvoices}
-                disabled={recompiling}
-                title="Télécharger une compilation PDF de toutes les factures déjà générées (statut Facturé)"
-                style={{
-                  padding: '12px 18px',
-                  background: recompiling ? '#9ca3af' : '#059669',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: recompiling ? 'not-allowed' : 'pointer',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  boxShadow: '0 2px 6px rgba(5,150,105,0.3)',
-                  whiteSpace: 'nowrap',
-                  marginTop: 4,
-                }}
-              >
-                {recompiling ? '⏳ Compilation...' : '📦 Recompiler PDF'}
-              </button>
-              <button
-                onClick={openManualInvoice}
-                style={{
-                  padding: '12px 22px',
-                  background: '#7c3aed',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  boxShadow: '0 2px 6px rgba(124,58,237,0.3)',
-                  whiteSpace: 'nowrap',
-                  marginTop: 4,
-                }}
-              >
-                ✍️ Facture manuelle
-              </button>
-            </div>
+            <button
+              onClick={openManualInvoice}
+              style={{
+                padding: '12px 22px',
+                background: '#7c3aed',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: '0 2px 6px rgba(124,58,237,0.3)',
+                whiteSpace: 'nowrap',
+                marginTop: 4,
+              }}
+            >
+              ✍️ Facture manuelle
+            </button>
           </div>
 
           {/* Statistics Cards */}
@@ -685,12 +683,27 @@ export default function FacturationPage() {
                   )}
                 </div>
 
-                {/* Date */}
-                <div style={{marginBottom:16}}>
-                  <label style={{display:'block',fontSize:11,fontWeight:700,color:'#6b7280',marginBottom:6,letterSpacing:'0.06em'}}>📅 DATE DE LA PRESTATION *</label>
-                  <input type="date" value={manualForm.date} onChange={e => setManualForm(f=>({...f,date:e.target.value}))}
-                    style={{width:'100%',padding:'11px 14px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:14,boxSizing:'border-box'}} />
-                </div>
+                {/* Date / Period */}
+                {manualType === 'forfait' ? (
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+                    <div>
+                      <label style={{display:'block',fontSize:11,fontWeight:700,color:'#6b7280',marginBottom:6,letterSpacing:'0.06em'}}>📅 PÉRIODE DU *</label>
+                      <input type="date" value={manualForm.period_from} onChange={e => setManualForm(f=>({...f,period_from:e.target.value}))}
+                        style={{width:'100%',padding:'11px 14px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:14,boxSizing:'border-box'}} />
+                    </div>
+                    <div>
+                      <label style={{display:'block',fontSize:11,fontWeight:700,color:'#6b7280',marginBottom:6,letterSpacing:'0.06em'}}>AU *</label>
+                      <input type="date" value={manualForm.period_to} onChange={e => setManualForm(f=>({...f,period_to:e.target.value}))}
+                        style={{width:'100%',padding:'11px 14px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:14,boxSizing:'border-box'}} />
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{marginBottom:16}}>
+                    <label style={{display:'block',fontSize:11,fontWeight:700,color:'#6b7280',marginBottom:6,letterSpacing:'0.06em'}}>📅 DATE DE LA PRESTATION *</label>
+                    <input type="date" value={manualForm.date} onChange={e => setManualForm(f=>({...f,date:e.target.value}))}
+                      style={{width:'100%',padding:'11px 14px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:14,boxSizing:'border-box'}} />
+                  </div>
+                )}
 
                 {/* Hours section - identical to ManualHourEntry modal */}
                 <div style={{marginBottom:16,padding:14,border:'1px solid #e5e7eb',borderRadius:10,background:'#f9fafb'}}>
@@ -698,7 +711,7 @@ export default function FacturationPage() {
                     <div style={{fontWeight:700,fontSize:14,color:'#1f2937'}}>📊 Heures de travail</div>
                     {/* Type toggle */}
                     <div style={{display:'flex',gap:4,background:'#e5e7eb',borderRadius:8,padding:3}}>
-                      {[['garde','🌙 Garde'],['simple','⏱️ Simple']].map(([t,label]) => (
+                      {[['garde','🌙 Garde'],['simple','⏱️ Simple'],['forfait','📋 Forfait']].map(([t,label]) => (
                         <button key={t} onClick={() => setManualType(t)}
                           style={{padding:'5px 14px',border:'none',borderRadius:6,cursor:'pointer',fontSize:12,fontWeight:700,transition:'all 0.15s',
                             background:manualType===t?'white':'transparent',
@@ -765,6 +778,20 @@ export default function FacturationPage() {
                           style={{width:'100%',padding:'8px 10px',border:'1px solid #fed7aa',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
                       </div>
                     </div>
+                  ) : manualType === 'forfait' ? (
+                    /* Forfait mode */
+                    <div>
+                      <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>MONTANT FORFAIT (€) *</div>
+                      <input type="number" min="0" step="0.01" placeholder="Ex : 150.00"
+                        value={manualForm.forfait_amount}
+                        onChange={e => setManualForm(f=>({...f,forfait_amount:e.target.value}))}
+                        style={{width:'100%',padding:'11px 14px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:16,fontWeight:700,boxSizing:'border-box'}} />
+                      {manualForm.forfait_amount && Number(manualForm.forfait_amount) > 0 && (
+                        <div style={{marginTop:8,padding:'8px 12px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:8,fontSize:13,color:'#15803d',fontWeight:700}}>
+                          Montant forfait : {Number(manualForm.forfait_amount).toFixed(2)} €
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     /* Simple mode */
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
@@ -786,19 +813,23 @@ export default function FacturationPage() {
                   )}
                 </div>
 
-                {/* Unit price */}
-                <div style={{marginBottom:suggestedRate?8:16}}>
-                  <label style={{display:'block',fontSize:11,fontWeight:700,color:'#6b7280',marginBottom:6,letterSpacing:'0.06em'}}>💶 PRIX / HEURE (€) *</label>
-                  <input type="number" min="0" step="0.01" placeholder="Ex : 25.50"
-                    value={manualForm.unit_price}
-                    onChange={e => setManualForm(f=>({...f,unit_price:e.target.value}))}
-                    style={{width:'100%',padding:'11px 14px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:14,boxSizing:'border-box'}} />
-                </div>
-                {suggestedRate && !manualForm.unit_price && (
-                  <div style={{marginBottom:16,display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:'#fffbeb',border:'1px solid #fde68a',borderRadius:8}}>
-                    <span style={{fontSize:12,color:'#92400e'}}>💡 Taux de l'activité : <strong>{suggestedRate} €/h</strong></span>
-                    <button onClick={() => setManualForm(f=>({...f,unit_price:String(suggestedRate)}))} style={{fontSize:11,padding:'3px 10px',background:'#f59e0b',color:'white',border:'none',borderRadius:6,cursor:'pointer',fontWeight:700}}>Utiliser</button>
-                  </div>
+                {manualType !== 'forfait' && (
+                  <>
+                    {/* Unit price */}
+                    <div style={{marginBottom:suggestedRate?8:16}}>
+                      <label style={{display:'block',fontSize:11,fontWeight:700,color:'#6b7280',marginBottom:6,letterSpacing:'0.06em'}}>💶 PRIX / HEURE (€) *</label>
+                      <input type="number" min="0" step="0.01" placeholder="Ex : 25.50"
+                        value={manualForm.unit_price}
+                        onChange={e => setManualForm(f=>({...f,unit_price:e.target.value}))}
+                        style={{width:'100%',padding:'11px 14px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:14,boxSizing:'border-box'}} />
+                    </div>
+                    {suggestedRate && !manualForm.unit_price && (
+                      <div style={{marginBottom:16,display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:'#fffbeb',border:'1px solid #fde68a',borderRadius:8}}>
+                        <span style={{fontSize:12,color:'#92400e'}}>💡 Taux de l'activité : <strong>{suggestedRate} €/h</strong></span>
+                        <button onClick={() => setManualForm(f=>({...f,unit_price:String(suggestedRate)}))} style={{fontSize:11,padding:'3px 10px',background:'#f59e0b',color:'white',border:'none',borderRadius:6,cursor:'pointer',fontWeight:700}}>Utiliser</button>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Live total */}
