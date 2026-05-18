@@ -31,6 +31,7 @@ export default function ComptabilitePage() {
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [filterAnalytic, setFilterAnalytic] = useState('')
+  const [filterInvoiceNumber, setFilterInvoiceNumber] = useState('')
 
   // pharmacien forfaits
   const [pharmacienGroups, setPharmacienGroups] = useState([])
@@ -89,7 +90,7 @@ export default function ComptabilitePage() {
   // Fetch prestations sent to billing
   useEffect(() => {
     fetchPrestations()
-  }, [filterStatus, filterDateFrom, filterDateTo])
+  }, [filterStatus, filterDateFrom, filterDateTo, filterInvoiceNumber])
 
   // Fetch pharmacien forfaits
   useEffect(() => {
@@ -203,6 +204,7 @@ export default function ComptabilitePage() {
       }
       if (filterDateFrom) params.append('date_from', filterDateFrom)
       if (filterDateTo) params.append('date_to', filterDateTo)
+      if (filterInvoiceNumber) params.append('invoice_number', filterInvoiceNumber)
 
       const res = await fetch(`/api/comptabilite/prestations?${params.toString()}`)
       if (!res.ok) throw new Error('Erreur lors de la récupération')
@@ -452,7 +454,8 @@ export default function ComptabilitePage() {
         ? (p.analytic_id == null)
         : String(p.analytic_id) === filterAnalytic
     )
-    return matchSearch && matchFrom && matchTo && matchAnalytic
+    const matchInvoice = !filterInvoiceNumber || (p.invoice_number || '').toLowerCase().includes(filterInvoiceNumber.toLowerCase())
+    return matchSearch && matchFrom && matchTo && matchAnalytic && matchInvoice
   })
 
   // Basic stats for cards
@@ -595,6 +598,27 @@ export default function ComptabilitePage() {
                   <option key={id} value={id}>{name}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Invoice Number Filter */}
+            <div>
+              <label style={{display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151'}}>📄 N° Facture</label>
+              <div style={{display: 'flex', gap: 6, alignItems: 'center'}}>
+                <input
+                  type="text"
+                  placeholder="Ex: 2026-001"
+                  value={filterInvoiceNumber}
+                  onChange={e => setFilterInvoiceNumber(e.target.value)}
+                  style={{flex: 1, padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14}}
+                />
+                {filterInvoiceNumber && (
+                  <button onClick={() => setFilterInvoiceNumber('')}
+                    title="Effacer"
+                    style={{padding:'10px 12px', border:'1px solid #d1d5db', borderRadius:6, background:'#f3f4f6', cursor:'pointer', fontSize:13, fontWeight:600, color:'#374151'}}>
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

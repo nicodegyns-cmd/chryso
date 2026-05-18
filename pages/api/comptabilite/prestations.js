@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
   try {
     const pool = getPool()
-    const { status, date_from, date_to } = req.query
+    const { status, date_from, date_to, invoice_number } = req.query
 
     let sql = `
       SELECT 
@@ -65,6 +65,7 @@ export default async function handler(req, res) {
         p.status,
         p.created_at,
         p.pdf_url,
+        p.invoice_number,
         u.first_name,
         u.last_name,
         u.email,
@@ -115,6 +116,11 @@ export default async function handler(req, res) {
     if (date_to) {
       params.push(date_to)
       sql += ` AND p.date::date <= $${params.length}`
+    }
+
+    if (invoice_number) {
+      params.push(`%${invoice_number}%`)
+      sql += ` AND p.invoice_number ILIKE $${params.length}`
     }
 
     sql += ` ORDER BY p.date DESC, p.created_at DESC`
