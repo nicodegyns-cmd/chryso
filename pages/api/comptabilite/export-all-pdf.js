@@ -59,18 +59,10 @@ export default async function handler(req, res) {
         an.code          AS analytic_code,
         an.entite        AS analytic_entite,
         an.analytic_type AS analytic_identifier,
-        an.account_number AS analytic_account_number,
-        COALESCE(act.remuneration_infi,         act_nm.remuneration_infi)         AS rate_garde_infi,
-        COALESCE(act.remuneration_med,          act_nm.remuneration_med)          AS rate_garde_med,
-        COALESCE(act.remuneration_sortie_infi,  act_nm.remuneration_sortie_infi)  AS rate_sortie_infi,
-        COALESCE(act.remuneration_sortie_med,   act_nm.remuneration_sortie_med)   AS rate_sortie_med
+        an.account_number AS analytic_account_number
       FROM prestations p
       LEFT JOIN users u  ON p.user_id   = u.id
       LEFT JOIN analytics an ON p.analytic_id = an.id
-      LEFT JOIN activities act ON p.activity_id = act.id
-      LEFT JOIN activity_ebrigade_name_mappings nm
-        ON nm.ebrigade_analytic_name_pattern = TRIM(SPLIT_PART(COALESCE(p.ebrigade_activity_name, ''), '|', 1))
-      LEFT JOIN activities act_nm ON act_nm.id = nm.activity_id
       ${whereClause}
       ORDER BY p.user_id, p.analytic_id NULLS LAST, p.date ASC
     `, queryParams)
@@ -136,9 +128,8 @@ export default async function handler(req, res) {
     const mergedPdf = await PDFDocument.create()
     const allIds = rows.map(r => r.id)
     let invCounter = nextNum
-    const userPdfPaths = new Map() // uid → { filePath, invoiceNumber }
 
-    for (const [uid, userPrestations] of userMap) {
+    for (const [, userPrestations] of userMap) {
       const first = userPrestations[0]
       const userName = first.company_name ||
         `${first.user_first_name || ''} ${first.user_last_name || ''}`.trim() ||
@@ -162,8 +153,6 @@ export default async function handler(req, res) {
       // Construire le HTML de la table
       let tableBodyHtml = ''
       let grandTotal = 0
-      // Suivi du montant calculé par prestation (id → montant)
-      const computedAmountPerId = new Map()
 
       for (const [, ag] of analyticMap) {
         tableBodyHtml += `
@@ -190,55 +179,52 @@ export default async function handler(req, res) {
           // Suffixe analytique eBrigade affiché après le code de référence
           const ebrigadeSuffix = ebrigadeName ? ` | ${ebrigadeName}` : ''
 
-          // Taux horaires séparés garde / sortie depuis la table activities
-          const rateGardeRaw  = isMed ? Number(p.rate_garde_med  || 0) : Number(p.rate_garde_infi  || 0)
-          const rateSortieRaw = isMed ? Number(p.rate_sortie_med || 0) : Number(p.rate_sortie_infi || 0)
-          // Repli : total / heures si pas de taux trouvé
+          // Prix unitaire déduit du total / heures
           const baseHours = gardeH + sortieH || Number(p.hours_actual || 1)
-          const fallbackRate = baseHours > 0 ? Number((totalAmt / baseHours).toFixed(2)) : totalAmt
-          const rateGarde  = rateGardeRaw  > 0 ? rateGardeRaw  : fallbackRate
-          const rateSortie = rateSortieRaw > 0 ? rateSortieRaw : fallbackRate
+          const unitPrice = baseHours > 0 ? Number((totalAmt / baseHours).toFixed(2)) : totalAmt
 
-          let prestComputedAmt = 0
           if (gardeH > 0 || sortieH > 0) {
             if (gardeH > 0) {
-              const gAmt = +(rateGarde * gardeH).toFixed(2)
-              tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Garde</td><td>${gardeH}</td><td>${fmt(rateGarde)}€</td><td>${fmt(gAmt)}€</td></tr>`
+              const gAmt = +(unitPrice * gardeH).toFixed(2)
+              tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Garde</td><td>${gardeH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(gAmt)}€</td></tr>`
               analyticTotal += gAmt
-              prestComputedAmt += gAmt
             }
             if (sortieH > 0) {
-              const sAmt = +(rateSortie * sortieH).toFixed(2)
-              tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Sortie</td><td>${sortieH}</td><td>${fmt(rateSortie)}€</td><td>${fmt(sAmt)}€</td></tr>`
+              const sAmt = +(unitPrice * sortieH).toFixed(2)
+              tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Sortie</td><td>${sortieH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(sAmt)}€</td></tr>`
               analyticTotal += sAmt
-              prestComputedAmt += sAmt
             }
             if (overtimeH > 0) {
-              const oAmt = +(rateGarde * overtimeH).toFixed(2)
-              tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(rateGarde)}€</td><td>${fmt(oAmt)}€</td></tr>`
+              const oAmt = +(unitPrice * overtimeH).toFixed(2)
+              tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(oAmt)}€</td></tr>`
               analyticTotal += oAmt
-              prestComputedAmt += oAmt
             }
           } else {
             const baseH = Number(p.hours_actual || p.garde_hours || 0)
             const qty = baseH || 1
             const lineAmt = +totalAmt.toFixed(2)
-            tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>${qty}</td><td>${fmt(fallbackRate)}€</td><td>${fmt(lineAmt)}€</td></tr>`
+            tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>${qty}</td><td>${fmt(unitPrice)}€</td><td>${fmt(lineAmt)}€</td></tr>`
             analyticTotal += lineAmt
-            prestComputedAmt += lineAmt
             if (overtimeH > 0) {
-              const oAmt = +(fallbackRate * overtimeH).toFixed(2)
-              tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(fallbackRate)}€</td><td>${fmt(oAmt)}€</td></tr>`
+              const oAmt = +(unitPrice * overtimeH).toFixed(2)
+              tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(oAmt)}€</td></tr>`
               analyticTotal += oAmt
-              prestComputedAmt += oAmt
             }
           }
 
           if (expenses > 0) {
-            tableBodyHtml += `<tr><td>Note de frais</td><td></td><td></td><td>${fmt(expenses)}€</td></tr>`
+            const expComment = escHtml(p.expense_comment || '')
+            const isTravelZone = expComment && (expComment.startsWith('Forfait d\u00e9placement') || expComment.startsWith('Frais de d\u00e9placement'))
+            let expLabel
+            if (isTravelZone) {
+              const zonePart = expComment.includes(' - ') ? expComment.split(' - ').slice(1).join(' - ') : ''
+              expLabel = `Forfait d\u00e9placement${zonePart ? ' \u2014 ' + zonePart : ''}`
+            } else {
+              expLabel = `Note de frais${expComment ? ' \u2014 ' + expComment : ''}`
+            }
+            tableBodyHtml += `<tr><td>${expLabel}</td><td></td><td></td><td>${fmt(expenses)}\u20ac</td></tr>`
             analyticTotal += expenses
           }
-          computedAmountPerId.set(p.id, +(prestComputedAmt + (expenses || 0)).toFixed(2))
         }
 
         grandTotal += analyticTotal
@@ -288,22 +274,11 @@ export default async function handler(req, res) {
       const pages = await mergedPdf.copyPages(userDoc, userDoc.getPageIndices())
       pages.forEach(p => mergedPdf.addPage(p))
 
-      // Mettre à jour en base : invoice_number + pdf_url + montant calculé (remuneration_infi) par prestation
-      for (const p of userPrestations) {
-        const computedAmt = computedAmountPerId.get(p.id)
-        if (computedAmt != null) {
-          await pool.query(
-            `UPDATE prestations SET invoice_number = $1, pdf_url = $2, remuneration_infi = $3 WHERE id = $4`,
-            [invoiceNumber, userPdfUrl, computedAmt, p.id]
-          )
-        } else {
-          await pool.query(
-            `UPDATE prestations SET invoice_number = $1, pdf_url = $2 WHERE id = $3`,
-            [invoiceNumber, userPdfUrl, p.id]
-          )
-        }
-      }
-      userPdfPaths.set(uid, { filePath: userFilePath, invoiceNumber })
+      // Mettre à jour en base : invoice_number + pdf_url individuel
+      await pool.query(
+        `UPDATE prestations SET invoice_number = $1, pdf_url = $2 WHERE id = ANY($3)`,
+        [invoiceNumber, userPdfUrl, userPrestations.map(p => p.id)]
+      )
     }
 
     await browser.close()
@@ -326,11 +301,9 @@ export default async function handler(req, res) {
       const firstRow = userPrestations[0]
       const userEmailAddr = firstRow.user_email
       const firstName = firstRow.user_first_name || ''
+      const invoiceNum = firstRow.invoice_number || null
       const prestDate = firstRow.date || firstRow.created_at || null
       const analytic = firstRow.analytic_name || analyticName || null
-      const pdfInfo = userPdfPaths.get(uid)
-      const pdfPath = pdfInfo ? pdfInfo.filePath : null
-      const invoiceNum = pdfInfo ? pdfInfo.invoiceNumber : (firstRow.invoice_number || null)
       if (userEmailAddr) {
         sendStatusChangeEmail({
           userEmail: userEmailAddr,
@@ -338,8 +311,7 @@ export default async function handler(req, res) {
           status: 'Facturé',
           date: prestDate,
           analyticName: analytic,
-          invoiceNumber: invoiceNum,
-          pdfPath,
+          invoiceNumber: invoiceNum
         }).catch(e => console.error('[export-all-pdf] email error for', userEmailAddr, e.message))
       }
     }

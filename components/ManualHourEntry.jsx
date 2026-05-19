@@ -618,10 +618,10 @@ export default function ManualHourEntry() {
                   </label>
                 </div>
 
-                {/* Zone de déplacement APS */}
+                {/* Forfait déplacement APS */}
                 {((selectedCard?.pay_type || '').toLowerCase().includes('aps') || (selectedCard?.ebrigade_activity_name || selectedCard?.analytic_name || '').toLowerCase().includes('aps')) && (
                   <div style={{ padding: 12, border: '1px solid #3b82f6', borderRadius: 8, background: '#eff6ff' }}>
-                    <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14, color: '#1e40af' }}>🚗 Zone de déplacement</div>
+                    <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14, color: '#1e40af' }}>🚗 Forfait déplacement</div>
                     <select
                       value={formData.travel_zone || ''}
                       onChange={e => {
@@ -631,7 +631,7 @@ export default function ManualHourEntry() {
                         let newExpenses = otherExpenses
                         if (zone && zone.amount > 0) {
                           newExpenses = [
-                            { amount: zone.amount, comment: `Frais de déplacement - ${zone.label}`, proof_image: null, is_travel_zone: true },
+                            { amount: zone.amount, comment: `Forfait déplacement - ${zone.label}`, proof_image: null, is_travel_zone: true },
                             ...otherExpenses
                           ]
                         }
@@ -648,7 +648,7 @@ export default function ManualHourEntry() {
                     {formData.travel_zone && (() => {
                       const z = APS_TRAVEL_ZONES.find(x => x.value === formData.travel_zone)
                       if (!z || z.amount === null) return null
-                      return <div style={{ marginTop: 8, fontSize: 13, color: '#1d4ed8', fontWeight: 600 }}>✅ Frais de déplacement ajoutés : {z.amount} €</div>
+                      return <div style={{ marginTop: 8, fontSize: 13, color: '#1d4ed8', fontWeight: 600 }}>✅ Forfait déplacement ajouté : {z.amount} €</div>
                     })()}
                   </div>
                 )}
@@ -671,7 +671,7 @@ export default function ManualHourEntry() {
                   {(formData.expenses || []).map((exp, idx) => (
                     <div key={idx} style={{ padding: 10, background: '#fff', borderRadius: 6, border: '1px solid #fcd34d', marginBottom: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Note #{idx + 1}{exp.is_travel_zone && <span style={{ marginLeft: 6, fontSize: 11, color: '#1d4ed8', fontWeight: 500 }}>🚗 Zone de déplacement</span>}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Note #{idx + 1}{exp.is_travel_zone && <span style={{ marginLeft: 6, fontSize: 11, color: '#1d4ed8', fontWeight: 500 }}>🚗 Forfait déplacement</span>}</div>
                         {!exp.is_travel_zone && (
                         <button
                           type="button"

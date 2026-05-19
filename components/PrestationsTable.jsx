@@ -190,7 +190,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     let newExpenses = otherExpenses
     if (zone && zone.amount > 0) {
       newExpenses = [
-        { amount: zone.amount, comment: `Frais de déplacement - ${zone.label}`, proof_image: null, is_travel_zone: true },
+        { amount: zone.amount, comment: `Forfait déplacement - ${zone.label}`, proof_image: null, is_travel_zone: true },
         ...otherExpenses
       ]
     }
@@ -1443,10 +1443,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   </label>
                 </div>
 
-                {/* Zone de déplacement APS */}
+                {/* Forfait déplacement APS */}
                 {editingIsAPS && (
                   <div style={{padding:12,border:'1px solid #3b82f6',borderRadius:8,background:'#eff6ff'}}>
-                    <div style={{fontWeight:700,marginBottom:10,fontSize:14,color:'#1e40af'}}>🚗 Zone de déplacement</div>
+                    <div style={{fontWeight:700,marginBottom:10,fontSize:14,color:'#1e40af'}}>🚗 Forfait déplacement</div>
                     <select
                       value={editing.travel_zone || ''}
                       onChange={e => handleTravelZoneChange(e.target.value)}
@@ -1463,7 +1463,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                         {(() => {
                           const z = APS_TRAVEL_ZONES.find(x => x.value === editing.travel_zone)
                           if (!z || z.amount === null) return null
-                          return `✅ Frais de déplacement ajoutés : ${z.amount} €`
+                          return `✅ Forfait déplacement ajouté : ${z.amount} €`
                         })()}
                       </div>
                     )}
@@ -1488,7 +1488,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   {(editing.expenses||[]).map((exp, idx) => (
                     <div key={idx} style={{padding:10,background:'#fff',borderRadius:6,border:'1px solid #fcd34d',marginBottom:10,position:'relative'}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                        <div style={{fontSize:12,fontWeight:700,color:'#92400e'}}>Note #{idx+1}{exp.is_travel_zone && <span style={{marginLeft:6,fontSize:11,color:'#1d4ed8',fontWeight:500}}>🚗 Zone de déplacement</span>}</div>
+                        <div style={{fontSize:12,fontWeight:700,color:'#92400e'}}>Note #{idx+1}{exp.is_travel_zone && <span style={{marginLeft:6,fontSize:11,color:'#1d4ed8',fontWeight:500}}>🚗 Forfait déplacement</span>}</div>
                         {!exp.is_travel_zone && (
                         <button
                           type="button"
@@ -1533,7 +1533,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                       <div>
                         {exp.is_travel_zone ? (
                           <div style={{fontSize:13,color:'#1d4ed8',fontWeight:500,padding:'6px 10px',background:'#eff6ff',borderRadius:6,border:'1px solid #93c5fd'}}>
-                            🚗 Frais de déplacement officiel — aucun justificatif requis
+                            🚗 Forfait déplacement officiel — aucun justificatif requis
                           </div>
                         ) : (
                           <>
