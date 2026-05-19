@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     // Fetch the original prestation
     const origRes = await pool.query(
       `SELECT p.id, p.user_id, p.analytic_id, p.invoice_number, p.pay_type,
-              p.remuneration_infi, p.remuneration_med, p.remuneration,
+              p.remuneration_infi, p.remuneration_med,
               u.email AS user_email, u.role AS user_role
        FROM prestations p
        LEFT JOIN users u ON p.user_id = u.id
