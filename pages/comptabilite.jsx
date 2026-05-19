@@ -26,6 +26,11 @@ export default function ComptabilitePage() {
   const [selectedPrestation, setSelectedPrestation] = useState(null)
   const [confirmPaymentOpen, setConfirmPaymentOpen] = useState(false)
   const [confirmPaymentItem, setConfirmPaymentItem] = useState(null)
+  const [avoirModalOpen, setAvoirModalOpen] = useState(false)
+  const [avoirItem, setAvoirItem] = useState(null)
+  const [avoirAmount, setAvoirAmount] = useState('')
+  const [avoirReason, setAvoirReason] = useState('')
+  const [avoirLoading, setAvoirLoading] = useState(false)
   const [exportingAll, setExportingAll] = useState(false)
   const [exportingIds, setExportingIds] = useState({})
   const [filterDateFrom, setFilterDateFrom] = useState('')
@@ -344,6 +349,35 @@ export default function ComptabilitePage() {
   }
 
   const [recompiling, setRecompiling] = useState(false)
+
+  async function createAvoir() {
+    if (!avoirItem) return
+    if (!avoirAmount || Number(avoirAmount) <= 0) { alert('Montant invalide'); return }
+    if (!avoirReason.trim()) { alert('La raison est obligatoire'); return }
+    const neg = -Math.abs(Number(avoirAmount))
+    const ok = confirm(`⚠️ Confirmer la création d'un avoir de ${neg}€ pour ${avoirItem.user_name || avoirItem.email} ?\n\nRaison : ${avoirReason}\n\nCet avoir sera inclus dans le prochain export de facturation.`)
+    if (!ok) return
+    setAvoirLoading(true)
+    try {
+      const res = await fetch('/api/comptabilite/create-avoir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prestation_id: avoirItem.id, amount: Number(avoirAmount), reason: avoirReason })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erreur serveur')
+      alert(`✅ ${data.message}`)
+      setAvoirModalOpen(false)
+      setAvoirItem(null)
+      setAvoirAmount('')
+      setAvoirReason('')
+      setSelectedPrestation(null)
+    } catch (e) {
+      alert('❌ Erreur : ' + e.message)
+    } finally {
+      setAvoirLoading(false)
+    }
+  }
 
   async function recompilePdf() {
     const invoiced = filteredPrestations.filter(p => p && p.status === 'Facturé')
@@ -1008,10 +1042,64 @@ export default function ComptabilitePage() {
                 <a href={selectedPrestation.pdf_url} download style={{padding:'8px 12px',background:'#6b7280',color:'#fff',borderRadius:6,textDecoration:'none',display:'inline-block',textAlign:'center'}}>Télécharger</a>
               ) : null}
               <button onClick={() => { setConfirmPaymentItem(selectedPrestation); setConfirmPaymentOpen(true); }} style={{padding:'8px 12px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Encodé</button>
+              {(selectedPrestation.status === 'Facturé' || selectedPrestation.status === 'Payé') && (
+                <button
+                  onClick={() => {
+                    setAvoirItem(selectedPrestation)
+                    setAvoirAmount(String(Math.abs(parseFloat(selectedPrestation.remuneration || 0) || 0)))
+                    setAvoirReason(`AVOIR - correction facture ${selectedPrestation.invoice_number || '#' + selectedPrestation.id}`)
+                    setAvoirModalOpen(true)
+                  }}
+                  style={{padding:'8px 12px',background:'#f59e0b',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:600}}
+                >
+                  ⚠️ Créer un avoir
+                </button>
+              )}
             </div>
 
             <div className={adminStyles['validation-actions']}>
               <button className={adminStyles['btn-approve']} onClick={() => setSelectedPrestation(null)}>Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Avoir Modal */}
+      {avoirModalOpen && avoirItem && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1400}} onClick={() => setAvoirModalOpen(false)}>
+          <div style={{background:'#fff',borderRadius:12,width:480,maxWidth:'95%',padding:24,boxShadow:'0 10px 40px rgba(0,0,0,0.3)'}} onClick={e => e.stopPropagation()}>
+            <h3 style={{marginTop:0,color:'#92400e',display:'flex',alignItems:'center',gap:8}}>⚠️ Créer un avoir</h3>
+            <div style={{background:'#fef3c7',borderRadius:8,padding:12,marginBottom:16,fontSize:13,color:'#78350f'}}>
+              <strong>Prestation #{avoirItem.id}</strong> — {avoirItem.user_name || avoirItem.email}<br/>
+              Montant original : <strong>{(parseFloat(avoirItem.remuneration || 0) || 0).toFixed(2)}€</strong>
+              {avoirItem.invoice_number && <><br/>Facture : <strong>{avoirItem.invoice_number}</strong></>}
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={{display:'block',fontWeight:600,marginBottom:4,fontSize:13}}>Montant de l'avoir (€) <span style={{color:'#dc2626'}}>*</span></label>
+              <input
+                type="number" step="0.01" min="0.01"
+                value={avoirAmount}
+                onChange={e => setAvoirAmount(e.target.value)}
+                style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:15,boxSizing:'border-box'}}
+                placeholder="Ex: 45.00"
+              />
+              <div style={{fontSize:12,color:'#6b7280',marginTop:4}}>Sera enregistré comme <strong>{avoirAmount ? (-Math.abs(Number(avoirAmount))).toFixed(2) : '-X.XX'}€</strong> dans la prochaine facture</div>
+            </div>
+            <div style={{marginBottom:20}}>
+              <label style={{display:'block',fontWeight:600,marginBottom:4,fontSize:13}}>Raison <span style={{color:'#dc2626'}}>*</span></label>
+              <input
+                type="text"
+                value={avoirReason}
+                onChange={e => setAvoirReason(e.target.value)}
+                style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}}
+                placeholder="Ex: AVOIR - correction facture 2026-003"
+              />
+            </div>
+            <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
+              <button onClick={() => { setAvoirModalOpen(false); setAvoirItem(null); setAvoirAmount(''); setAvoirReason('') }} style={{padding:'9px 16px',background:'#f3f4f6',border:'none',borderRadius:6,cursor:'pointer',fontWeight:500}}>Annuler</button>
+              <button onClick={createAvoir} disabled={avoirLoading} style={{padding:'9px 16px',background: avoirLoading ? '#9ca3af' : '#f59e0b',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:700}}>
+                {avoirLoading ? 'Création...' : '✅ Confirmer l’avoir'}
+              </button>
             </div>
           </div>
         </div>

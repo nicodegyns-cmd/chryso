@@ -179,6 +179,15 @@ export default async function handler(req, res) {
           // Suffixe analytique eBrigade affiché après le code de référence
           const ebrigadeSuffix = ebrigadeName ? ` | ${ebrigadeName}` : ''
 
+          // AVOIR: ligne de correction négative
+          if ((p.pay_type || '').toUpperCase() === 'AVOIR' || totalAmt < 0) {
+            const avoirAmt = +totalAmt.toFixed(2)
+            const avoirLabel = escHtml(p.comments || 'Avoir — correction')
+            tableBodyHtml += `<tr style="color:#dc2626"><td><strong>AVOIR</strong> — ${avoirLabel}</td><td></td><td></td><td style="color:#dc2626;font-weight:700">${fmt(avoirAmt)}€</td></tr>`
+            analyticTotal += avoirAmt
+            continue
+          }
+
           // Prix unitaire déduit du total / heures
           const baseHours = gardeH + sortieH || Number(p.hours_actual || 1)
           const unitPrice = baseHours > 0 ? Number((totalAmt / baseHours).toFixed(2)) : totalAmt
