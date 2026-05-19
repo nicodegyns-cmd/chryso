@@ -36,6 +36,9 @@ export default function ComptabilitePage() {
   const [correctionAmount, setCorrectionAmount] = useState('')
   const [correctionReason, setCorrectionReason] = useState('')
   const [correctionSubmitting, setCorrectionSubmitting] = useState(false)
+  const [avoirsModalOpen, setAvoirsModalOpen] = useState(false)
+  const [avoirs, setAvoirs] = useState([])
+  const [avoirsLoading, setAvoirsLoading] = useState(false)
   const [exportingAll, setExportingAll] = useState(false)
   const [exportingIds, setExportingIds] = useState({})
   const [filterDateFrom, setFilterDateFrom] = useState('')
@@ -364,6 +367,21 @@ export default function ComptabilitePage() {
     setCorrectionSelectedPrestation(null)
     setCorrectionAmount('')
     setCorrectionReason('')
+  }
+
+  async function openAvoirsModal() {
+    setAvoirsModalOpen(true)
+    setAvoirsLoading(true)
+    try {
+      const res = await fetch('/api/comptabilite/avoirs')
+      const data = await res.json()
+      setAvoirs(data.avoirs || [])
+    } catch (e) {
+      console.error('Erreur chargement avoirs:', e.message)
+      setAvoirs([])
+    } finally {
+      setAvoirsLoading(false)
+    }
   }
 
   async function openCorrectionWizard() {
@@ -801,8 +819,27 @@ export default function ComptabilitePage() {
           </div>
         )}
 
-        {/* Correction Facture Button — always visible */}
-        <div style={{display:'flex', justifyContent:'flex-end', marginBottom:16}}>
+        {/* Correction Facture + Historique Avoirs Buttons */}
+        <div style={{display:'flex', justifyContent:'flex-end', gap:10, marginBottom:16}}>
+          <button
+            onClick={openAvoirsModal}
+            style={{
+              padding:'11px 20px',
+              background:'#6b7280',
+              color:'white',
+              border:'none',
+              borderRadius:8,
+              cursor:'pointer',
+              fontSize:14,
+              fontWeight:700,
+              boxShadow:'0 2px 6px rgba(107,114,128,0.3)',
+              display:'flex',
+              alignItems:'center',
+              gap:8
+            }}
+          >
+            📋 Historique avoirs
+          </button>
           <button
             onClick={openCorrectionWizard}
             style={{
@@ -1248,6 +1285,105 @@ export default function ComptabilitePage() {
 
             <div style={{marginTop:20,textAlign:'right'}}>
               <button onClick={resetCorrectionWizard} style={{padding:'8px 14px',background:'#f3f4f6',border:'none',borderRadius:6,cursor:'pointer',color:'#374151',fontSize:13}}>Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Avoirs History Modal */}
+      {avoirsModalOpen && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1400}} onClick={() => setAvoirsModalOpen(false)}>
+          <div style={{background:'#fff',borderRadius:12,width:'95%',maxWidth:900,maxHeight:'88vh',overflow:'hidden',display:'flex',flexDirection:'column',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{padding:'20px 24px',borderBottom:'1px solid #e5e7eb',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <h2 style={{margin:0,fontSize:20,fontWeight:700,color:'#111827'}}>📋 Historique des avoirs</h2>
+                <p style={{margin:'4px 0 0',fontSize:13,color:'#6b7280'}}>Traçabilité des corrections de facturation créées</p>
+              </div>
+              <button onClick={() => setAvoirsModalOpen(false)} style={{border:'none',background:'#f3f4f6',borderRadius:8,width:32,height:32,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+            </div>
+            {/* Body */}
+            <div style={{flex:1,overflowY:'auto',padding:'20px 24px'}}>
+              {avoirsLoading ? (
+                <div style={{textAlign:'center',padding:40,color:'#6b7280'}}>⏳ Chargement...</div>
+              ) : avoirs.length === 0 ? (
+                <div style={{textAlign:'center',padding:40,color:'#6b7280'}}>
+                  <div style={{fontSize:40,marginBottom:12}}>📭</div>
+                  <div style={{fontSize:15}}>Aucun avoir créé pour l'instant.</div>
+                </div>
+              ) : (
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+                  <thead>
+                    <tr style={{background:'#f9fafb',borderBottom:'2px solid #e5e7eb'}}>
+                      <th style={{padding:'10px 12px',textAlign:'left',fontWeight:700,color:'#374151'}}>#</th>
+                      <th style={{padding:'10px 12px',textAlign:'left',fontWeight:700,color:'#374151'}}>Date création</th>
+                      <th style={{padding:'10px 12px',textAlign:'left',fontWeight:700,color:'#374151'}}>Prestataire</th>
+                      <th style={{padding:'10px 12px',textAlign:'left',fontWeight:700,color:'#374151'}}>Analytique</th>
+                      <th style={{padding:'10px 12px',textAlign:'right',fontWeight:700,color:'#374151'}}>Montant</th>
+                      <th style={{padding:'10px 12px',textAlign:'left',fontWeight:700,color:'#374151'}}>Raison</th>
+                      <th style={{padding:'10px 12px',textAlign:'left',fontWeight:700,color:'#374151'}}>Prestation originale</th>
+                      <th style={{padding:'10px 12px',textAlign:'left',fontWeight:700,color:'#374151'}}>Statut avoir</th>
+                      <th style={{padding:'10px 12px',textAlign:'left',fontWeight:700,color:'#374151'}}>N° facture avoir</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {avoirs.map((a, idx) => {
+                      const amount = parseFloat(a.amount || 0)
+                      const isEven = idx % 2 === 0
+                      return (
+                        <tr key={a.id} style={{borderBottom:'1px solid #f3f4f6',background:isEven ? '#fff' : '#fafafa'}}>
+                          <td style={{padding:'10px 12px',color:'#9ca3af',fontWeight:600}}>#{a.id}</td>
+                          <td style={{padding:'10px 12px',color:'#374151',whiteSpace:'nowrap'}}>
+                            {a.created_at ? new Date(a.created_at).toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric'}) : '—'}
+                          </td>
+                          <td style={{padding:'10px 12px',color:'#111827',fontWeight:600}}>
+                            {a.first_name || a.last_name
+                              ? `${a.first_name || ''} ${a.last_name || ''}`.trim()
+                              : a.email || '—'}
+                            {a.email && <div style={{fontSize:11,color:'#9ca3af'}}>{a.email}</div>}
+                          </td>
+                          <td style={{padding:'10px 12px',color:'#374151'}}>{a.analytic_name || '—'}</td>
+                          <td style={{padding:'10px 12px',textAlign:'right',fontWeight:700,color:'#dc2626',whiteSpace:'nowrap'}}>
+                            {amount.toFixed(2)}€
+                          </td>
+                          <td style={{padding:'10px 12px',color:'#374151',maxWidth:220}}>
+                            <span title={a.reason} style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                              {a.reason || '—'}
+                            </span>
+                          </td>
+                          <td style={{padding:'10px 12px',color:'#374151',whiteSpace:'nowrap'}}>
+                            {a.original_prestation_id ? (
+                              <span style={{display:'flex',flexDirection:'column',gap:2}}>
+                                <span style={{fontWeight:600}}>#{a.original_prestation_id}</span>
+                                {a.orig_invoice_number && <span style={{fontSize:11,color:'#6b7280'}}>{a.orig_invoice_number}</span>}
+                                {a.orig_date && <span style={{fontSize:11,color:'#9ca3af'}}>{new Date(a.orig_date).toLocaleDateString('fr-FR')}</span>}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td style={{padding:'10px 12px'}}>
+                            {(() => {
+                              const s = a.status || ''
+                              let bg = '#f3f4f6', color = '#374151', label = s
+                              if (s === 'Envoyé à la facturation') { bg = '#fef3c7'; color = '#92400e'; label = '📤 En attente' }
+                              else if (s === 'Facturé') { bg = '#dcfce7'; color = '#166534'; label = '✅ Facturé' }
+                              else if (s === 'Payé') { bg = '#dbeafe'; color = '#1e40af'; label = '💳 Payé' }
+                              return <span style={{background:bg,color,padding:'3px 8px',borderRadius:4,fontSize:11,fontWeight:700,whiteSpace:'nowrap'}}>{label}</span>
+                            })()}
+                          </td>
+                          <td style={{padding:'10px 12px',color:'#374151',fontFamily:'monospace',fontSize:12}}>
+                            {a.invoice_number || <span style={{color:'#9ca3af',fontFamily:'sans-serif'}}>—</span>}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            {/* Footer */}
+            <div style={{padding:'14px 24px',borderTop:'1px solid #e5e7eb',display:'flex',justifyContent:'space-between',alignItems:'center',background:'#f9fafb'}}>
+              <span style={{fontSize:13,color:'#6b7280'}}>{avoirs.length} avoir(s) créé(s) au total</span>
+              <button onClick={() => setAvoirsModalOpen(false)} style={{padding:'8px 20px',background:'#6b7280',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:600}}>Fermer</button>
             </div>
           </div>
         </div>

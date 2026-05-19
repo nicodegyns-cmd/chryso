@@ -44,17 +44,18 @@ export default async function handler(req, res) {
 
     // Ensure avoir-related columns exist
     try { await pool.query("ALTER TABLE prestations ADD COLUMN IF NOT EXISTS is_avoir BOOLEAN DEFAULT FALSE") } catch (e) {}
+    try { await pool.query("ALTER TABLE prestations ADD COLUMN IF NOT EXISTS original_prestation_id BIGINT") } catch (e) {}
 
     const insertRes = await pool.query(
       `INSERT INTO prestations
          (user_id, analytic_id, date, status, pay_type, comments,
           remuneration_infi, remuneration_med,
           garde_hours, sortie_hours, hours_actual, overtime_hours,
-          is_avoir, created_at, updated_at)
+          is_avoir, original_prestation_id, created_at, updated_at)
        VALUES ($1, $2, $3, 'Envoyé à la facturation', 'AVOIR', $4,
                $5, $6,
                0, 0, 0, 0,
-               TRUE, NOW(), NOW())
+               TRUE, $7, NOW(), NOW())
        RETURNING id`,
       [
         orig.user_id,
@@ -63,6 +64,7 @@ export default async function handler(req, res) {
         reason.trim(),
         remuInfi,
         remuMed,
+        prestation_id,
       ]
     )
 
