@@ -1306,50 +1306,70 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   </div>
                 )}
 
-                {/* Section Notes de frais (view-only) */}
+                {/* Section Notes de frais + Forfait déplacement (view-only) */}
                 {(() => {
-                  const viewExpenses = editing.expenses && editing.expenses.length > 0
+                  const allExpenses = editing.expenses && editing.expenses.length > 0
                     ? editing.expenses.filter(e => Number(e.amount||0) > 0)
                     : (editing.expense_amount || editing.expense_comment || editing.proof_image)
                       ? [{amount: editing.expense_amount, comment: editing.expense_comment, proof_image: editing.proof_image}]
                       : []
-                  if (viewExpenses.length === 0) return null
+                  if (allExpenses.length === 0) return null
+                  const travelExpenses = allExpenses.filter(e => e.is_travel_zone || (e.comment && e.comment.startsWith('Forfait déplacement')))
+                  const regularExpenses = allExpenses.filter(e => !e.is_travel_zone && !(e.comment && e.comment.startsWith('Forfait déplacement')))
                   return (
-                    <div style={{padding:12,border:'1px solid #f59e0b',borderRadius:8,background:'#fffbeb'}}>
-                      <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>🧾 Notes de frais</div>
-                      {viewExpenses.map((exp, idx) => (
-                        <div key={idx} style={{marginBottom:10,paddingBottom:10,borderBottom: idx<viewExpenses.length-1?'1px dashed #fcd34d':'none'}}>
-                          <div style={{fontSize:12,fontWeight:700,color:'#b45309',marginBottom:6}}>Note #{idx+1}</div>
-                          <div style={{display:'grid',gap:8}}>
-                            {exp.amount && (
-                              <div>
-                                <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>MONTANT</div>
-                                <div style={{fontSize:15,fontWeight:600,color:'#d97706'}}>{exp.amount} €</div>
+                    <>
+                      {travelExpenses.length > 0 && (
+                        <div style={{padding:12,border:'2px solid #93c5fd',borderRadius:8,background:'#eff6ff',marginBottom:8}}>
+                          <div style={{fontWeight:700,marginBottom:8,fontSize:14,color:'#1e40af'}}>🚗 Forfait déplacement</div>
+                          {travelExpenses.map((exp, idx) => {
+                            const zonePart = exp.comment ? exp.comment.replace(/^Forfait d.placement\s*-\s*/i, '') : ''
+                            return (
+                              <div key={idx} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 8px',background:'#dbeafe',borderRadius:6}}>
+                                <span style={{fontSize:13,color:'#1d4ed8',fontWeight:600}}>{zonePart || exp.comment || '—'}</span>
+                                <span style={{fontSize:15,fontWeight:700,color:'#1e40af'}}>{exp.amount} €</span>
                               </div>
-                            )}
-                            {exp.comment && (
-                              <div>
-                                <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>COMMENTAIRE</div>
-                                <div style={{fontSize:14,color:'#92400e'}}>{exp.comment}</div>
-                              </div>
-                            )}
-                            {exp.proof_image && (
-                              <div>
-                                <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>📸 JUSTIFICATIF</div>
-                                <a href={exp.proof_image} target="_blank" rel="noopener noreferrer">
-                                  <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:220,border:'2px solid #fcd34d',borderRadius:6,display:'block',cursor:'pointer'}} />
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      {viewExpenses.length > 1 && (
-                        <div style={{textAlign:'right',fontWeight:700,color:'#b45309',fontSize:13,marginTop:4}}>
-                          Total: {viewExpenses.reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
+                            )
+                          })}
                         </div>
                       )}
-                    </div>
+                      {regularExpenses.length > 0 && (
+                        <div style={{padding:12,border:'1px solid #f59e0b',borderRadius:8,background:'#fffbeb'}}>
+                          <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>🧾 Notes de frais</div>
+                          {regularExpenses.map((exp, idx) => (
+                            <div key={idx} style={{marginBottom:10,paddingBottom:10,borderBottom: idx<regularExpenses.length-1?'1px dashed #fcd34d':'none'}}>
+                              <div style={{fontSize:12,fontWeight:700,color:'#b45309',marginBottom:6}}>Note #{idx+1}</div>
+                              <div style={{display:'grid',gap:8}}>
+                                {exp.amount && (
+                                  <div>
+                                    <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>MONTANT</div>
+                                    <div style={{fontSize:15,fontWeight:600,color:'#d97706'}}>{exp.amount} €</div>
+                                  </div>
+                                )}
+                                {exp.comment && (
+                                  <div>
+                                    <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>COMMENTAIRE</div>
+                                    <div style={{fontSize:14,color:'#92400e'}}>{exp.comment}</div>
+                                  </div>
+                                )}
+                                {exp.proof_image && (
+                                  <div>
+                                    <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>📸 JUSTIFICATIF</div>
+                                    <a href={exp.proof_image} target="_blank" rel="noopener noreferrer">
+                                      <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:220,border:'2px solid #fcd34d',borderRadius:6,display:'block',cursor:'pointer'}} />
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {regularExpenses.length > 1 && (
+                            <div style={{textAlign:'right',fontWeight:700,color:'#b45309',fontSize:13,marginTop:4}}>
+                              Total: {regularExpenses.reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )
                 })()}
               </div>
@@ -1481,14 +1501,14 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                     >+ Ajouter une note</button>
                   </div>
 
-                  {(!editing.expenses || editing.expenses.length === 0) && (
+                  {(!editing.expenses || editing.expenses.filter(e=>!e.is_travel_zone).length === 0) && (
                     <div style={{fontSize:13,color:'#b45309',fontStyle:'italic'}}>Aucune note de frais. Cliquez sur « + Ajouter une note » si nécessaire.</div>
                   )}
 
-                  {(editing.expenses||[]).map((exp, idx) => (
+                  {(editing.expenses||[]).map((exp, idx) => exp.is_travel_zone ? null : (
                     <div key={idx} style={{padding:10,background:'#fff',borderRadius:6,border:'1px solid #fcd34d',marginBottom:10,position:'relative'}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                        <div style={{fontSize:12,fontWeight:700,color:'#92400e'}}>Note #{idx+1}{exp.is_travel_zone && <span style={{marginLeft:6,fontSize:11,color:'#1d4ed8',fontWeight:500}}>🚗 Forfait déplacement</span>}</div>
+                        <div style={{fontSize:12,fontWeight:700,color:'#92400e'}}>Note #{idx+1}</div>
                         {!exp.is_travel_zone && (
                         <button
                           type="button"
@@ -1579,9 +1599,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                     </div>
                   ))}
 
-                  {(editing.expenses||[]).length > 0 && (
+                  {(editing.expenses||[]).filter(e=>!e.is_travel_zone).length > 0 && (
                     <div style={{textAlign:'right',fontSize:13,fontWeight:700,color:'#b45309',marginTop:4}}>
-                      Total notes de frais: {(editing.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
+                      Total notes de frais: {(editing.expenses||[]).filter(e=>!e.is_travel_zone).reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
                     </div>
                   )}
                 </div>

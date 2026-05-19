@@ -829,7 +829,7 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                 </div>
               )}
 
-              {/* Section Notes de frais */}
+              {/* Section Forfait déplacement + Notes de frais */}
               {(() => {
                 let viewExpenses = []
                 if (viewing.expenses_json) {
@@ -842,12 +842,30 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                   viewExpenses = [{amount: viewing.expense_amount, comment: viewing.expense_comment, proof_image: viewing.proof_image}]
                 }
                 if (viewExpenses.length === 0) return null
+                const travelExp = viewExpenses.filter(e => e.is_travel_zone || (e.comment && e.comment.startsWith('Forfait déplacement')))
+                const regularExp = viewExpenses.filter(e => !e.is_travel_zone && !(e.comment && e.comment.startsWith('Forfait déplacement')))
                 return (
+                  <>
+                    {travelExp.length > 0 && (
+                      <div style={{padding:12,border:'2px solid #93c5fd',borderRadius:8,background:'#eff6ff',marginBottom:8}}>
+                        <div style={{fontWeight:700,marginBottom:8,fontSize:14,color:'#1e40af'}}>🚗 Forfait déplacement</div>
+                        {travelExp.map((exp, idx) => {
+                          const zonePart = exp.comment ? exp.comment.replace(/^Forfait d.placement\s*-\s*/i, '') : ''
+                          return (
+                            <div key={idx} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 8px',background:'#dbeafe',borderRadius:6,marginBottom:4}}>
+                              <span style={{fontSize:13,color:'#1d4ed8',fontWeight:600}}>{zonePart || exp.comment || '—'}</span>
+                              <span style={{fontSize:15,fontWeight:700,color:'#1e40af'}}>{exp.amount} €</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {regularExp.length > 0 && (
                   <div style={{padding:12,border:'1px solid #f59e0b',borderRadius:8,background:'#fffbeb',marginBottom:16}}>
                     <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>🧾 Notes de frais</div>
-                    {viewExpenses.map((exp, idx) => (
-                      <div key={idx} style={{marginBottom:10,paddingBottom:10,borderBottom:idx<viewExpenses.length-1?'1px dashed #fcd34d':'none'}}>
-                        {viewExpenses.length > 1 && <div style={{fontSize:12,fontWeight:700,color:'#b45309',marginBottom:6}}>Note #{idx+1}</div>}
+                    {regularExp.map((exp, idx) => (
+                      <div key={idx} style={{marginBottom:10,paddingBottom:10,borderBottom:idx<regularExp.length-1?'1px dashed #fcd34d':'none'}}>
+                        {regularExp.length > 1 && <div style={{fontSize:12,fontWeight:700,color:'#b45309',marginBottom:6}}>Note #{idx+1}</div>}
                         <div style={{display:'grid',gap:8}}>
                           {exp.amount && <div><div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>MONTANT</div><div style={{fontSize:15,fontWeight:600,color:'#d97706'}}>{exp.amount} €</div></div>}
                           {exp.comment && <div><div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>COMMENTAIRE</div><div style={{fontSize:14,color:'#92400e'}}>{exp.comment}</div></div>}
@@ -871,12 +889,14 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                         </div>
                       </div>
                     ))}
-                    {viewExpenses.length > 1 && (
+                    {regularExp.length > 1 && (
                       <div style={{textAlign:'right',fontWeight:700,color:'#b45309',fontSize:13,marginTop:4}}>
-                        Total: {viewExpenses.reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
+                        Total: {regularExp.reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
                       </div>
                     )}
                   </div>
+                    )}
+                  </>
                 )
               })()}
             </div>

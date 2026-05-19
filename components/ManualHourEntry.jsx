@@ -664,14 +664,14 @@ export default function ManualHourEntry() {
                     >+ Ajouter une note</button>
                   </div>
 
-                  {(!formData.expenses || formData.expenses.length === 0) && (
+                  {(!formData.expenses || formData.expenses.filter(e => !e.is_travel_zone).length === 0) && (
                     <div style={{ fontSize: 13, color: '#b45309', fontStyle: 'italic' }}>Aucune note de frais. Cliquez sur « + Ajouter une note » si nécessaire.</div>
                   )}
 
-                  {(formData.expenses || []).map((exp, idx) => (
+                  {(formData.expenses || []).map((exp, idx) => exp.is_travel_zone ? null : (
                     <div key={idx} style={{ padding: 10, background: '#fff', borderRadius: 6, border: '1px solid #fcd34d', marginBottom: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Note #{idx + 1}{exp.is_travel_zone && <span style={{ marginLeft: 6, fontSize: 11, color: '#1d4ed8', fontWeight: 500 }}>🚗 Forfait déplacement</span>}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Note #{idx + 1}</div>
                         {!exp.is_travel_zone && (
                         <button
                           type="button"
@@ -741,9 +741,9 @@ export default function ManualHourEntry() {
                     </div>
                   ))}
 
-                  {(formData.expenses || []).filter(e => Number(e.amount || 0) > 0).length > 1 && (
+                  {(formData.expenses || []).filter(e => !e.is_travel_zone && Number(e.amount || 0) > 0).length > 1 && (
                     <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 700, color: '#b45309', marginTop: 4 }}>
-                      Total: {(formData.expenses || []).reduce((s, e) => s + Number(e.amount || 0), 0).toFixed(2)} €
+                      Total: {(formData.expenses || []).filter(e => !e.is_travel_zone).reduce((s, e) => s + Number(e.amount || 0), 0).toFixed(2)} €
                     </div>
                   )}
                 </div>
