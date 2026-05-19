@@ -26,11 +26,16 @@ export default function ComptabilitePage() {
   const [selectedPrestation, setSelectedPrestation] = useState(null)
   const [confirmPaymentOpen, setConfirmPaymentOpen] = useState(false)
   const [confirmPaymentItem, setConfirmPaymentItem] = useState(null)
-  const [avoirModalOpen, setAvoirModalOpen] = useState(false)
-  const [avoirItem, setAvoirItem] = useState(null)
-  const [avoirAmount, setAvoirAmount] = useState('')
-  const [avoirReason, setAvoirReason] = useState('')
-  const [avoirLoading, setAvoirLoading] = useState(false)
+  const [correctionWizardOpen, setCorrectionWizardOpen] = useState(false)
+  const [correctionStep, setCorrectionStep] = useState(1)
+  const [correctionAllPrestations, setCorrectionAllPrestations] = useState([])
+  const [correctionLoadingData, setCorrectionLoadingData] = useState(false)
+  const [correctionSelectedUserId, setCorrectionSelectedUserId] = useState('')
+  const [correctionSelectedInvoice, setCorrectionSelectedInvoice] = useState('')
+  const [correctionSelectedPrestation, setCorrectionSelectedPrestation] = useState(null)
+  const [correctionAmount, setCorrectionAmount] = useState('')
+  const [correctionReason, setCorrectionReason] = useState('')
+  const [correctionSubmitting, setCorrectionSubmitting] = useState(false)
   const [exportingAll, setExportingAll] = useState(false)
   const [exportingIds, setExportingIds] = useState({})
   const [filterDateFrom, setFilterDateFrom] = useState('')
@@ -350,32 +355,60 @@ export default function ComptabilitePage() {
 
   const [recompiling, setRecompiling] = useState(false)
 
-  async function createAvoir() {
-    if (!avoirItem) return
-    if (!avoirAmount || Number(avoirAmount) <= 0) { alert('Montant invalide'); return }
-    if (!avoirReason.trim()) { alert('La raison est obligatoire'); return }
-    const neg = -Math.abs(Number(avoirAmount))
-    const ok = confirm(`⚠️ Confirmer la création d'un avoir de ${neg}€ pour ${avoirItem.user_name || avoirItem.email} ?\n\nRaison : ${avoirReason}\n\nCet avoir sera inclus dans le prochain export de facturation.`)
-    if (!ok) return
-    setAvoirLoading(true)
+  function resetCorrectionWizard() {
+    setCorrectionWizardOpen(false)
+    setCorrectionStep(1)
+    setCorrectionAllPrestations([])
+    setCorrectionSelectedUserId('')
+    setCorrectionSelectedInvoice('')
+    setCorrectionSelectedPrestation(null)
+    setCorrectionAmount('')
+    setCorrectionReason('')
+  }
+
+  async function openCorrectionWizard() {
+    setCorrectionWizardOpen(true)
+    setCorrectionStep(1)
+    setCorrectionSelectedUserId('')
+    setCorrectionSelectedInvoice('')
+    setCorrectionSelectedPrestation(null)
+    setCorrectionAmount('')
+    setCorrectionReason('')
+    setCorrectionLoadingData(true)
+    try {
+      const res = await fetch('/api/comptabilite/prestations?status=all')
+      const data = await res.json()
+      const all = (Array.isArray(data) ? data : data.prestations || []).filter(p =>
+        p && (p.status === 'Facturé' || p.status === 'Payé')
+      )
+      setCorrectionAllPrestations(all)
+    } catch (e) {
+      console.error('Erreur chargement prestations correction:', e.message)
+      setCorrectionAllPrestations([])
+    } finally {
+      setCorrectionLoadingData(false)
+    }
+  }
+
+  async function submitCorrectionAvoir() {
+    if (!correctionSelectedPrestation) return
+    if (!correctionAmount || Number(correctionAmount) <= 0) { alert('Montant invalide'); return }
+    if (!correctionReason.trim()) { alert('La raison est obligatoire'); return }
+    setCorrectionSubmitting(true)
     try {
       const res = await fetch('/api/comptabilite/create-avoir', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prestation_id: avoirItem.id, amount: Number(avoirAmount), reason: avoirReason })
+        body: JSON.stringify({ prestation_id: correctionSelectedPrestation.id, amount: Number(correctionAmount), reason: correctionReason })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erreur serveur')
       alert(`✅ ${data.message}`)
-      setAvoirModalOpen(false)
-      setAvoirItem(null)
-      setAvoirAmount('')
-      setAvoirReason('')
-      setSelectedPrestation(null)
+      resetCorrectionWizard()
     } catch (e) {
       alert('❌ Erreur : ' + e.message)
     } finally {
-      setAvoirLoading(false)
+      setCorrectionSubmitting(false)
     }
   }
 
@@ -768,6 +801,29 @@ export default function ComptabilitePage() {
           </div>
         )}
 
+        {/* Correction Facture Button — always visible */}
+        <div style={{display:'flex', justifyContent:'flex-end', marginBottom:16}}>
+          <button
+            onClick={openCorrectionWizard}
+            style={{
+              padding:'11px 20px',
+              background:'#f59e0b',
+              color:'white',
+              border:'none',
+              borderRadius:8,
+              cursor:'pointer',
+              fontSize:14,
+              fontWeight:700,
+              boxShadow:'0 2px 6px rgba(245,158,11,0.3)',
+              display:'flex',
+              alignItems:'center',
+              gap:8
+            }}
+          >
+            ⚠️ Correction facture
+          </button>
+        </div>
+
         {/* Prestations by Analytic - Grouped View */}
         {loading ? (
           <div style={{padding: 40, textAlign: 'center', color: '#6b7280', background: 'white', borderRadius: 8}}>
@@ -1042,19 +1098,6 @@ export default function ComptabilitePage() {
                 <a href={selectedPrestation.pdf_url} download style={{padding:'8px 12px',background:'#6b7280',color:'#fff',borderRadius:6,textDecoration:'none',display:'inline-block',textAlign:'center'}}>Télécharger</a>
               ) : null}
               <button onClick={() => { setConfirmPaymentItem(selectedPrestation); setConfirmPaymentOpen(true); }} style={{padding:'8px 12px',background:'#10b981',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Encodé</button>
-              {(selectedPrestation.status === 'Facturé' || selectedPrestation.status === 'Payé') && (
-                <button
-                  onClick={() => {
-                    setAvoirItem(selectedPrestation)
-                    setAvoirAmount(String(Math.abs(parseFloat(selectedPrestation.remuneration || 0) || 0)))
-                    setAvoirReason(`AVOIR - correction facture ${selectedPrestation.invoice_number || '#' + selectedPrestation.id}`)
-                    setAvoirModalOpen(true)
-                  }}
-                  style={{padding:'8px 12px',background:'#f59e0b',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:600}}
-                >
-                  ⚠️ Créer un avoir
-                </button>
-              )}
             </div>
 
             <div className={adminStyles['validation-actions']}>
@@ -1064,42 +1107,147 @@ export default function ComptabilitePage() {
         </div>
       )}
 
-      {/* Avoir Modal */}
-      {avoirModalOpen && avoirItem && (
-        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1400}} onClick={() => setAvoirModalOpen(false)}>
-          <div style={{background:'#fff',borderRadius:12,width:480,maxWidth:'95%',padding:24,boxShadow:'0 10px 40px rgba(0,0,0,0.3)'}} onClick={e => e.stopPropagation()}>
-            <h3 style={{marginTop:0,color:'#92400e',display:'flex',alignItems:'center',gap:8}}>⚠️ Créer un avoir</h3>
-            <div style={{background:'#fef3c7',borderRadius:8,padding:12,marginBottom:16,fontSize:13,color:'#78350f'}}>
-              <strong>Prestation #{avoirItem.id}</strong> — {avoirItem.user_name || avoirItem.email}<br/>
-              Montant original : <strong>{(parseFloat(avoirItem.remuneration || 0) || 0).toFixed(2)}€</strong>
-              {avoirItem.invoice_number && <><br/>Facture : <strong>{avoirItem.invoice_number}</strong></>}
+      {/* Correction Facture Wizard Modal */}
+      {correctionWizardOpen && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1400}} onClick={resetCorrectionWizard}>
+          <div style={{background:'#fff',borderRadius:14,width:560,maxWidth:'96%',padding:28,boxShadow:'0 12px 48px rgba(0,0,0,0.3)',maxHeight:'90vh',overflowY:'auto'}} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+              <h3 style={{margin:0,color:'#92400e',fontSize:18}}>⚠️ Correction de facture</h3>
+              <div style={{display:'flex',gap:6}}>
+                {[1,2,3].map(s => (
+                  <div key={s} style={{width:28,height:28,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,background:correctionStep===s?'#f59e0b':correctionStep>s?'#10b981':'#e5e7eb',color:correctionStep>=s?'#fff':'#9ca3af'}}>{s}</div>
+                ))}
+              </div>
             </div>
-            <div style={{marginBottom:14}}>
-              <label style={{display:'block',fontWeight:600,marginBottom:4,fontSize:13}}>Montant de l'avoir (€) <span style={{color:'#dc2626'}}>*</span></label>
-              <input
-                type="number" step="0.01" min="0.01"
-                value={avoirAmount}
-                onChange={e => setAvoirAmount(e.target.value)}
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:15,boxSizing:'border-box'}}
-                placeholder="Ex: 45.00"
-              />
-              <div style={{fontSize:12,color:'#6b7280',marginTop:4}}>Sera enregistré comme <strong>{avoirAmount ? (-Math.abs(Number(avoirAmount))).toFixed(2) : '-X.XX'}€</strong> dans la prochaine facture</div>
-            </div>
-            <div style={{marginBottom:20}}>
-              <label style={{display:'block',fontWeight:600,marginBottom:4,fontSize:13}}>Raison <span style={{color:'#dc2626'}}>*</span></label>
-              <input
-                type="text"
-                value={avoirReason}
-                onChange={e => setAvoirReason(e.target.value)}
-                style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}}
-                placeholder="Ex: AVOIR - correction facture 2026-003"
-              />
-            </div>
-            <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
-              <button onClick={() => { setAvoirModalOpen(false); setAvoirItem(null); setAvoirAmount(''); setAvoirReason('') }} style={{padding:'9px 16px',background:'#f3f4f6',border:'none',borderRadius:6,cursor:'pointer',fontWeight:500}}>Annuler</button>
-              <button onClick={createAvoir} disabled={avoirLoading} style={{padding:'9px 16px',background: avoirLoading ? '#9ca3af' : '#f59e0b',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:700}}>
-                {avoirLoading ? 'Création...' : '✅ Confirmer l’avoir'}
-              </button>
+
+            {correctionLoadingData ? (
+              <div style={{padding:40,textAlign:'center',color:'#6b7280'}}>⏳ Chargement des factures...</div>
+            ) : (
+              <>
+                {/* STEP 1: Select prestataire */}
+                {correctionStep === 1 && (() => {
+                  const users = Array.from(
+                    correctionAllPrestations.reduce((m, p) => {
+                      if (!m.has(p.user_id)) m.set(p.user_id, { user_id: p.user_id, user_name: p.user_name || p.email || ('#'+p.user_id) })
+                      return m
+                    }, new Map())
+                  ).map(([,v]) => v).sort((a,b) => a.user_name.localeCompare(b.user_name))
+                  return (
+                    <div>
+                      <p style={{color:'#374151',marginBottom:16,fontSize:14}}>Sélectionnez le prestataire dont la facture doit être corrigée.</p>
+                      {users.length === 0 ? (
+                        <div style={{color:'#6b7280',fontSize:13,padding:12,background:'#f9fafb',borderRadius:8}}>Aucune prestation facturée/payée trouvée.</div>
+                      ) : (
+                        <div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:300,overflowY:'auto'}}>
+                          {users.map(u => (
+                            <button key={u.user_id} onClick={() => { setCorrectionSelectedUserId(u.user_id); setCorrectionStep(2) }}
+                              style={{padding:'12px 16px',border:'2px solid #e5e7eb',borderRadius:8,background:'#fff',cursor:'pointer',textAlign:'left',fontSize:14,fontWeight:600,color:'#1f2937',transition:'all 0.15s'}}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor='#f59e0b'; e.currentTarget.style.background='#fffbeb' }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor='#e5e7eb'; e.currentTarget.style.background='#fff' }}
+                            >
+                              👤 {u.user_name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* STEP 2: Select invoice */}
+                {correctionStep === 2 && (() => {
+                  const userPrestations = correctionAllPrestations.filter(p => p.user_id === correctionSelectedUserId)
+                  const invoices = [...new Set(userPrestations.map(p => p.invoice_number).filter(Boolean))]
+                    .sort((a,b) => { const [ay=0,an=0]=a.split('-').map(Number); const [by=0,bn=0]=b.split('-').map(Number); return ay!==by?by-ay:bn-an })
+                  const userName = userPrestations[0]?.user_name || ''
+                  return (
+                    <div>
+                      <button onClick={() => setCorrectionStep(1)} style={{background:'none',border:'none',cursor:'pointer',color:'#6b7280',fontSize:13,marginBottom:12,padding:0}}>← Retour</button>
+                      <p style={{color:'#374151',marginBottom:16,fontSize:14}}>Factures de <strong>{userName}</strong> — sélectionnez celle à corriger.</p>
+                      {invoices.length === 0 ? (
+                        <div style={{color:'#6b7280',fontSize:13,padding:12,background:'#f9fafb',borderRadius:8}}>Aucune facture numérotée trouvée pour ce prestataire.</div>
+                      ) : (
+                        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                          {invoices.map(inv => {
+                            const invPrestations = userPrestations.filter(p => p.invoice_number === inv)
+                            const invTotal = invPrestations.reduce((s,p) => s + (parseFloat(p.remuneration)||0), 0)
+                            return (
+                              <button key={inv} onClick={() => { setCorrectionSelectedInvoice(inv); setCorrectionStep(3) }}
+                                style={{padding:'12px 16px',border:'2px solid #e5e7eb',borderRadius:8,background:'#fff',cursor:'pointer',textAlign:'left',transition:'all 0.15s'}}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor='#f59e0b'; e.currentTarget.style.background='#fffbeb' }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor='#e5e7eb'; e.currentTarget.style.background='#fff' }}
+                              >
+                                <div style={{fontWeight:700,fontSize:14,color:'#1f2937'}}>📄 Facture {inv}</div>
+                                <div style={{fontSize:12,color:'#6b7280',marginTop:4}}>{invPrestations.length} prestation(s) · {invTotal.toFixed(2)}€ total</div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* STEP 3: Select prestation + amount/reason */}
+                {correctionStep === 3 && (() => {
+                  const invPrestations = correctionAllPrestations.filter(p => p.user_id === correctionSelectedUserId && p.invoice_number === correctionSelectedInvoice)
+                  return (
+                    <div>
+                      <button onClick={() => { setCorrectionStep(2); setCorrectionSelectedPrestation(null); setCorrectionAmount(''); setCorrectionReason('') }} style={{background:'none',border:'none',cursor:'pointer',color:'#6b7280',fontSize:13,marginBottom:12,padding:0}}>← Retour</button>
+                      {!correctionSelectedPrestation ? (
+                        <>
+                          <p style={{color:'#374151',marginBottom:16,fontSize:14}}>Sélectionnez la prestation à mettre en négatif dans la prochaine extraction.</p>
+                          <div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:260,overflowY:'auto'}}>
+                            {invPrestations.map(p => (
+                              <button key={p.id} onClick={() => { setCorrectionSelectedPrestation(p); setCorrectionAmount(String(Math.abs(parseFloat(p.remuneration||0)))); setCorrectionReason(`AVOIR - correction facture ${p.invoice_number||'#'+p.id}`) }}
+                                style={{padding:'12px 16px',border:'2px solid #e5e7eb',borderRadius:8,background:'#fff',cursor:'pointer',textAlign:'left',transition:'all 0.15s'}}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor='#f59e0b'; e.currentTarget.style.background='#fffbeb' }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor='#e5e7eb'; e.currentTarget.style.background='#fff' }}
+                              >
+                                <div style={{fontWeight:600,fontSize:13,color:'#1f2937'}}>{p.activity_type || p.analytic_name || 'Prestation #'+p.id}</div>
+                                <div style={{fontSize:12,color:'#6b7280',marginTop:3}}>
+                                  📅 {p.date ? new Date(p.date).toLocaleDateString('fr-FR') : '-'} &nbsp;·&nbsp;
+                                  <strong style={{color:'#1f2937'}}>{(parseFloat(p.remuneration||0)).toFixed(2)}€</strong> &nbsp;·&nbsp;
+                                  {p.status}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{background:'#fef3c7',borderRadius:8,padding:12,marginBottom:16,fontSize:13,color:'#78350f'}}>
+                            Prestation sélectionnée : <strong>{correctionSelectedPrestation.activity_type || '#'+correctionSelectedPrestation.id}</strong><br/>
+                            Montant original : <strong>{(parseFloat(correctionSelectedPrestation.remuneration||0)).toFixed(2)}€</strong>
+                          </div>
+                          <div style={{marginBottom:14}}>
+                            <label style={{display:'block',fontWeight:600,marginBottom:4,fontSize:13}}>Montant de l'avoir (€) <span style={{color:'#dc2626'}}>*</span></label>
+                            <input type="number" step="0.01" min="0.01" value={correctionAmount} onChange={e => setCorrectionAmount(e.target.value)}
+                              style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:15,boxSizing:'border-box'}} />
+                            <div style={{fontSize:12,color:'#6b7280',marginTop:4}}>Sera inscrit comme <strong style={{color:'#dc2626'}}>{correctionAmount ? (-Math.abs(Number(correctionAmount))).toFixed(2) : '-X.XX'}€</strong> dans la prochaine facture</div>
+                          </div>
+                          <div style={{marginBottom:20}}>
+                            <label style={{display:'block',fontWeight:600,marginBottom:4,fontSize:13}}>Raison <span style={{color:'#dc2626'}}>*</span></label>
+                            <input type="text" value={correctionReason} onChange={e => setCorrectionReason(e.target.value)}
+                              style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
+                          </div>
+                          <div style={{display:'flex',justifyContent:'space-between',gap:8}}>
+                            <button onClick={() => { setCorrectionSelectedPrestation(null); setCorrectionAmount(''); setCorrectionReason('') }} style={{padding:'9px 16px',background:'#f3f4f6',border:'none',borderRadius:6,cursor:'pointer',fontWeight:500}}>Choisir une autre prestation</button>
+                            <button onClick={submitCorrectionAvoir} disabled={correctionSubmitting} style={{padding:'9px 20px',background:correctionSubmitting?'#9ca3af':'#f59e0b',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:700}}>
+                              {correctionSubmitting ? 'Création...' : '✅ Confirmer l’avoir'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )
+                })()}
+              </>
+            )}
+
+            <div style={{marginTop:20,textAlign:'right'}}>
+              <button onClick={resetCorrectionWizard} style={{padding:'8px 14px',background:'#f3f4f6',border:'none',borderRadius:6,cursor:'pointer',color:'#374151',fontSize:13}}>Fermer</button>
             </div>
           </div>
         </div>
