@@ -14,6 +14,18 @@ export default function FacturationPage() {
   const [filterDateTo, setFilterDateTo] = useState('')
   const [editingInvoice, setEditingInvoice] = useState(null)
 
+  // Correction wizard
+  const [correctionWizardOpen, setCorrectionWizardOpen] = useState(false)
+  const [correctionStep, setCorrectionStep] = useState(1)
+  const [correctionAllPrestations, setCorrectionAllPrestations] = useState([])
+  const [correctionLoadingData, setCorrectionLoadingData] = useState(false)
+  const [correctionSelectedUserId, setCorrectionSelectedUserId] = useState('')
+  const [correctionSelectedInvoice, setCorrectionSelectedInvoice] = useState('')
+  const [correctionSelectedPrestation, setCorrectionSelectedPrestation] = useState(null)
+  const [correctionAmount, setCorrectionAmount] = useState('')
+  const [correctionReason, setCorrectionReason] = useState('')
+  const [correctionSubmitting, setCorrectionSubmitting] = useState(false)
+
   // Manual invoice modal
   const [manualInvoiceOpen, setManualInvoiceOpen] = useState(false)
   const [manualInvoiceSubmitting, setManualInvoiceSubmitting] = useState(false)
@@ -37,6 +49,64 @@ export default function FacturationPage() {
     period_to: new Date().toISOString().split('T')[0],
     forfait_amount: '',
   })
+
+  function resetCorrectionWizard() {
+    setCorrectionWizardOpen(false)
+    setCorrectionStep(1)
+    setCorrectionAllPrestations([])
+    setCorrectionSelectedUserId('')
+    setCorrectionSelectedInvoice('')
+    setCorrectionSelectedPrestation(null)
+    setCorrectionAmount('')
+    setCorrectionReason('')
+  }
+
+  async function openCorrectionWizard() {
+    setCorrectionWizardOpen(true)
+    setCorrectionStep(1)
+    setCorrectionSelectedUserId('')
+    setCorrectionSelectedInvoice('')
+    setCorrectionSelectedPrestation(null)
+    setCorrectionAmount('')
+    setCorrectionReason('')
+    setCorrectionLoadingData(true)
+    try {
+      const res = await fetch('/api/comptabilite/prestations?status=all')
+      const data = await res.json()
+      const all = (Array.isArray(data) ? data : data.prestations || []).filter(p =>
+        p && (p.status === 'Facturé' || p.status === 'Payé')
+      )
+      setCorrectionAllPrestations(all)
+    } catch (e) {
+      console.error('Erreur chargement prestations correction:', e.message)
+      setCorrectionAllPrestations([])
+    } finally {
+      setCorrectionLoadingData(false)
+    }
+  }
+
+  async function submitCorrectionAvoir() {
+    if (!correctionSelectedPrestation) return
+    if (!correctionAmount || Number(correctionAmount) <= 0) { alert('Montant invalide'); return }
+    if (!correctionReason.trim()) { alert('La raison est obligatoire'); return }
+    setCorrectionSubmitting(true)
+    try {
+      const res = await fetch('/api/comptabilite/create-avoir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prestation_id: correctionSelectedPrestation.id, amount: Number(correctionAmount), reason: correctionReason })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erreur serveur')
+      alert(`✅ ${data.message}`)
+      resetCorrectionWizard()
+      fetchInvoices()
+    } catch (e) {
+      alert('❌ Erreur : ' + e.message)
+    } finally {
+      setCorrectionSubmitting(false)
+    }
+  }
 
   async function openManualInvoice() {
     setManualInvoiceOpen(true)
@@ -289,24 +359,42 @@ export default function FacturationPage() {
                 Gérez vos factures, paiements et relevés de comptes
               </p>
             </div>
-            <button
-              onClick={openManualInvoice}
-              style={{
-                padding: '12px 22px',
-                background: '#7c3aed',
-                color: 'white',
-                border: 'none',
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 700,
-                boxShadow: '0 2px 6px rgba(124,58,237,0.3)',
-                whiteSpace: 'nowrap',
-                marginTop: 4,
-              }}
-            >
-              ✍️ Facture manuelle
-            </button>
+            <div style={{display:'flex',gap:10,marginTop:4}}>
+              <button
+                onClick={openCorrectionWizard}
+                style={{
+                  padding: '12px 22px',
+                  background: '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  boxShadow: '0 2px 6px rgba(245,158,11,0.3)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                ⚠️ Correction facture
+              </button>
+              <button
+                onClick={openManualInvoice}
+                style={{
+                  padding: '12px 22px',
+                  background: '#7c3aed',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  boxShadow: '0 2px 6px rgba(124,58,237,0.3)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                ✍️ Facture manuelle
+              </button>
+            </div>
           </div>
 
           {/* Statistics Cards */}
@@ -536,6 +624,154 @@ export default function FacturationPage() {
         </main>
       </div>
     </div>
+
+      {/* Correction Wizard Modal */}
+      {correctionWizardOpen && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1500}} onClick={resetCorrectionWizard}>
+          <div style={{background:'#fff',borderRadius:14,width:'95%',maxWidth:520,maxHeight:'90vh',overflow:'auto',padding:'24px 28px',boxShadow:'0 24px 64px rgba(0,0,0,0.3)'}} onClick={e => e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:18}}>
+              <div>
+                <h2 style={{margin:0,fontSize:18,fontWeight:700,color:'#111827'}}>⚠️ Correction facture</h2>
+                <div style={{display:'flex',alignItems:'center',gap:6,marginTop:8}}>
+                  {[1,2,3].map(s => (
+                    <div key={s} style={{height:4,width:36,borderRadius:2,background:correctionStep>=s?'#f59e0b':'#e5e7eb',transition:'background 0.2s'}} />
+                  ))}
+                  <span style={{fontSize:11,color:'#9ca3af',marginLeft:4}}>Étape {correctionStep} / 3</span>
+                </div>
+              </div>
+              <button onClick={resetCorrectionWizard} style={{border:'none',background:'#f3f4f6',borderRadius:8,width:32,height:32,cursor:'pointer',fontSize:15,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+            </div>
+
+            {correctionLoadingData ? (
+              <div style={{textAlign:'center',padding:32,color:'#6b7280'}}>⏳ Chargement des prestations...</div>
+            ) : (
+              <>
+                {/* STEP 1: Prestataire */}
+                {correctionStep === 1 && (() => {
+                  const userIds = [...new Set(correctionAllPrestations.map(p => p.user_id))]
+                  const users = userIds.map(uid => {
+                    const p = correctionAllPrestations.find(x => x.user_id === uid)
+                    return { user_id: uid, name: p?.user_name || p?.email || 'Prestataire #'+uid }
+                  }).sort((a,b) => a.name.localeCompare(b.name))
+                  return (
+                    <div>
+                      <p style={{color:'#374151',marginBottom:16,fontSize:14}}>Sélectionnez le prestataire dont vous souhaitez corriger une facture.</p>
+                      {correctionAllPrestations.length === 0 ? (
+                        <div style={{color:'#6b7280',fontSize:13,padding:16,background:'#f9fafb',borderRadius:8,textAlign:'center'}}>Aucune prestation facturée ou payée trouvée.</div>
+                      ) : (
+                        <div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:320,overflowY:'auto'}}>
+                          {users.map(u => (
+                            <button key={u.user_id} onClick={() => { setCorrectionSelectedUserId(u.user_id); setCorrectionStep(2) }}
+                              style={{padding:'12px 16px',border:'2px solid #e5e7eb',borderRadius:8,background:'#fff',cursor:'pointer',textAlign:'left',transition:'all 0.15s'}}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor='#f59e0b'; e.currentTarget.style.background='#fffbeb' }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor='#e5e7eb'; e.currentTarget.style.background='#fff' }}
+                            >
+                              <div style={{fontWeight:700,fontSize:14,color:'#1f2937'}}>👤 {u.name}</div>
+                              <div style={{fontSize:12,color:'#6b7280',marginTop:3}}>{correctionAllPrestations.filter(p => p.user_id === u.user_id).length} prestation(s) facturée(s)</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* STEP 2: Invoice */}
+                {correctionStep === 2 && (() => {
+                  const userPrestations = correctionAllPrestations.filter(p => p.user_id === correctionSelectedUserId)
+                  const invoices = [...new Set(userPrestations.map(p => p.invoice_number).filter(Boolean))].sort()
+                  const userName = userPrestations[0]?.user_name || ''
+                  return (
+                    <div>
+                      <button onClick={() => setCorrectionStep(1)} style={{background:'none',border:'none',cursor:'pointer',color:'#6b7280',fontSize:13,marginBottom:12,padding:0}}>← Retour</button>
+                      <p style={{color:'#374151',marginBottom:16,fontSize:14}}>Factures de <strong>{userName}</strong> — sélectionnez celle à corriger.</p>
+                      {invoices.length === 0 ? (
+                        <div style={{color:'#6b7280',fontSize:13,padding:12,background:'#f9fafb',borderRadius:8}}>Aucune facture numérotée trouvée pour ce prestataire.</div>
+                      ) : (
+                        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                          {invoices.map(inv => {
+                            const invPrestations = userPrestations.filter(p => p.invoice_number === inv)
+                            const invTotal = invPrestations.reduce((s,p) => s + (parseFloat(p.remuneration)||0), 0)
+                            return (
+                              <button key={inv} onClick={() => { setCorrectionSelectedInvoice(inv); setCorrectionStep(3) }}
+                                style={{padding:'12px 16px',border:'2px solid #e5e7eb',borderRadius:8,background:'#fff',cursor:'pointer',textAlign:'left',transition:'all 0.15s'}}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor='#f59e0b'; e.currentTarget.style.background='#fffbeb' }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor='#e5e7eb'; e.currentTarget.style.background='#fff' }}
+                              >
+                                <div style={{fontWeight:700,fontSize:14,color:'#1f2937'}}>📄 Facture {inv}</div>
+                                <div style={{fontSize:12,color:'#6b7280',marginTop:4}}>{invPrestations.length} prestation(s) · {invTotal.toFixed(2)}€ total</div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* STEP 3: Prestation + amount/reason */}
+                {correctionStep === 3 && (() => {
+                  const invPrestations = correctionAllPrestations.filter(p => p.user_id === correctionSelectedUserId && p.invoice_number === correctionSelectedInvoice)
+                  return (
+                    <div>
+                      <button onClick={() => { setCorrectionStep(2); setCorrectionSelectedPrestation(null); setCorrectionAmount(''); setCorrectionReason('') }} style={{background:'none',border:'none',cursor:'pointer',color:'#6b7280',fontSize:13,marginBottom:12,padding:0}}>← Retour</button>
+                      {!correctionSelectedPrestation ? (
+                        <>
+                          <p style={{color:'#374151',marginBottom:16,fontSize:14}}>Sélectionnez la prestation à corriger.</p>
+                          <div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:260,overflowY:'auto'}}>
+                            {invPrestations.map(p => (
+                              <button key={p.id} onClick={() => { setCorrectionSelectedPrestation(p); setCorrectionAmount(String(Math.abs(parseFloat(p.remuneration||0)))); setCorrectionReason(`AVOIR - correction facture ${p.invoice_number||'#'+p.id}`) }}
+                                style={{padding:'12px 16px',border:'2px solid #e5e7eb',borderRadius:8,background:'#fff',cursor:'pointer',textAlign:'left',transition:'all 0.15s'}}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor='#f59e0b'; e.currentTarget.style.background='#fffbeb' }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor='#e5e7eb'; e.currentTarget.style.background='#fff' }}
+                              >
+                                <div style={{fontWeight:600,fontSize:13,color:'#1f2937'}}>{p.activity_type || p.analytic_name || 'Prestation #'+p.id}</div>
+                                <div style={{fontSize:12,color:'#6b7280',marginTop:3}}>
+                                  📅 {p.date ? new Date(p.date).toLocaleDateString('fr-FR') : '-'} &nbsp;·&nbsp;
+                                  <strong style={{color:'#1f2937'}}>{(parseFloat(p.remuneration||0)).toFixed(2)}€</strong> &nbsp;·&nbsp;
+                                  {p.status}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{background:'#fef3c7',borderRadius:8,padding:12,marginBottom:16,fontSize:13,color:'#78350f'}}>
+                            Prestation sélectionnée : <strong>{correctionSelectedPrestation.activity_type || '#'+correctionSelectedPrestation.id}</strong><br/>
+                            Montant original : <strong>{(parseFloat(correctionSelectedPrestation.remuneration||0)).toFixed(2)}€</strong>
+                          </div>
+                          <div style={{marginBottom:14}}>
+                            <label style={{display:'block',fontWeight:600,marginBottom:4,fontSize:13}}>Montant de l'avoir (€) <span style={{color:'#dc2626'}}>*</span></label>
+                            <input type="number" step="0.01" min="0.01" value={correctionAmount} onChange={e => setCorrectionAmount(e.target.value)}
+                              style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:15,boxSizing:'border-box'}} />
+                            <div style={{fontSize:12,color:'#6b7280',marginTop:4}}>Sera inscrit comme <strong style={{color:'#dc2626'}}>{correctionAmount ? (-Math.abs(Number(correctionAmount))).toFixed(2) : '-X.XX'}€</strong> dans la prochaine facture</div>
+                          </div>
+                          <div style={{marginBottom:20}}>
+                            <label style={{display:'block',fontWeight:600,marginBottom:4,fontSize:13}}>Raison <span style={{color:'#dc2626'}}>*</span></label>
+                            <input type="text" value={correctionReason} onChange={e => setCorrectionReason(e.target.value)}
+                              style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,boxSizing:'border-box'}} />
+                          </div>
+                          <div style={{display:'flex',justifyContent:'space-between',gap:8}}>
+                            <button onClick={() => { setCorrectionSelectedPrestation(null); setCorrectionAmount(''); setCorrectionReason('') }} style={{padding:'9px 16px',background:'#f3f4f6',border:'none',borderRadius:6,cursor:'pointer',fontWeight:500}}>Choisir une autre</button>
+                            <button onClick={submitCorrectionAvoir} disabled={correctionSubmitting} style={{padding:'9px 20px',background:correctionSubmitting?'#9ca3af':'#f59e0b',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:700}}>
+                              {correctionSubmitting ? 'Création...' : '✅ Confirmer l\'avoir'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )
+                })()}
+              </>
+            )}
+
+            <div style={{marginTop:20,textAlign:'right'}}>
+              <button onClick={resetCorrectionWizard} style={{padding:'8px 14px',background:'#f3f4f6',border:'none',borderRadius:6,cursor:'pointer',color:'#374151',fontSize:13}}>Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Manual Invoice Modal */}
       {manualInvoiceOpen && (
