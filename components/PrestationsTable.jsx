@@ -466,6 +466,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       }
       
       // No existing prestation found, create new one from activity
+      // Pre-fill hours from eBrigade theoretical duration
+      const _ebrigadeDuration = resolveEbrigadeDurationHours(p)
+      const _payTypeLowerPrefill = String(p.ebrigade_activity_type || p.pay_type || p.analytic_name || '').toLowerCase()
+      // Mirror the same garde-detection logic as editingIsGarde
+      const _willBeGardeMode = p.hour_entry_type === 'simple' ? false
+        : p.hour_entry_type === 'garde' ? true
+        : (_payTypeLowerPrefill.includes('garde') || !!_ebrigadeDuration || !!p.ebrigade_activity_type)
       const editingState = {
         id: null,
         analytic_id: p.analytic_id,
@@ -475,9 +482,12 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         date: p.date,
         remuneration_infi: p.remuneration_infi,
         remuneration_med: p.remuneration_med,
-        hours_actual: null,
+        // Pre-fill theoretical hours from eBrigade:
+        // - Non-garde (hour_entry_type='simple'): fill hours_actual
+        // - Garde mode: fill sortie_hours=0 so garde_hours = full duration by default
+        hours_actual: !_willBeGardeMode && _ebrigadeDuration ? _ebrigadeDuration : null,
         garde_hours: null,
-        sortie_hours: null,
+        sortie_hours: _willBeGardeMode && _ebrigadeDuration != null ? 0 : null,
         overtime_hours: null,
         // eBrigade data for Garde/activity hours
         ebrigade_duration_hours: resolveEbrigadeDurationHours(p),
