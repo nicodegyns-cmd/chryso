@@ -12,9 +12,15 @@ function fmtNiss(v) {
   return d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4,6)+'-'+d.slice(6,9)+'.'+d.slice(9)
 }
 function fmtIban(v) {
-  let c = (v||'').replace(/\s/g,'').toUpperCase()
-  if (!c.startsWith('BE')) c = 'BE'+c.replace(/[^A-Z0-9]/g,'')
-  const m = c.slice(0,16).match(/.{1,4}/g)
+  let c = (v||'').replace(/\s/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'')
+  // Only auto-prepend BE if the user hasn't started typing a country code
+  if (c.length >= 2 && /^[A-Z]{2}/.test(c)) {
+    // User typed a country code — keep it
+  } else if (c.length > 0 && /^[0-9]/.test(c)) {
+    // Starts with digits — assume BE
+    c = 'BE' + c
+  }
+  const m = c.slice(0,34).match(/.{1,4}/g)
   return m ? m.join(' ') : c
 }
 function parseAdresse(v) {
@@ -364,7 +370,7 @@ export default function ProfilePage(){
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE BANCAIRE *</div>
-                        <input value={form.compte} onChange={(e) => setForm({...form, compte: fmtIban(e.target.value)})} placeholder="BE88 0000 0000 0000" required />
+                        <input value={form.compte} onChange={(e) => setForm({...form, compte: fmtIban(e.target.value)})} placeholder="BE88 0000 0000 0000 / FR76 ..." required />
                       </label>
                       <label className="form-row">
                         <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>LIAISON EBRIGADE</div>
@@ -442,7 +448,7 @@ export default function ProfilePage(){
                   </label>
                   <label className="form-row">
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>COMPTE BANCAIRE *</div>
-                    <input value={form.compte} onChange={(e) => setForm({...form, compte: fmtIban(e.target.value)})} placeholder="BE88 0000 0000 0000" required />
+                    <input value={form.compte} onChange={(e) => setForm({...form, compte: fmtIban(e.target.value)})} placeholder="BE88 0000 0000 0000 / FR76 ..." required />
                   </label>
                   <label className="form-row" style={{gridColumn:'1 / -1'}}>
                     <div style={{fontSize:12,color:'#888',fontWeight:600,marginBottom:6}}>ADRESSE *</div>
