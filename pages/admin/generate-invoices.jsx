@@ -113,7 +113,9 @@ export default function GenerateInvoicesPage() {
     const matchAnalytic = !filterAnalytic || (
       filterAnalytic === 'unassigned' ? p.analytic_id == null : String(p.analytic_id) === filterAnalytic
     )
-    return matchSearch && matchFrom && matchTo && matchAnalytic
+    // En mode "à facturer", exclure les prestations qui ont déjà un numéro de facture
+    const notYetGenerated = filterStatus !== 'sent_to_billing' || !p.invoice_number
+    return matchSearch && matchFrom && matchTo && matchAnalytic && notYetGenerated
   })
 
   const pendingCount = filteredPrestations.filter(p => p.status === 'sent_to_billing' || p.status === 'Envoyé à la facturation').length
