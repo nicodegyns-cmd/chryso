@@ -399,7 +399,7 @@ export default function GenerateInvoicesPage() {
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                           <thead>
                             <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-                              {['Collaborateur', 'Activité', 'Montant', 'Date', 'Statut', 'N° Facture'].map(h => (
+                              {['Collaborateur', 'Activité', 'Montant', 'Date', 'Statut'].map(h => (
                                 <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#6b7280', whiteSpace: 'nowrap' }}>{h}</th>
                               ))}
                             </tr>
@@ -417,23 +417,6 @@ export default function GenerateInvoicesPage() {
                                 </td>
                                 <td style={{ padding: '10px 12px', fontSize: 13 }}>
                                   <StatusBadge status={p.status} />
-                                </td>
-                                <td style={{ padding: '10px 12px', fontSize: 12 }}>
-                                  {p.invoice_number ? (
-                                    <span style={{ fontWeight: 600, color: '#4f46e5' }}>{p.invoice_number}</span>
-                                  ) : (
-                                    <span style={{ fontStyle: 'italic', color: '#9ca3af' }}>—</span>
-                                  )}
-                                  {p.pdf_url ? (
-                                    <a href={p.pdf_url} target="_blank" rel="noreferrer"
-                                      style={{ marginLeft: 8, background: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, textDecoration: 'none' }}>
-                                      ✅ PDF
-                                    </a>
-                                  ) : p.invoice_number ? (
-                                    <span style={{ marginLeft: 8, background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
-                                      ⏳ Sans PDF
-                                    </span>
-                                  ) : null}
                                 </td>
                               </tr>
                             ))}
