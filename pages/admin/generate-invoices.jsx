@@ -113,9 +113,7 @@ export default function GenerateInvoicesPage() {
     const matchAnalytic = !filterAnalytic || (
       filterAnalytic === 'unassigned' ? p.analytic_id == null : String(p.analytic_id) === filterAnalytic
     )
-    // En mode "à facturer", exclure les prestations qui ont déjà un numéro de facture
-    const notYetGenerated = filterStatus !== 'sent_to_billing' || !p.invoice_number
-    return matchSearch && matchFrom && matchTo && matchAnalytic && notYetGenerated
+    return matchSearch && matchFrom && matchTo && matchAnalytic
   })
 
   const pendingCount = filteredPrestations.filter(p => p.status === 'sent_to_billing' || p.status === 'Envoyé à la facturation').length
@@ -420,15 +418,22 @@ export default function GenerateInvoicesPage() {
                                 <td style={{ padding: '10px 12px', fontSize: 13 }}>
                                   <StatusBadge status={p.status} />
                                 </td>
-                                <td style={{ padding: '10px 12px', fontSize: 12, color: '#9ca3af' }}>
+                                <td style={{ padding: '10px 12px', fontSize: 12 }}>
                                   {p.invoice_number ? (
                                     <span style={{ fontWeight: 600, color: '#4f46e5' }}>{p.invoice_number}</span>
                                   ) : (
-                                    <span style={{ fontStyle: 'italic' }}>—</span>
+                                    <span style={{ fontStyle: 'italic', color: '#9ca3af' }}>—</span>
                                   )}
-                                  {p.pdf_url && (
-                                    <a href={p.pdf_url} target="_blank" rel="noreferrer" style={{ marginLeft: 8, color: '#3b82f6', fontSize: 11 }}>PDF</a>
-                                  )}
+                                  {p.pdf_url ? (
+                                    <a href={p.pdf_url} target="_blank" rel="noreferrer"
+                                      style={{ marginLeft: 8, background: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, textDecoration: 'none' }}>
+                                      ✅ PDF
+                                    </a>
+                                  ) : p.invoice_number ? (
+                                    <span style={{ marginLeft: 8, background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                                      ⏳ Sans PDF
+                                    </span>
+                                  ) : null}
                                 </td>
                               </tr>
                             ))}
