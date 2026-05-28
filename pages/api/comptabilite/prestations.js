@@ -89,23 +89,25 @@ export default async function handler(req, res) {
     `
     const params = []
 
-    // Filter by status - map UI statuses to DB statuses
+    // Filter by status - handle both French DB values and English UI keys
     if (status && status !== 'all') {
-      // Map sent_to_billing UI status to actual DB status "Envoyé à la facturation"
-      if (status === 'sent_to_billing') {
-        sql += ` AND p.status = $1`
+      if (status === 'sent_to_billing' || status === 'Envoyé à la facturation') {
+        // Catch both in case legacy data has English key
         params.push('Envoyé à la facturation')
-      } else if (status === 'invoiced') {
-        sql += ` AND p.status = $1`
+        params.push('sent_to_billing')
+        sql += ` AND p.status IN ($${params.length - 1}, $${params.length})`
+      } else if (status === 'invoiced' || status === 'Facturé') {
         params.push('Facturé')
-      } else if (status === 'paid') {
-        sql += ` AND p.status = $1`
+        sql += ` AND p.status = $${params.length}`
+      } else if (status === 'paid' || status === 'Payé') {
         params.push('Payé')
+        sql += ` AND p.status = $${params.length}`
       }
     } else if (!status) {
       // Default: show prestations sent to billing
-      sql += ` AND p.status = $1`
       params.push('Envoyé à la facturation')
+      params.push('sent_to_billing')
+      sql += ` AND p.status IN ($${params.length - 1}, $${params.length})`
     }
     // status === 'all' → no filter, show everything
 
