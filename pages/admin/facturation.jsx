@@ -26,6 +26,23 @@ export default function FacturationPage() {
   const [correctionReason, setCorrectionReason] = useState('')
   const [correctionSubmitting, setCorrectionSubmitting] = useState(false)
 
+  // Generate by period modal
+  const [generateModalOpen, setGenerateModalOpen] = useState(false)
+  const [genDateFrom, setGenDateFrom] = useState('')
+  const [genDateTo, setGenDateTo] = useState('')
+  const [genAnalytic, setGenAnalytic] = useState('')
+  const [genPrestations, setGenPrestations] = useState([])
+  const [genLoading, setGenLoading] = useState(false)
+  const [generating, setGenerating] = useState(false)
+
+  // Last compilation + send email
+  const [lastCompilationUrl, setLastCompilationUrl] = useState(null)
+  const [lastCompilationFilename, setLastCompilationFilename] = useState(null)
+  const [sendEmailOpen, setSendEmailOpen] = useState(false)
+  const [emailTo, setEmailTo] = useState('')
+  const [emailSubject, setEmailSubject] = useState('')
+  const [sendingEmail, setSendingEmail] = useState(false)
+
   // Manual invoice modal
   const [manualInvoiceOpen, setManualInvoiceOpen] = useState(false)
   const [manualInvoiceSubmitting, setManualInvoiceSubmitting] = useState(false)
@@ -285,6 +302,115 @@ export default function FacturationPage() {
     }
   }
 
+  // ── Generate by period ────────────────────────────────────────────────────
+
+  async function openGenerateModal() {
+    setGenerateModalOpen(true)
+    setGenPrestations([])
+    setGenLoading(false)
+    setGenerating(false)
+  }
+
+  async function fetchGenPrestations() {
+    setGenLoading(true)
+    setGenPrestations([])
+    try {
+      const params = new URLSearchParams({ status: 'sent_to_billing' })
+      if (genDateFrom) params.append('date_from', genDateFrom)
+      if (genDateTo) params.append('date_to', genDateTo)
+      const res = await fetch(`/api/comptabilite/prestations?${params.toString()}`)
+      if (!res.ok) throw new Error('Erreur récupération prestations')
+      const data = await res.json()
+      let rows = Array.isArray(data) ? data : data.prestations || []
+      if (genAnalytic) {
+        rows = rows.filter(p => genAnalytic === 'unassigned'
+          ? p.analytic_id == null
+          : String(p.analytic_id) === genAnalytic
+        )
+      }
+      setGenPrestations(rows)
+    } catch (e) {
+      alert('❌ ' + e.message)
+    } finally {
+      setGenLoading(false)
+    }
+  }
+
+  async function generatePeriodInvoices() {
+    if (genPrestations.length === 0) return
+    const userCount = new Set(genPrestations.map(p => p.user_id)).size
+    const ok = confirm(`📤 Générer les factures pour ${genPrestations.length} prestation(s) — ${userCount} prestataire(s) ?\n\nToutes ces prestations seront marquées « Facturé ».`)
+    if (!ok) return
+    setGenerating(true)
+    try {
+      const res = await fetch('/api/comptabilite/export-all-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prestation_ids: genPrestations.map(p => p.id) }),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Erreur lors de la génération')
+      }
+      // Read server-side compilation URL from response header
+      const compilationUrl = res.headers.get('X-Compilation-Url')
+      const blob = await res.blob()
+      // Download the compiled PDF
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `Compilation_Factures_${new Date().toISOString().split('T')[0]}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      // Save compilation URL for email sending
+      if (compilationUrl) {
+        setLastCompilationUrl(compilationUrl)
+        setLastCompilationFilename(compilationUrl.split('/').pop())
+        setEmailSubject(`Compilation de factures — ${new Date().toLocaleDateString('fr-FR')}`)
+      }
+
+      setGenerateModalOpen(false)
+      fetchInvoices()
+    } catch (err) {
+      alert('❌ ' + err.message)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function sendCompilationEmail() {
+    if (!lastCompilationFilename || !emailTo.trim()) return
+    const emailList = emailTo.split(';').map(e => e.trim()).filter(Boolean)
+    if (emailList.length === 0) return alert('Veuillez saisir au moins une adresse email')
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    for (const e of emailList) {
+      if (!emailRegex.test(e)) return alert(`Adresse invalide : ${e}`)
+    }
+    setSendingEmail(true)
+    try {
+      const res = await fetch('/api/admin/send-pdf-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pdf_path: lastCompilationFilename,
+          email_to: emailTo.trim(),
+          subject: emailSubject || `Compilation de factures — ${new Date().toLocaleDateString('fr-FR')}`,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erreur serveur')
+      alert(`✅ ${data.message}`)
+      setSendEmailOpen(false)
+    } catch (err) {
+      alert('❌ ' + err.message)
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
   // Fetch invoices on component mount
   useEffect(() => {
     fetchInvoices()
@@ -361,6 +487,23 @@ export default function FacturationPage() {
             </div>
             <div style={{display:'flex',gap:10,marginTop:4}}>
               <button
+                onClick={openGenerateModal}
+                style={{
+                  padding: '12px 22px',
+                  background: '#059669',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  boxShadow: '0 2px 6px rgba(5,150,105,0.3)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                📅 Générer par période
+              </button>
+              <button
                 onClick={openCorrectionWizard}
                 style={{
                   padding: '12px 22px',
@@ -430,6 +573,52 @@ export default function FacturationPage() {
               color="#8b5cf6"
             />
           </div>
+
+          {/* Last compilation banner */}
+          {lastCompilationUrl && (
+            <div style={{
+              background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+              border: '2px solid #6ee7b7',
+              borderRadius: 10,
+              padding: '16px 20px',
+              marginBottom: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12,
+            }}>
+              <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+                <span style={{fontSize: 28}}>📄</span>
+                <div>
+                  <div style={{fontWeight: 700, fontSize: 14, color: '#065f46'}}>Compilation PDF générée avec succès</div>
+                  <div style={{fontSize: 12, color: '#047857', marginTop: 2}}>{lastCompilationFilename}</div>
+                </div>
+              </div>
+              <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+                <a
+                  href={lastCompilationUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{padding: '9px 16px', background: '#059669', color: 'white', borderRadius: 7, textDecoration: 'none', fontSize: 13, fontWeight: 700}}
+                >
+                  👁️ Voir le PDF
+                </a>
+                <button
+                  onClick={() => setSendEmailOpen(true)}
+                  style={{padding: '9px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 700}}
+                >
+                  ✉️ Envoyer par mail
+                </button>
+                <button
+                  onClick={() => { setLastCompilationUrl(null); setLastCompilationFilename(null) }}
+                  style={{padding: '9px 12px', background: '#f3f4f6', color: '#6b7280', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13}}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Filters Section */}
           <div style={{
@@ -1103,6 +1292,149 @@ export default function FacturationPage() {
               )
             })()}
 
+          </div>
+        </div>
+      )}
+
+      {/* ── Generate by period modal ─────────────────────────────────── */}
+      {generateModalOpen && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1600}} onClick={() => !generating && setGenerateModalOpen(false)}>
+          <div style={{background:'#fff',borderRadius:16,width:'95%',maxWidth:620,maxHeight:'90vh',overflow:'auto',padding:'28px 32px',boxShadow:'0 24px 64px rgba(0,0,0,0.3)'}} onClick={e => e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:22}}>
+              <h2 style={{margin:0,fontSize:18,fontWeight:700,color:'#111827'}}>📅 Générer les factures par période</h2>
+              <button onClick={() => setGenerateModalOpen(false)} disabled={generating} style={{border:'none',background:'#f3f4f6',borderRadius:8,width:32,height:32,cursor:'pointer',fontSize:15,color:'#6b7280',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+            </div>
+
+            {/* Filters */}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:16}}>
+              <div>
+                <label style={{display:'block',fontSize:12,fontWeight:700,color:'#6b7280',marginBottom:5,letterSpacing:'0.05em'}}>📅 DU</label>
+                <input type="date" value={genDateFrom} onChange={e => setGenDateFrom(e.target.value)}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:7,fontSize:14,boxSizing:'border-box'}} />
+              </div>
+              <div>
+                <label style={{display:'block',fontSize:12,fontWeight:700,color:'#6b7280',marginBottom:5,letterSpacing:'0.05em'}}>AU</label>
+                <input type="date" value={genDateTo} onChange={e => setGenDateTo(e.target.value)}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:7,fontSize:14,boxSizing:'border-box'}} />
+              </div>
+              <div style={{gridColumn:'1/-1'}}>
+                <label style={{display:'block',fontSize:12,fontWeight:700,color:'#6b7280',marginBottom:5,letterSpacing:'0.05em'}}>📊 ANALYTIQUE (optionnel)</label>
+                <select value={genAnalytic} onChange={e => setGenAnalytic(e.target.value)}
+                  style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:7,fontSize:14,background:'white',boxSizing:'border-box'}}>
+                  <option value="">Toutes les analytiques</option>
+                  {analytics.filter(a => a.is_active !== false).map(a => (
+                    <option key={a.id} value={String(a.id)}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <button onClick={fetchGenPrestations} disabled={genLoading}
+              style={{width:'100%',padding:'11px',background:genLoading?'#9ca3af':'#4f46e5',color:'white',border:'none',borderRadius:8,cursor:genLoading?'not-allowed':'pointer',fontSize:14,fontWeight:700,marginBottom:20}}>
+              {genLoading ? '⏳ Chargement...' : '🔍 Prévisualiser les prestations'}
+            </button>
+
+            {/* Preview table */}
+            {genPrestations.length > 0 && (
+              <div style={{marginBottom:20}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                  <div style={{fontWeight:700,fontSize:14,color:'#1f2937'}}>
+                    {genPrestations.length} prestation(s) — {new Set(genPrestations.map(p => p.user_id)).size} prestataire(s)
+                  </div>
+                  <div style={{fontWeight:700,fontSize:14,color:'#059669'}}>
+                    {genPrestations.reduce((s,p) => s + (parseFloat(p.remuneration)||0), 0).toFixed(2)} €
+                  </div>
+                </div>
+                <div style={{maxHeight:260,overflowY:'auto',border:'1px solid #e5e7eb',borderRadius:8}}>
+                  <table style={{width:'100%',borderCollapse:'collapse'}}>
+                    <thead>
+                      <tr style={{background:'#f9fafb',borderBottom:'1px solid #e5e7eb'}}>
+                        <th style={{padding:'8px 12px',textAlign:'left',fontSize:11,fontWeight:700,color:'#6b7280'}}>PRESTATAIRE</th>
+                        <th style={{padding:'8px 12px',textAlign:'left',fontSize:11,fontWeight:700,color:'#6b7280'}}>ANALYTIQUE</th>
+                        <th style={{padding:'8px 12px',textAlign:'left',fontSize:11,fontWeight:700,color:'#6b7280'}}>DATE</th>
+                        <th style={{padding:'8px 12px',textAlign:'right',fontSize:11,fontWeight:700,color:'#6b7280'}}>MONTANT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {genPrestations.map((p, i) => (
+                        <tr key={p.id || i} style={{borderBottom:'1px solid #f3f4f6'}}>
+                          <td style={{padding:'7px 12px',fontSize:12,color:'#1f2937',fontWeight:500}}>{p.user_name || p.email || `#${p.user_id}`}</td>
+                          <td style={{padding:'7px 12px',fontSize:12,color:'#4b5563'}}>{p.analytic_name || '—'}</td>
+                          <td style={{padding:'7px 12px',fontSize:12,color:'#6b7280'}}>{p.date ? new Date(p.date).toLocaleDateString('fr-FR') : '—'}</td>
+                          <td style={{padding:'7px 12px',fontSize:12,fontWeight:600,color:'#059669',textAlign:'right'}}>{(parseFloat(p.remuneration)||0).toFixed(2)} €</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {genPrestations.length === 0 && !genLoading && (
+              <div style={{padding:'20px',textAlign:'center',color:'#9ca3af',fontSize:13}}>
+                Utilisez les filtres ci-dessus puis cliquez sur Prévisualiser.
+              </div>
+            )}
+
+            <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
+              <button onClick={() => setGenerateModalOpen(false)} disabled={generating}
+                style={{padding:'10px 20px',background:'#f3f4f6',border:'none',borderRadius:7,cursor:'pointer',fontSize:14,color:'#374151',fontWeight:500}}>
+                Annuler
+              </button>
+              <button onClick={generatePeriodInvoices} disabled={generating || genPrestations.length === 0}
+                style={{padding:'10px 24px',background:(generating||genPrestations.length===0)?'#9ca3af':'#059669',color:'white',border:'none',borderRadius:7,cursor:(generating||genPrestations.length===0)?'not-allowed':'pointer',fontSize:14,fontWeight:700}}>
+                {generating ? '⏳ Génération en cours...' : `📄 Générer les factures (${genPrestations.length})`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Send email modal ─────────────────────────────────────────── */}
+      {sendEmailOpen && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1700}} onClick={() => !sendingEmail && setSendEmailOpen(false)}>
+          <div style={{background:'#fff',borderRadius:14,width:'95%',maxWidth:480,padding:'28px 32px',boxShadow:'0 24px 64px rgba(0,0,0,0.3)'}} onClick={e => e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:22}}>
+              <h2 style={{margin:0,fontSize:18,fontWeight:700,color:'#111827'}}>✉️ Envoyer par mail</h2>
+              <button onClick={() => setSendEmailOpen(false)} disabled={sendingEmail} style={{border:'none',background:'#f3f4f6',borderRadius:8,width:32,height:32,cursor:'pointer',fontSize:15,color:'#6b7280',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+            </div>
+
+            <div style={{padding:'10px 14px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:8,marginBottom:20,fontSize:13,color:'#065f46'}}>
+              📎 <strong>{lastCompilationFilename}</strong>
+            </div>
+
+            <div style={{marginBottom:16}}>
+              <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:6}}>DESTINATAIRE(S) <span style={{color:'#dc2626'}}>*</span></label>
+              <input
+                type="text"
+                placeholder="email@exemple.com ; autre@exemple.com"
+                value={emailTo}
+                onChange={e => setEmailTo(e.target.value)}
+                style={{width:'100%',padding:'11px 14px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:14,boxSizing:'border-box'}}
+              />
+              <div style={{fontSize:11,color:'#9ca3af',marginTop:4}}>Séparez plusieurs adresses par des points-virgules</div>
+            </div>
+
+            <div style={{marginBottom:24}}>
+              <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:6}}>OBJET</label>
+              <input
+                type="text"
+                value={emailSubject}
+                onChange={e => setEmailSubject(e.target.value)}
+                style={{width:'100%',padding:'11px 14px',border:'1px solid #e5e7eb',borderRadius:8,fontSize:14,boxSizing:'border-box'}}
+              />
+            </div>
+
+            <div style={{display:'flex',justifyContent:'flex-end',gap:10}}>
+              <button onClick={() => setSendEmailOpen(false)} disabled={sendingEmail}
+                style={{padding:'10px 20px',background:'#f3f4f6',border:'none',borderRadius:7,cursor:'pointer',fontSize:14,color:'#374151',fontWeight:500}}>
+                Annuler
+              </button>
+              <button onClick={sendCompilationEmail} disabled={sendingEmail || !emailTo.trim()}
+                style={{padding:'10px 24px',background:(sendingEmail||!emailTo.trim())?'#9ca3af':'#2563eb',color:'white',border:'none',borderRadius:7,cursor:(sendingEmail||!emailTo.trim())?'not-allowed':'pointer',fontSize:14,fontWeight:700}}>
+                {sendingEmail ? '⏳ Envoi...' : '✉️ Envoyer'}
+              </button>
+            </div>
           </div>
         </div>
       )}

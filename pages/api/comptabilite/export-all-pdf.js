@@ -329,6 +329,8 @@ export default async function handler(req, res) {
     const downloadName = `Compilation_Factures_${dateStr}.pdf`
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`)
+    res.setHeader('X-Compilation-Url', `/exports/${compilationFilename}`)
+    res.setHeader('Access-Control-Expose-Headers', 'X-Compilation-Url')
     res.send(Buffer.from(mergedPdfBytes))
   } catch (err) {
     if (browser) { try { await browser.close() } catch (e) { /* ignore */ } }
