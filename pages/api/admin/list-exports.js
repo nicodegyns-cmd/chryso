@@ -17,7 +17,7 @@ export default function handler(req, res) {
     }
 
     const files = fs.readdirSync(exportsDir)
-      .filter(f => f.endsWith('.pdf'))
+      .filter(f => f.endsWith('.pdf') && f.startsWith('Compilation_Factures_'))
       .map(f => {
         const stat = fs.statSync(path.join(exportsDir, f))
         return {

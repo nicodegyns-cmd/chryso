@@ -296,7 +296,10 @@ export default async function handler(req, res) {
     // 7. Sauvegarder la compilation globale
     const mergedPdfBytes = await mergedPdf.save()
     const dateStr = new Date().toISOString().split('T')[0]
-    const compilationFilename = `Compilation_Factures_${dateStr}-${Date.now()}.pdf`
+    const analyticSlug = (analyticName || '').replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+    const compilationFilename = analyticSlug
+      ? `Compilation_Factures_${analyticSlug}_${dateStr}-${Date.now()}.pdf`
+      : `Compilation_Factures_${dateStr}-${Date.now()}.pdf`
     fs.writeFileSync(path.join(exportsDir, compilationFilename), Buffer.from(mergedPdfBytes))
 
     // 8. Marquer toutes les prestations comme "Facturé"
@@ -329,8 +332,6 @@ export default async function handler(req, res) {
     const downloadName = `Compilation_Factures_${dateStr}.pdf`
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`)
-    res.setHeader('X-Compilation-Url', `/exports/${compilationFilename}`)
-    res.setHeader('Access-Control-Expose-Headers', 'X-Compilation-Url')
     res.send(Buffer.from(mergedPdfBytes))
   } catch (err) {
     if (browser) { try { await browser.close() } catch (e) { /* ignore */ } }
