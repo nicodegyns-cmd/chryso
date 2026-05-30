@@ -35,6 +35,36 @@ export default function GenerateInvoicesPage() {
   const [emailSubject, setEmailSubject] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
 
+  // Settings — saved emails
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [savedEmails, setSavedEmails] = useState([])
+  const [settingsInput, setSettingsInput] = useState('')
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('gi_saved_emails') || '[]')
+      if (Array.isArray(stored)) setSavedEmails(stored)
+    } catch (e) { /* ignore */ }
+  }, [])
+
+  function persistEmails(list) {
+    setSavedEmails(list)
+    localStorage.setItem('gi_saved_emails', JSON.stringify(list))
+  }
+
+  function addSavedEmail() {
+    const email = settingsInput.trim()
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!email || !emailRegex.test(email)) return alert('Adresse email invalide')
+    if (savedEmails.includes(email)) return
+    persistEmails([...savedEmails, email])
+    setSettingsInput('')
+  }
+
+  function removeSavedEmail(email) {
+    persistEmails(savedEmails.filter(e => e !== email))
+  }
+
   // Load analytics list
   useEffect(() => {
     async function loadAnalytics() {
@@ -225,7 +255,7 @@ export default function GenerateInvoicesPage() {
 
   function openSendEmail({ url, filename }) {
     setEmailTarget({ url, filename })
-    setEmailTo('')
+    setEmailTo(savedEmails.join('; '))
     setEmailSubject(`Compilation de factures — ${new Date().toLocaleDateString('fr-FR')}`)
     setSendEmailOpen(true)
   }
@@ -302,6 +332,12 @@ export default function GenerateInvoicesPage() {
                   Sélectionnez une période, prévisualisez et générez les factures
                 </p>
               </div>
+              <button
+                onClick={() => setSettingsOpen(true)}
+                style={{ padding: '9px 16px', background: 'white', border: '1px solid #d1d5db', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+              >
+                ⚙️ Paramètres
+              </button>
             </div>
 
             {/* Stat cards */}
@@ -485,6 +521,67 @@ export default function GenerateInvoicesPage() {
         </div>
       </div>
 
+      {/* ── Settings modal ───────────────────────────────────────────── */}
+      {settingsOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1700 }}
+          onClick={() => setSettingsOpen(false)}>
+          <div style={{ background: '#fff', borderRadius: 14, width: '95%', maxWidth: 480, padding: '28px 32px', boxShadow: '0 24px 64px rgba(0,0,0,0.3)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>⚙️ Paramètres — Adresses mail</h2>
+              <button onClick={() => setSettingsOpen(false)}
+                style={{ border: 'none', background: '#f3f4f6', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 15, color: '#6b7280' }}>✕</button>
+            </div>
+
+            <p style={{ fontSize: 13, color: '#6b7280', marginTop: 0, marginBottom: 18 }}>
+              Ces adresses seront pré-chargées automatiquement lors de l'envoi d'une compilation.
+            </p>
+
+            {/* Add new email */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              <input
+                type="email"
+                placeholder="nouvelle@adresse.com"
+                value={settingsInput}
+                onChange={e => setSettingsInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addSavedEmail()}
+                style={{ flex: 1, padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+              />
+              <button onClick={addSavedEmail}
+                style={{ padding: '10px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                + Ajouter
+              </button>
+            </div>
+
+            {/* Saved emails list */}
+            {savedEmails.length === 0 ? (
+              <div style={{ padding: '20px 0', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                Aucune adresse enregistrée
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {savedEmails.map(em => (
+                  <div key={em} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8 }}>
+                    <span style={{ fontSize: 13, color: '#1f2937' }}>✉️ {em}</span>
+                    <button onClick={() => removeSavedEmail(em)}
+                      style={{ border: 'none', background: '#fee2e2', color: '#dc2626', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                      Supprimer
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
+              <button onClick={() => setSettingsOpen(false)}
+                style={{ padding: '10px 20px', background: '#111827', color: 'white', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Send email modal ──────────────────────────────────────────── */}
       {sendEmailOpen && emailTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1700 }}
@@ -503,6 +600,25 @@ export default function GenerateInvoicesPage() {
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>DESTINATAIRE(S) <span style={{ color: '#dc2626' }}>*</span></label>
+              {savedEmails.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {savedEmails.map(em => {
+                    const active = emailTo.split(';').map(s => s.trim()).includes(em)
+                    return (
+                      <button key={em} onClick={() => {
+                        const current = emailTo.split(';').map(s => s.trim()).filter(Boolean)
+                        if (active) {
+                          setEmailTo(current.filter(e => e !== em).join('; '))
+                        } else {
+                          setEmailTo([...current, em].join('; '))
+                        }
+                      }} style={{ padding: '4px 10px', borderRadius: 20, border: `1px solid ${active ? '#2563eb' : '#d1d5db'}`, background: active ? '#dbeafe' : '#f9fafb', color: active ? '#1e40af' : '#6b7280', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                        {active ? '✓ ' : '+ '}{em}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
               <input
                 type="text"
                 placeholder="email@exemple.com ; autre@exemple.com"
