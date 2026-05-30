@@ -343,7 +343,8 @@ async function send(options) {
       html: options.html || options.text,
       text: options.text,
       replyTo: fromEmail,
-      headers: getEmailHeaders(fromEmail)
+      headers: getEmailHeaders(fromEmail),
+      ...(options.attachments ? { attachments: options.attachments } : {})
     })
 
     console.log('[EmailService] Email sent:', { to: options.to, messageId: info.messageId })

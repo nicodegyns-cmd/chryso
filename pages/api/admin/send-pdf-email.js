@@ -3,7 +3,7 @@
 
 const fs = require('fs')
 const path = require('path')
-const nodemailer = require('nodemailer')
+const { send } = require('../../../services/emailService')
 
 export const config = {
   api: { responseLimit: false },
@@ -53,26 +53,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const smtpPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'localhost',
-      port: parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: process.env.SMTP_USER && smtpPass ? {
-        user: process.env.SMTP_USER,
-        pass: smtpPass,
-      } : undefined,
-      tls: { rejectUnauthorized: false },
-    })
-
     const emailSubject = subject || `Compilation de factures — ${new Date().toLocaleDateString('fr-FR')}`
     const emailBody = message ||
       `<p>Bonjour,</p>
        <p>Veuillez trouver ci-joint la compilation des factures générées.</p>
        <p>Cordialement,<br/>Système de gestion des factures</p>`
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || 'noreply@fenix.local',
+    const result = await send({
       to: emailList.join(', '),
       subject: emailSubject,
       html: emailBody,
@@ -81,6 +68,10 @@ export default async function handler(req, res) {
         content: pdfBuffer,
       }],
     })
+
+    if (!result.sent) {
+      return res.status(500).json({ error: result.error || 'Échec de l\'envoi' })
+    }
 
     return res.status(200).json({ success: true, message: `Email envoyé à ${emailList.join(', ')}` })
   } catch (err) {
