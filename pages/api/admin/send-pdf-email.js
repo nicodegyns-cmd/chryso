@@ -53,14 +53,16 @@ export default async function handler(req, res) {
   }
 
   try {
+    const smtpPass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'localhost',
       port: parseInt(process.env.SMTP_PORT || '587', 10),
       secure: process.env.SMTP_SECURE === 'true',
-      auth: process.env.SMTP_USER && process.env.SMTP_PASS ? {
+      auth: process.env.SMTP_USER && smtpPass ? {
         user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        pass: smtpPass,
       } : undefined,
+      tls: { rejectUnauthorized: false },
     })
 
     const emailSubject = subject || `Compilation de factures — ${new Date().toLocaleDateString('fr-FR')}`
