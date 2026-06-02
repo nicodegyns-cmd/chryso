@@ -23,6 +23,7 @@ export default function GenerateInvoicesPage() {
   const [exportingAll, setExportingAll] = useState(false)
   const [exportingIds, setExportingIds] = useState({})
   const [recompiling, setRecompiling] = useState(false)
+  const [recompilingByAnalytic, setRecompilingByAnalytic] = useState(false)
 
   // Compiled PDFs history
   const [exportFiles, setExportFiles] = useState([])
@@ -214,6 +215,40 @@ export default function GenerateInvoicesPage() {
     }
   }
 
+  // Recompile by analytic — one PDF per analytic, no status change
+  async function recompileByAnalytic() {
+    const invoiced = filteredPrestations.filter(p => p.status === 'Facturé')
+    if (invoiced.length === 0) return alert('Aucune prestation facturée dans la sélection')
+    const analyticMap = new Map()
+    for (const p of invoiced) {
+      const key = p.analytic_id != null ? String(p.analytic_id) : 'null'
+      if (!analyticMap.has(key)) analyticMap.set(key, { analytic_id: p.analytic_id ?? null, name: p.analytic_name || 'Non assigné', ids: [] })
+      analyticMap.get(key).ids.push(p.id)
+    }
+    const analytics = Array.from(analyticMap.values())
+    if (!confirm(`📂 Décompiler en ${analytics.length} PDF(s) — un par analytique ?\nAucun statut ne sera modifié.`)) return
+    setRecompilingByAnalytic(true)
+    try {
+      for (const analytic of analytics) {
+        const res = await fetch('/api/comptabilite/recompile-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prestation_ids: analytic.ids }),
+        })
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Erreur pour ${analytic.name}`) }
+        const blob = await res.blob()
+        const safeName = analytic.name.replace(/[^a-zA-Z0-9_-]/g, '_')
+        downloadBlob(blob, `Recompilation_${safeName}_${new Date().toISOString().split('T')[0]}.pdf`)
+        await new Promise(r => setTimeout(r, 600))
+      }
+      await fetchExportFiles()
+    } catch (err) {
+      alert('❌ ' + err.message)
+    } finally {
+      setRecompilingByAnalytic(false)
+    }
+  }
+
   // Recompile existing invoiced PDFs
   async function recompilePdf() {
     const invoiced = filteredPrestations.filter(p => p.status === 'Facturé')
@@ -388,9 +423,14 @@ export default function GenerateInvoicesPage() {
             {/* Action buttons */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
               {filterStatus === 'invoiced' && filteredPrestations.filter(p => p.status === 'Facturé').length > 0 && (
-                <button onClick={recompilePdf} disabled={recompiling} style={btnStyle('#0891b2', recompiling)}>
-                  {recompiling ? '⏳ Compilation...' : `📄 Recompiler PDF (${filteredPrestations.filter(p => p.status === 'Facturé').length})`}
-                </button>
+                <>
+                  <button onClick={recompileByAnalytic} disabled={recompilingByAnalytic || recompiling} style={btnStyle('#7c3aed', recompilingByAnalytic || recompiling)}>
+                    {recompilingByAnalytic ? '⏳ Décompilation...' : '📂 Décompiler par analytique'}
+                  </button>
+                  <button onClick={recompilePdf} disabled={recompiling || recompilingByAnalytic} style={btnStyle('#0891b2', recompiling || recompilingByAnalytic)}>
+                    {recompiling ? '⏳ Compilation...' : `📄 Recompiler PDF (${filteredPrestations.filter(p => p.status === 'Facturé').length})`}
+                  </button>
+                </>
               )}
               {pendingCount > 0 && (
                 <button onClick={exportAll} disabled={exportingAll} style={btnStyle('#059669', exportingAll)}>
