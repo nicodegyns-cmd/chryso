@@ -39,8 +39,10 @@ export default async function handler(req, res) {
         analyticFilter = `AND p.analytic_id = $${queryParams.length}`
       }
       queryParams.push('Envoyé à la facturation')
-      const statusParam = `$${queryParams.length}`
-      whereClause = `WHERE p.status = ${statusParam} ${analyticFilter}`
+      queryParams.push('sent_to_billing')
+      const statusParam1 = `$${queryParams.length - 1}`
+      const statusParam2 = `$${queryParams.length}`
+      whereClause = `WHERE p.status IN (${statusParam1}, ${statusParam2}) ${analyticFilter}`
     }
 
     const result = await pool.query(`
@@ -70,7 +72,7 @@ export default async function handler(req, res) {
 
     if (rows.length === 0) {
       const scope = analyticName ? `pour l'analytique "${analyticName}"` : ''
-      return res.status(404).json({ error: `Aucune prestation à facturer (statut "Envoyé à la facturation") ${scope}`.trim() })
+      return res.status(404).json({ error: `Aucune prestation à facturer (statut "À facturer") ${scope}`.trim() })
     }
 
     // 2. Grouper par user_id
