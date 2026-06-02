@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
   try {
     const pool = getPool()
-    const { status, date_from, date_to, invoice_number, updated_from, updated_to } = req.query
+    const { status, date_from, date_to, invoice_number, updated_from, updated_to, pdf_ts_min, pdf_ts_max } = req.query
 
     let sql = `
       SELECT 
@@ -127,6 +127,13 @@ export default async function handler(req, res) {
     if (updated_to) {
       params.push(updated_to)
       sql += ` AND p.updated_at::date <= $${params.length}`
+    }
+
+    if (pdf_ts_min && pdf_ts_max) {
+      params.push(parseInt(pdf_ts_min))
+      params.push(parseInt(pdf_ts_max))
+      sql += ` AND SUBSTRING(p.pdf_url FROM '-([0-9]{10,13})\.pdf') IS NOT NULL`
+      sql += ` AND CAST(SUBSTRING(p.pdf_url FROM '-([0-9]{10,13})\.pdf') AS BIGINT) BETWEEN $${params.length - 1} AND $${params.length}`
     }
 
     if (invoice_number) {

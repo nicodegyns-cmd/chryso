@@ -218,16 +218,19 @@ export default function GenerateInvoicesPage() {
 
   // Recompile by analytic for a specific compilation file
   async function recompileByAnalyticForFile(f) {
-    const date = f.created_at ? new Date(f.created_at).toISOString().split('T')[0] : null
-    if (!date) return alert('Date introuvable pour ce fichier')
+    const match = f.filename && f.filename.match(/(\d{13})/)
+    const compilationTs = match ? parseInt(match[1]) : null
+    if (!compilationTs) return alert('Impossible d\'identifier le timestamp de la compilation')
     setRecompilingAll(true)
     try {
-      const params = new URLSearchParams({ status: 'invoiced', updated_from: date, updated_to: date })
+      const pdf_ts_min = compilationTs - 2 * 60 * 60 * 1000
+      const pdf_ts_max = compilationTs
+      const params = new URLSearchParams({ status: 'invoiced', pdf_ts_min: String(pdf_ts_min), pdf_ts_max: String(pdf_ts_max) })
       const res = await fetch(`/api/comptabilite/prestations?${params}`)
       if (!res.ok) throw new Error('Erreur chargement prestations')
       const data = await res.json()
       const invoiced = (Array.isArray(data) ? data : data.prestations || []).filter(p => p && p.status === 'Facturé')
-      if (invoiced.length === 0) { alert(`Aucune prestation facturée trouvée pour le ${date}`); return }
+      if (invoiced.length === 0) { alert(`Aucune prestation trouvée pour cette compilation`); return }
       const analyticMap = new Map()
       for (const p of invoiced) {
         const key = p.analytic_id != null ? String(p.analytic_id) : 'null'
@@ -235,7 +238,8 @@ export default function GenerateInvoicesPage() {
         analyticMap.get(key).ids.push(p.id)
       }
       const analytics = Array.from(analyticMap.values())
-      if (!confirm(`📂 Décompiler ${invoiced.length} facture(s) du ${date} en ${analytics.length} PDF(s) par analytique ?\nAucun statut ne sera modifié.`)) return
+      const date = f.created_at ? new Date(f.created_at).toISOString().split('T')[0] : ''
+      if (!confirm(`📂 Décompiler ${invoiced.length} facture(s) en ${analytics.length} PDF(s) par analytique ?\nAucun statut ne sera modifié.`)) return
       for (const analytic of analytics) {
         const r = await fetch('/api/comptabilite/recompile-pdf', {
           method: 'POST',
