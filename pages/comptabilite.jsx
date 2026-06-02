@@ -470,35 +470,71 @@ export default function ComptabilitePage() {
   }
 
   async function exportAll() {
-    const pending = safePrestations.filter(p => p && p.status === 'sent_to_billing')
+    const pending = safePrestations.filter(p => p && (p.status === 'sent_to_billing' || p.status === 'Envoyé à la facturation'))
     if (pending.length === 0) {
       alert('❌ Aucune prestation à facturer (statut "À facturer")')
       return
     }
-    const ok = confirm(`📤 Exporter TOUTES les ${pending.length} prestation(s) pour ${new Set(pending.map(p => p.user_id)).size} collaborateur(s) ?\n\nCela va générer une facture par collaborateur (toutes analytiques confondues) en un seul PDF.\nToutes les prestations seront marquées comme « Facturé ».`)
+
+    // Construire la liste des analytiques distinctes
+    const analyticMap = new Map()
+    for (const p of pending) {
+      const key = p.analytic_id != null ? String(p.analytic_id) : 'null'
+      if (!analyticMap.has(key)) {
+        analyticMap.set(key, {
+          analytic_id: p.analytic_id != null ? p.analytic_id : null,
+          name: p.analytic_name || 'Non assigné',
+        })
+      }
+    }
+    const analytics = Array.from(analyticMap.values())
+
+    const nbAnalytics = analytics.length
+    const nbUsers = new Set(pending.map(p => p.user_id)).size
+    const ok = confirm(`📤 Exporter TOUTES les ${pending.length} prestation(s) pour ${nbUsers} collaborateur(s) ?\n\nCela va générer ${nbAnalytics} compilation(s) PDF — une par analytique.\nToutes les prestations seront marquées comme « Facturé ».`)
     if (!ok) return
 
     setExportingAll(true)
+    const dateStr = new Date().toISOString().split('T')[0]
+    const errors = []
+
     try {
-      const res = await fetch('/api/comptabilite/export-all-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      })
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || 'Erreur lors de l\'export')
+      for (const analytic of analytics) {
+        try {
+          const res = await fetch('/api/comptabilite/export-all-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              analytic_id: analytic.analytic_id,
+              analyticName: analytic.name,
+            })
+          })
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}))
+            errors.push(`${analytic.name} : ${errData.error || 'Erreur inconnue'}`)
+            continue
+          }
+          const blob = await res.blob()
+          const url = window.URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          const safeName = analytic.name.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40)
+          link.download = `Compilation_Factures_${safeName}_${dateStr}.pdf`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          window.URL.revokeObjectURL(url)
+          // Délai entre chaque téléchargement pour ne pas bloquer le navigateur
+          await new Promise(resolve => setTimeout(resolve, 800))
+        } catch (err) {
+          errors.push(`${analytic.name} : ${err.message}`)
+        }
       }
-      const blob = await res.blob()
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `Compilation_Factures_${new Date().toISOString().split('T')[0]}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-      await new Promise(resolve => setTimeout(resolve, 500))
+
+      if (errors.length > 0) {
+        alert(`⚠️ ${errors.length} analytique(s) en erreur :\n${errors.join('\n')}`)
+      }
+
       setFilterStatus('invoiced')
       fetchPrestations()
     } catch (err) {
@@ -788,7 +824,7 @@ export default function ComptabilitePage() {
               }}
             >
               {exportingAll
-                ? '⏳ Génération en cours... (peut prendre 1-2 min)'
+                ? '⏳ Génération en cours... (1 PDF par analytique)'
                 : `📤 Exporter toutes les factures (${pendingCount} prestations)`}
             </button>
           </div>
