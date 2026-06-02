@@ -134,9 +134,7 @@ export default async function handler(req, res) {
       const userName = first.company_name ||
         `${first.user_first_name || ''} ${first.user_last_name || ''}`.trim() ||
         first.user_email || 'Fournisseur'
-      const invoiceNumber = `${year}-${String(invCounter++).padStart(5, '0')}`
-
-      // Grouper les prestations par analytique au sein de l'utilisateur
+      // Grouper les prestations par analytique — un PDF par analytique par utilisateur
       const analyticMap = new Map()
       for (const p of userPrestations) {
         const key = p.analytic_id != null ? String(p.analytic_id) : 'unassigned'
@@ -150,11 +148,14 @@ export default async function handler(req, res) {
         analyticMap.get(key).items.push(p)
       }
 
-      // Construire le HTML de la table
-      let tableBodyHtml = ''
-      let grandTotal = 0
-
+      // Générer UN PDF et UN numéro de facture par analytique
       for (const [, ag] of analyticMap) {
+        const invoiceNumber = `${year}-${String(invCounter++).padStart(5, '0')}`
+
+        // Construire le HTML de la table pour cette analytique seulement
+        let tableBodyHtml = ''
+        let grandTotal = 0
+
         tableBodyHtml += `
           <tr class="analytic-header">
             <td colspan="4"><strong>📊 ${escHtml(ag.name)}</strong></td>
@@ -242,52 +243,52 @@ export default async function handler(req, res) {
             <td colspan="3" style="text-align:right; font-style:italic">Sous-total ${escHtml(ag.name)}</td>
             <td><strong>${fmt(analyticTotal)}€</strong></td>
           </tr>`
+
+        // HTML complet pour cet utilisateur + cette analytique
+        const firstItem = ag.items[0]
+        const prestDates = ag.items.map(p => p.date).filter(Boolean).sort((a, b) => new Date(a) - new Date(b))
+        const dateMin = prestDates.length ? new Date(prestDates[0]).toLocaleDateString('fr-FR') : invoiceDate
+        const dateMax = prestDates.length ? new Date(prestDates[prestDates.length - 1]).toLocaleDateString('fr-FR') : invoiceDate
+        const html = buildInvoiceHtml({
+          logoDataUri: logoDataUri || fallbackLogo,
+          userName,
+          userAddress: first.user_address || '',
+          userBce: first.user_bce || '',
+          userAccount: first.user_account || '',
+          invoiceNumber,
+          invoiceDate,
+          tableBodyHtml,
+          grandTotal,
+          analyticRef: [firstItem.analytic_name, firstItem.analytic_identifier, firstItem.analytic_code, firstItem.analytic_entite].filter(Boolean).join('-'),
+          analyticAccount: ag.account,
+          dateMin,
+          dateMax,
+        })
+
+        // Rendu Puppeteer
+        const page = await browser.newPage()
+        await page.setContent(html, { waitUntil: 'networkidle0' })
+        const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true })
+        await page.close()
+
+        // Sauvegarder le PDF par analytique
+        const safeName = userName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40)
+        const userFilename = `facture-${invoiceNumber}-${safeName}-${Date.now()}.pdf`
+        const userFilePath = path.join(exportsDir, userFilename)
+        fs.writeFileSync(userFilePath, pdfBuffer)
+        const userPdfUrl = `/api/exports/download?file=${encodeURIComponent(userFilename)}`
+
+        // Fusionner dans le PDF global
+        const userDoc = await PDFDocument.load(pdfBuffer)
+        const pages = await mergedPdf.copyPages(userDoc, userDoc.getPageIndices())
+        pages.forEach(p => mergedPdf.addPage(p))
+
+        // Mettre à jour en base : invoice_number + pdf_url pour cette analytique seulement
+        await pool.query(
+          `UPDATE prestations SET invoice_number = $1, pdf_url = $2 WHERE id = ANY($3)`,
+          [invoiceNumber, userPdfUrl, ag.items.map(p => p.id)]
+        )
       }
-
-      // HTML complet pour cet utilisateur
-      const firstAnalytic = analyticMap.values().next().value
-      const prestDates = userPrestations.map(p => p.date).filter(Boolean).sort((a, b) => new Date(a) - new Date(b))
-      const dateMin = prestDates.length ? new Date(prestDates[0]).toLocaleDateString('fr-FR') : invoiceDate
-      const dateMax = prestDates.length ? new Date(prestDates[prestDates.length - 1]).toLocaleDateString('fr-FR') : invoiceDate
-      const html = buildInvoiceHtml({
-        logoDataUri: logoDataUri || fallbackLogo,
-        userName,
-        userAddress: first.user_address || '',
-        userBce: first.user_bce || '',
-        userAccount: first.user_account || '',
-        invoiceNumber,
-        invoiceDate,
-        tableBodyHtml,
-        grandTotal,
-        analyticRef: [first.analytic_name, first.analytic_identifier, first.analytic_code, first.analytic_entite].filter(Boolean).join('-'),
-        analyticAccount: first.analytic_account_number || '',
-        dateMin,
-        dateMax,
-      })
-
-      // Rendu Puppeteer
-      const page = await browser.newPage()
-      await page.setContent(html, { waitUntil: 'networkidle0' })
-      const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true })
-      await page.close()
-
-      // Sauvegarder le PDF individuel
-      const safeName = userName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40)
-      const userFilename = `facture-${invoiceNumber}-${safeName}-${Date.now()}.pdf`
-      const userFilePath = path.join(exportsDir, userFilename)
-      fs.writeFileSync(userFilePath, pdfBuffer)
-      const userPdfUrl = `/api/exports/download?file=${encodeURIComponent(userFilename)}`
-
-      // Fusionner dans le PDF global
-      const userDoc = await PDFDocument.load(pdfBuffer)
-      const pages = await mergedPdf.copyPages(userDoc, userDoc.getPageIndices())
-      pages.forEach(p => mergedPdf.addPage(p))
-
-      // Mettre à jour en base : invoice_number + pdf_url individuel
-      await pool.query(
-        `UPDATE prestations SET invoice_number = $1, pdf_url = $2 WHERE id = ANY($3)`,
-        [invoiceNumber, userPdfUrl, userPrestations.map(p => p.id)]
-      )
     }
 
     await browser.close()
