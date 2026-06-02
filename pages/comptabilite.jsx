@@ -357,6 +357,7 @@ export default function ComptabilitePage() {
   }
 
   const [recompiling, setRecompiling] = useState(false)
+  const [recompilingByAnalytic, setRecompilingByAnalytic] = useState(false)
 
   function resetCorrectionWizard() {
     setCorrectionWizardOpen(false)
@@ -427,6 +428,55 @@ export default function ComptabilitePage() {
       alert('❌ Erreur : ' + e.message)
     } finally {
       setCorrectionSubmitting(false)
+    }
+  }
+
+  async function recompileByAnalytic() {
+    const invoiced = filteredPrestations.filter(p => p && p.status === 'Facturé')
+    if (invoiced.length === 0) {
+      alert('Aucune prestation facturée dans la sélection actuelle')
+      return
+    }
+    // Grouper par analytique
+    const analyticMap = new Map()
+    for (const p of invoiced) {
+      const key = p.analytic_id != null ? String(p.analytic_id) : 'null'
+      if (!analyticMap.has(key)) {
+        analyticMap.set(key, { analytic_id: p.analytic_id ?? null, name: p.analytic_name || 'Non assigné', ids: [] })
+      }
+      analyticMap.get(key).ids.push(p.id)
+    }
+    const analytics = Array.from(analyticMap.values())
+    const ok = confirm(`📂 Décompiler en ${analytics.length} PDF(s) — un par analytique ?\n\nAucun statut ne sera modifié.`)
+    if (!ok) return
+    setRecompilingByAnalytic(true)
+    try {
+      for (const analytic of analytics) {
+        const res = await fetch('/api/comptabilite/recompile-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prestation_ids: analytic.ids }),
+        })
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.error || `Erreur pour ${analytic.name}`)
+        }
+        const blob = await res.blob()
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        const safeName = analytic.name.replace(/[^a-zA-Z0-9_-]/g, '_')
+        link.download = `Recompilation_${safeName}_${new Date().toISOString().split('T')[0]}.pdf`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        await new Promise(resolve => setTimeout(resolve, 600))
+      }
+    } catch (err) {
+      alert('❌ Erreur : ' + err.message)
+    } finally {
+      setRecompilingByAnalytic(false)
     }
   }
 
@@ -832,17 +882,36 @@ export default function ComptabilitePage() {
 
         {/* Recompile Button — for already invoiced */}
         {filterStatus === 'invoiced' && filteredPrestations.filter(p => p.status === 'Facturé').length > 0 && (
-          <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: 16}}>
+          <div style={{display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 16}}>
+            <button
+              onClick={recompileByAnalytic}
+              disabled={recompilingByAnalytic || recompiling}
+              style={{
+                padding: '12px 24px',
+                background: recompilingByAnalytic ? '#9ca3af' : '#7c3aed',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                cursor: (recompilingByAnalytic || recompiling) ? 'not-allowed' : 'pointer',
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: '0 2px 6px rgba(124,58,237,0.3)',
+              }}
+            >
+              {recompilingByAnalytic
+                ? '⏳ Décompilation en cours...'
+                : `📂 Décompiler par analytique`}
+            </button>
             <button
               onClick={recompilePdf}
-              disabled={recompiling}
+              disabled={recompiling || recompilingByAnalytic}
               style={{
                 padding: '12px 24px',
                 background: recompiling ? '#9ca3af' : '#0891b2',
                 color: 'white',
                 border: 'none',
                 borderRadius: 8,
-                cursor: recompiling ? 'not-allowed' : 'pointer',
+                cursor: (recompiling || recompilingByAnalytic) ? 'not-allowed' : 'pointer',
                 fontSize: 14,
                 fontWeight: 700,
                 boxShadow: '0 2px 6px rgba(8,145,178,0.3)',
