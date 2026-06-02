@@ -24,6 +24,7 @@ export default function GenerateInvoicesPage() {
   const [exportingIds, setExportingIds] = useState({})
   const [recompiling, setRecompiling] = useState(false)
   const [recompilingByAnalytic, setRecompilingByAnalytic] = useState(false)
+  const [recompilingAll, setRecompilingAll] = useState(false)
 
   // Compiled PDFs history
   const [exportFiles, setExportFiles] = useState([])
@@ -212,6 +213,42 @@ export default function GenerateInvoicesPage() {
       alert('❌ ' + err.message)
     } finally {
       setExportingIds(p => { const n = { ...p }; delete n[analyticId]; return n })
+    }
+  }
+
+  // Recompile by analytic from server — fetches all Facturé regardless of current filter
+  async function recompileByAnalyticAll() {
+    setRecompilingAll(true)
+    try {
+      const res = await fetch('/api/comptabilite/prestations?status=invoiced')
+      if (!res.ok) throw new Error('Erreur chargement prestations')
+      const data = await res.json()
+      const invoiced = (Array.isArray(data) ? data : data.prestations || []).filter(p => p && p.status === 'Facturé')
+      if (invoiced.length === 0) { alert('Aucune prestation facturée trouvée'); return }
+      const analyticMap = new Map()
+      for (const p of invoiced) {
+        const key = p.analytic_id != null ? String(p.analytic_id) : 'null'
+        if (!analyticMap.has(key)) analyticMap.set(key, { name: p.analytic_name || 'Non assigné', ids: [] })
+        analyticMap.get(key).ids.push(p.id)
+      }
+      const analytics = Array.from(analyticMap.values())
+      if (!confirm(`📂 Décompiler toutes les factures en ${analytics.length} PDF(s) — un par analytique ?\nAucun statut ne sera modifié.`)) return
+      for (const analytic of analytics) {
+        const r = await fetch('/api/comptabilite/recompile-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prestation_ids: analytic.ids }),
+        })
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || `Erreur pour ${analytic.name}`) }
+        const blob = await r.blob()
+        const safeName = analytic.name.replace(/[^a-zA-Z0-9_-]/g, '_')
+        downloadBlob(blob, `Recompilation_${safeName}_${new Date().toISOString().split('T')[0]}.pdf`)
+        await new Promise(resolve => setTimeout(resolve, 600))
+      }
+    } catch (err) {
+      alert('❌ ' + err.message)
+    } finally {
+      setRecompilingAll(false)
     }
   }
 
@@ -512,9 +549,14 @@ export default function GenerateInvoicesPage() {
                   <h2 style={{ fontSize: 19, fontWeight: 700, color: '#111827', margin: 0, marginBottom: 4 }}>📂 Compilations générées</h2>
                   <p style={{ color: '#6b7280', fontSize: 13, margin: 0 }}>Tous les PDFs compilés disponibles sur le serveur</p>
                 </div>
-                <button onClick={fetchExportFiles} style={{ padding: '8px 14px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 7, cursor: 'pointer', fontSize: 13, color: '#374151' }}>
-                  🔄 Actualiser
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={recompileByAnalyticAll} disabled={recompilingAll} style={{ padding: '8px 14px', background: recompilingAll ? '#ede9fe' : '#7c3aed', color: 'white', border: 'none', borderRadius: 7, cursor: recompilingAll ? 'default' : 'pointer', fontSize: 13, fontWeight: 600, opacity: recompilingAll ? 0.7 : 1 }}>
+                    {recompilingAll ? '⏳ Décompilation...' : '📂 Décompiler par analytique'}
+                  </button>
+                  <button onClick={fetchExportFiles} style={{ padding: '8px 14px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 7, cursor: 'pointer', fontSize: 13, color: '#374151' }}>
+                    🔄 Actualiser
+                  </button>
+                </div>
               </div>
 
               {loadingFiles ? (
