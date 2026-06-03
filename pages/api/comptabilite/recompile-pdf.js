@@ -34,9 +34,14 @@ function buildTableBody(userPrestations, invoiceDate) {
     let analyticTotal = 0
     for (const p of ag.items) {
       const isMed = (p.user_role || '').toUpperCase().includes('MED')
-      const totalAmt = isMed
-        ? Number(p.remuneration_med || p.remuneration_infi || p.remuneration || 0)
-        : Number(p.remuneration_infi || p.remuneration_med || p.remuneration || 0)
+      // gardeTotal = montant total pour les heures de garde (variable par prestation)
+      const gardeTotal = isMed
+        ? Number(p.remuneration_med || p.remuneration_infi || 0)
+        : Number(p.remuneration_infi || p.remuneration_med || 0)
+      // sortieHourlyRate = taux horaire fixe pour les sorties (52,50€/h infi, 75€/h med)
+      const sortieHourlyRate = isMed
+        ? Number(p.remuneration_sortie_med || p.remuneration_sortie_infi || 0)
+        : Number(p.remuneration_sortie_infi || p.remuneration_sortie_med || 0)
       const gardeH = Number(p.garde_hours || 0)
       const sortieH = Number(p.sortie_hours || 0)
       const overtimeH = Number(p.overtime_hours || 0)
@@ -45,28 +50,27 @@ function buildTableBody(userPrestations, invoiceDate) {
       const codeRef = escHtml(p.ebrigade_activity_code || p.request_ref || ('#' + p.id))
       const ebrigadeSuffix = p.ebrigade_activity_name ? ` | ${escHtml(p.ebrigade_activity_name)}` : ''
       const payType = escHtml(p.pay_type || '')
-      if ((p.pay_type || '').toUpperCase() === 'AVOIR' || totalAmt < 0) {
-        const avoirAmt = +totalAmt.toFixed(2)
+      if ((p.pay_type || '').toUpperCase() === 'AVOIR' || gardeTotal < 0) {
+        const avoirAmt = +gardeTotal.toFixed(2)
         tableBodyHtml += `<tr style="color:#dc2626"><td><strong>AVOIR</strong> — ${escHtml(p.comments || 'Avoir — correction')}</td><td></td><td></td><td style="color:#dc2626;font-weight:700">${fmt(avoirAmt)}€</td></tr>`
         analyticTotal += avoirAmt; continue
       }
-      const sumGS = gardeH + sortieH
-      const baseHours = sumGS > 0 ? sumGS : Number(p.hours_actual || 0)
-      const unitPrice = baseHours > 0 ? Number((totalAmt / baseHours).toFixed(2)) : totalAmt
+      const gardeUnitPrice = gardeH > 0 ? Number((gardeTotal / gardeH).toFixed(2)) : 0
+      const baseH = Number(p.hours_actual || 0)
+      const fallbackUnitPrice = baseH > 0 ? Number((gardeTotal / baseH).toFixed(2)) : 0
       if (gardeH > 0 || sortieH > 0) {
-        if (gardeH > 0) { const gAmt = +(unitPrice * gardeH).toFixed(2); tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Garde</td><td>${gardeH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(gAmt)}€</td></tr>`; analyticTotal += gAmt }
-        if (sortieH > 0) { const sAmt = +(unitPrice * sortieH).toFixed(2); tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Sortie</td><td>${sortieH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(sAmt)}€</td></tr>`; analyticTotal += sAmt }
-        if (overtimeH > 0) { const oAmt = +(unitPrice * overtimeH).toFixed(2); tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(oAmt)}€</td></tr>`; analyticTotal += oAmt }
+        if (gardeH > 0) { tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Garde</td><td>${gardeH}</td><td>${fmt(gardeUnitPrice)}€</td><td>${fmt(gardeTotal)}€</td></tr>`; analyticTotal += gardeTotal }
+        if (sortieH > 0) { const sAmt = +(sortieHourlyRate * sortieH).toFixed(2); tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Sortie</td><td>${sortieH}</td><td>${fmt(sortieHourlyRate)}€</td><td>${fmt(sAmt)}€</td></tr>`; analyticTotal += sAmt }
+        if (overtimeH > 0) { const oAmt = +(gardeUnitPrice * overtimeH).toFixed(2); tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(gardeUnitPrice)}€</td><td>${fmt(oAmt)}€</td></tr>`; analyticTotal += oAmt }
       } else {
-        const baseH = Number(p.hours_actual || p.garde_hours || 0)
-        const lineAmt = +totalAmt.toFixed(2)
+        const lineAmt = +gardeTotal.toFixed(2)
         if (baseH > 0) {
-          tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>${baseH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(lineAmt)}€</td></tr>`
+          tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>${baseH}</td><td>${fmt(fallbackUnitPrice)}€</td><td>${fmt(lineAmt)}€</td></tr>`
         } else {
           tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>—</td><td>—</td><td>${fmt(lineAmt)}€</td></tr>`
         }
         analyticTotal += lineAmt
-        if (overtimeH > 0) { const oAmt = +(unitPrice * overtimeH).toFixed(2); tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(oAmt)}€</td></tr>`; analyticTotal += oAmt }
+        if (overtimeH > 0) { const oAmt = +(fallbackUnitPrice * overtimeH).toFixed(2); tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(fallbackUnitPrice)}€</td><td>${fmt(oAmt)}€</td></tr>`; analyticTotal += oAmt }
       }
       if (expenses > 0) {
         const expComment = escHtml(p.expense_comment || '')
