@@ -735,70 +735,85 @@ export default function GenerateInvoicesPage() {
       {revertModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1700 }}
           onClick={() => !reverting && setRevertModalOpen(false)}>
-          <div style={{ background: '#fff', borderRadius: 14, width: '95%', maxWidth: 520, padding: '28px 32px', boxShadow: '0 24px 64px rgba(0,0,0,0.3)' }}
+          <div style={{ background: '#fff', borderRadius: 14, width: '95%', maxWidth: 520, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.3)' }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>↩ Remettre en attente</h2>
-              <button onClick={() => setRevertModalOpen(false)} disabled={reverting}
-                style={{ border: 'none', background: '#f3f4f6', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 15, color: '#6b7280' }}>✕</button>
+
+            {/* Header — fixe */}
+            <div style={{ padding: '24px 28px 0', flexShrink: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>↩ Remettre en attente</h2>
+                <button onClick={() => setRevertModalOpen(false)} disabled={reverting}
+                  style={{ border: 'none', background: '#f3f4f6', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 15, color: '#6b7280' }}>✕</button>
+              </div>
+              <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, marginBottom: 16, fontSize: 13, color: '#991b1b' }}>
+                ⚠️ Cette action remet les prestations en statut <strong>"Envoyé à la facturation"</strong> et efface les PDFs et numéros de factures. Vous pourrez ensuite regénérer avec les bons taux.
+              </div>
             </div>
 
-            <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, marginBottom: 20, fontSize: 13, color: '#991b1b' }}>
-              ⚠️ Cette action remet les prestations en statut <strong>"Envoyé à la facturation"</strong> et efface les PDFs et numéros de factures associés. Vous pourrez ensuite regénérer les factures avec les bons taux.
-            </div>
-
-            {revertLoadingInvoices ? (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: '#6b7280' }}>⏳ Chargement des factures...</div>
-            ) : revertInvoices.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: 13 }}>Aucune prestation facturée disponible</div>
-            ) : (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>DE LA FACTURE</label>
-                    <select value={revertFrom} onChange={e => setRevertFrom(e.target.value)} style={inputStyle}>
-                      {revertInvoices.map(i => (
-                        <option key={i.invoice_number} value={i.invoice_number}>
-                          {i.invoice_number} ({i.count} prest.)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>À LA FACTURE</label>
-                    <select value={revertTo} onChange={e => setRevertTo(e.target.value)} style={inputStyle}>
-                      {revertInvoices.map(i => (
-                        <option key={i.invoice_number} value={i.invoice_number}>
-                          {i.invoice_number} ({i.count} prest.)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Preview */}
-                {(() => {
-                  const sel = getSelectedRevertInvoices()
-                  const total = sel.reduce((s, i) => s + i.count, 0)
-                  return sel.length > 0 ? (
-                    <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 14px', marginBottom: 20 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 8 }}>
-                        📋 Sélection : {sel.length} facture(s) — {total} prestation(s)
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {sel.map(i => (
-                          <span key={i.invoice_number} style={{ background: '#fee2e2', color: '#991b1b', padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
-                            {i.invoice_number} × {i.count}
-                          </span>
+            {/* Corps — scrollable */}
+            <div style={{ padding: '0 28px', overflowY: 'auto', flex: 1 }}>
+              {revertLoadingInvoices ? (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: '#6b7280' }}>⏳ Chargement des factures...</div>
+              ) : revertInvoices.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: 13 }}>Aucune prestation facturée disponible</div>
+              ) : (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>DE LA FACTURE</label>
+                      <select value={revertFrom} onChange={e => setRevertFrom(e.target.value)} style={inputStyle}>
+                        {revertInvoices.map(i => (
+                          <option key={i.invoice_number} value={i.invoice_number}>
+                            {i.invoice_number} ({i.count} prest.)
+                          </option>
                         ))}
-                      </div>
+                      </select>
                     </div>
-                  ) : null
-                })()}
-              </>
-            )}
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>À LA FACTURE</label>
+                      <select value={revertTo} onChange={e => setRevertTo(e.target.value)} style={inputStyle}>
+                        {revertInvoices.map(i => (
+                          <option key={i.invoice_number} value={i.invoice_number}>
+                            {i.invoice_number} ({i.count} prest.)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                  {/* Preview — résumé seulement, pas tous les tags */}
+                  {(() => {
+                    const sel = getSelectedRevertInvoices()
+                    const total = sel.reduce((s, i) => s + i.count, 0)
+                    if (sel.length === 0) return null
+                    const preview = sel.slice(0, 12)
+                    const remaining = sel.length - preview.length
+                    return (
+                      <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 8 }}>
+                          📋 Sélection : {sel.length} facture(s) — {total} prestation(s) au total
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {preview.map(i => (
+                            <span key={i.invoice_number} style={{ background: '#fee2e2', color: '#991b1b', padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
+                              {i.invoice_number} × {i.count}
+                            </span>
+                          ))}
+                          {remaining > 0 && (
+                            <span style={{ background: '#f3f4f6', color: '#6b7280', padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
+                              +{remaining} autre(s)...
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </>
+              )}
+            </div>
+
+            {/* Footer — fixe */}
+            <div style={{ padding: '16px 28px 24px', flexShrink: 0, borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={() => setRevertModalOpen(false)} disabled={reverting}
                 style={{ padding: '10px 20px', background: '#f3f4f6', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 14, color: '#374151' }}>
                 Annuler
