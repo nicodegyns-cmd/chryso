@@ -456,6 +456,10 @@ export default function ComptabilitePage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prestation_ids: analytic.ids, regenerate: true }),
+        })
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.error || `Erreur pour ${analytic.name}`)
         }
         const blob = await res.blob()
         const url = window.URL.createObjectURL(blob)
