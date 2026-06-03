@@ -175,8 +175,9 @@ export default async function handler(req, res) {
       }
 
       browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] })
-      const mergedPdf = await PDFDocument.create()
 
+      // Collecter tous les HTML (un par utilisateur)
+      const allHtmls = []
       for (const [, userPrestations] of userMap) {
         const first = userPrestations[0]
         const userName = first.company_name || `${first.user_first_name || ''} ${first.user_last_name || ''}`.trim() || first.user_email || 'Fournisseur'
@@ -185,22 +186,30 @@ export default async function handler(req, res) {
         const prestDates = userPrestations.map(p => p.date).filter(Boolean).sort((a, b) => new Date(a) - new Date(b))
         const dateMin = prestDates.length ? new Date(prestDates[0]).toLocaleDateString('fr-FR') : invoiceDate
         const dateMax = prestDates.length ? new Date(prestDates[prestDates.length - 1]).toLocaleDateString('fr-FR') : invoiceDate
-        const html = buildInvoiceHtml({ logoDataUri: logoDataUri || fallbackLogo, userName, userAddress: first.user_address || '', userBce: first.user_bce || '', userAccount: first.user_account || '', invoiceNumber, invoiceDate, tableBodyHtml, grandTotal, analyticRef: [first.analytic_name, first.analytic_identifier, first.analytic_code, first.analytic_entite].filter(Boolean).join('-'), analyticAccount: first.analytic_account_number || '', dateMin, dateMax })
-        const page = await browser.newPage()
-        await page.setContent(html, { waitUntil: 'networkidle0' })
-        const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true })
-        await page.close()
-        const userDoc = await PDFDocument.load(pdfBuffer)
-        const pages = await mergedPdf.copyPages(userDoc, userDoc.getPageIndices())
-        pages.forEach(p => mergedPdf.addPage(p))
+        allHtmls.push(buildInvoiceHtml({ logoDataUri: logoDataUri || fallbackLogo, userName, userAddress: first.user_address || '', userBce: first.user_bce || '', userAccount: first.user_account || '', invoiceNumber, invoiceDate, tableBodyHtml, grandTotal, analyticRef: [first.analytic_name, first.analytic_identifier, first.analytic_code, first.analytic_entite].filter(Boolean).join('-'), analyticAccount: first.analytic_account_number || '', dateMin, dateMax }))
       }
-      await browser.close(); browser = null
 
-      const mergedPdfBytes = await mergedPdf.save()
+      // Combiner en UN SEUL document HTML → UN SEUL rendu Puppeteer (évite le timeout)
+      let combinedHtml
+      if (allHtmls.length === 1) {
+        combinedHtml = allHtmls[0]
+      } else {
+        const cssMatch = allHtmls[0].match(/<style>([\s\S]*?)<\/style>/)
+        const css = (cssMatch ? cssMatch[1] : '') + '\n.pg-brk{page-break-after:always;height:0;margin:0;padding:0;}'
+        const bodies = allHtmls.map(h => { const m = h.match(/<body>([\s\S]*)<\/body>/); return m ? m[1] : h })
+        combinedHtml = `<!doctype html><html><head><meta charset="utf-8"/><style>${css}</style></head><body>${bodies.join('<div class="pg-brk"></div>')}</body></html>`
+      }
+
+      // UN seul rendu Puppeteer pour tous les utilisateurs
+      const page = await browser.newPage()
+      await page.setContent(combinedHtml, { waitUntil: 'networkidle0' })
+      const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true })
+      await page.close()
+      await browser.close(); browser = null
       const dateStr = new Date().toISOString().split('T')[0]
       res.setHeader('Content-Type', 'application/pdf')
       res.setHeader('Content-Disposition', `attachment; filename="Recompilation_${dateStr}.pdf"`)
-      return res.send(Buffer.from(mergedPdfBytes))
+      return res.send(Buffer.from(pdfBuffer))
     }
 
     // ── Mode classique : fusionner les PDFs existants ─────────────────────────
