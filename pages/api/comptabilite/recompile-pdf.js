@@ -50,16 +50,21 @@ function buildTableBody(userPrestations, invoiceDate) {
         tableBodyHtml += `<tr style="color:#dc2626"><td><strong>AVOIR</strong> — ${escHtml(p.comments || 'Avoir — correction')}</td><td></td><td></td><td style="color:#dc2626;font-weight:700">${fmt(avoirAmt)}€</td></tr>`
         analyticTotal += avoirAmt; continue
       }
-      const baseHours = gardeH + sortieH || Number(p.hours_actual || 1)
+      const sumGS = gardeH + sortieH
+      const baseHours = sumGS > 0 ? sumGS : Number(p.hours_actual || 0)
       const unitPrice = baseHours > 0 ? Number((totalAmt / baseHours).toFixed(2)) : totalAmt
       if (gardeH > 0 || sortieH > 0) {
         if (gardeH > 0) { const gAmt = +(unitPrice * gardeH).toFixed(2); tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Garde</td><td>${gardeH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(gAmt)}€</td></tr>`; analyticTotal += gAmt }
         if (sortieH > 0) { const sAmt = +(unitPrice * sortieH).toFixed(2); tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Sortie</td><td>${sortieH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(sAmt)}€</td></tr>`; analyticTotal += sAmt }
         if (overtimeH > 0) { const oAmt = +(unitPrice * overtimeH).toFixed(2); tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(oAmt)}€</td></tr>`; analyticTotal += oAmt }
       } else {
-        const qty = Number(p.hours_actual || p.garde_hours || 0) || 1
+        const baseH = Number(p.hours_actual || p.garde_hours || 0)
         const lineAmt = +totalAmt.toFixed(2)
-        tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>${qty}</td><td>${fmt(unitPrice)}€</td><td>${fmt(lineAmt)}€</td></tr>`
+        if (baseH > 0) {
+          tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>${baseH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(lineAmt)}€</td></tr>`
+        } else {
+          tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>—</td><td>—</td><td>${fmt(lineAmt)}€</td></tr>`
+        }
         analyticTotal += lineAmt
         if (overtimeH > 0) { const oAmt = +(unitPrice * overtimeH).toFixed(2); tableBodyHtml += `<tr><td>Heures supplémentaires — ${prestDate} — ${codeRef}${ebrigadeSuffix}</td><td>${overtimeH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(oAmt)}€</td></tr>`; analyticTotal += oAmt }
       }

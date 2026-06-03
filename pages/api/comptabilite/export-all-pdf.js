@@ -190,7 +190,8 @@ export default async function handler(req, res) {
           }
 
           // Prix unitaire déduit du total / heures
-          const baseHours = gardeH + sortieH || Number(p.hours_actual || 1)
+          const sumGS = gardeH + sortieH
+          const baseHours = sumGS > 0 ? sumGS : Number(p.hours_actual || 0)
           const unitPrice = baseHours > 0 ? Number((totalAmt / baseHours).toFixed(2)) : totalAmt
 
           if (gardeH > 0 || sortieH > 0) {
@@ -211,9 +212,12 @@ export default async function handler(req, res) {
             }
           } else {
             const baseH = Number(p.hours_actual || p.garde_hours || 0)
-            const qty = baseH || 1
             const lineAmt = +totalAmt.toFixed(2)
-            tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>${qty}</td><td>${fmt(unitPrice)}€</td><td>${fmt(lineAmt)}€</td></tr>`
+            if (baseH > 0) {
+              tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>${baseH}</td><td>${fmt(unitPrice)}€</td><td>${fmt(lineAmt)}€</td></tr>`
+            } else {
+              tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>—</td><td>—</td><td>${fmt(lineAmt)}€</td></tr>`
+            }
             analyticTotal += lineAmt
             if (overtimeH > 0) {
               const oAmt = +(unitPrice * overtimeH).toFixed(2)

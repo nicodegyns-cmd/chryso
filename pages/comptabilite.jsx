@@ -455,11 +455,7 @@ export default function ComptabilitePage() {
         const res = await fetch('/api/comptabilite/recompile-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prestation_ids: analytic.ids }),
-        })
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error || `Erreur pour ${analytic.name}`)
+          body: JSON.stringify({ prestation_ids: analytic.ids, regenerate: true }),
         }
         const blob = await res.blob()
         const url = window.URL.createObjectURL(blob)

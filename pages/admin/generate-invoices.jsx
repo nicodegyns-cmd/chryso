@@ -244,7 +244,7 @@ export default function GenerateInvoicesPage() {
         const r = await fetch('/api/comptabilite/recompile-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prestation_ids: analytic.ids }),
+          body: JSON.stringify({ prestation_ids: analytic.ids, regenerate: true }),
         })
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || `Erreur pour ${analytic.name}`) }
         const blob = await r.blob()
@@ -280,7 +280,7 @@ export default function GenerateInvoicesPage() {
         const r = await fetch('/api/comptabilite/recompile-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prestation_ids: analytic.ids }),
+          body: JSON.stringify({ prestation_ids: analytic.ids, regenerate: true }),
         })
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || `Erreur pour ${analytic.name}`) }
         const blob = await r.blob()
@@ -313,7 +313,7 @@ export default function GenerateInvoicesPage() {
         const res = await fetch('/api/comptabilite/recompile-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prestation_ids: analytic.ids }),
+          body: JSON.stringify({ prestation_ids: analytic.ids, regenerate: true }),
         })
         if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Erreur pour ${analytic.name}`) }
         const blob = await res.blob()
