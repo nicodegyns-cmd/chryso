@@ -26,6 +26,14 @@ export default function GenerateInvoicesPage() {
   const [recompilingByAnalytic, setRecompilingByAnalytic] = useState(false)
   const [recompilingAll, setRecompilingAll] = useState(false)
 
+  // Revert-to-billing modal
+  const [revertModalOpen, setRevertModalOpen] = useState(false)
+  const [revertInvoices, setRevertInvoices] = useState([]) // [{ invoice_number, count }]
+  const [revertLoadingInvoices, setRevertLoadingInvoices] = useState(false)
+  const [revertFrom, setRevertFrom] = useState('')
+  const [revertTo, setRevertTo] = useState('')
+  const [reverting, setReverting] = useState(false)
+
   // Compiled PDFs history
   const [exportFiles, setExportFiles] = useState([])
   const [loadingFiles, setLoadingFiles] = useState(false)
@@ -411,6 +419,79 @@ export default function GenerateInvoicesPage() {
     return (bytes / (1024 * 1024)).toFixed(1) + ' Mo'
   }
 
+  // Revert prestations to "Envoyé à la facturation" by invoice number range
+  async function openRevertModal() {
+    setRevertModalOpen(true)
+    setRevertLoadingInvoices(true)
+    setRevertFrom('')
+    setRevertTo('')
+    try {
+      const res = await fetch('/api/comptabilite/prestations?status=invoiced')
+      if (!res.ok) throw new Error('Erreur chargement')
+      const data = await res.json()
+      const all = Array.isArray(data) ? data : data.prestations || []
+      // Grouper par invoice_number avec compte
+      const map = new Map()
+      for (const p of all) {
+        if (!p.invoice_number) continue
+        if (!map.has(p.invoice_number)) map.set(p.invoice_number, 0)
+        map.set(p.invoice_number, map.get(p.invoice_number) + 1)
+      }
+      // Trier par partie numérique (format AAAA-NNNNN)
+      const sorted = [...map.entries()]
+        .map(([inv, cnt]) => ({ invoice_number: inv, count: cnt }))
+        .sort((a, b) => {
+          const na = parseInt((a.invoice_number.split('-')[1] || '0'), 10)
+          const nb = parseInt((b.invoice_number.split('-')[1] || '0'), 10)
+          return na - nb
+        })
+      setRevertInvoices(sorted)
+      if (sorted.length > 0) {
+        setRevertFrom(sorted[0].invoice_number)
+        setRevertTo(sorted[sorted.length - 1].invoice_number)
+      }
+    } catch (err) {
+      alert('❌ Erreur chargement des factures: ' + err.message)
+      setRevertModalOpen(false)
+    } finally {
+      setRevertLoadingInvoices(false)
+    }
+  }
+
+  function getSelectedRevertInvoices() {
+    if (!revertFrom || !revertTo || revertInvoices.length === 0) return []
+    const fromIdx = revertInvoices.findIndex(i => i.invoice_number === revertFrom)
+    const toIdx = revertInvoices.findIndex(i => i.invoice_number === revertTo)
+    if (fromIdx === -1 || toIdx === -1) return []
+    const [start, end] = fromIdx <= toIdx ? [fromIdx, toIdx] : [toIdx, fromIdx]
+    return revertInvoices.slice(start, end + 1)
+  }
+
+  async function submitRevert() {
+    const selected = getSelectedRevertInvoices()
+    if (selected.length === 0) { alert('Aucune facture sélectionnée'); return }
+    const totalPrestations = selected.reduce((s, i) => s + i.count, 0)
+    const invoiceList = selected.map(i => i.invoice_number).join(', ')
+    if (!confirm(`⚠️ Remettre ${totalPrestations} prestation(s) de ${selected.length} facture(s) en statut "Envoyé à la facturation" ?\n\nFactures : ${invoiceList}\n\nCette action efface les PDFs et numéros de factures. Elle est irréversible.`)) return
+    setReverting(true)
+    try {
+      const res = await fetch('/api/comptabilite/revert-to-billing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice_numbers: selected.map(i => i.invoice_number) }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erreur serveur')
+      alert(`✅ ${data.message}`)
+      setRevertModalOpen(false)
+      fetchPrestations()
+    } catch (err) {
+      alert('❌ ' + err.message)
+    } finally {
+      setReverting(false)
+    }
+  }
+
   // Group filtered prestations by analytic
   const groups = Object.entries(
     filteredPrestations.reduce((acc, p) => {
@@ -512,6 +593,9 @@ export default function GenerateInvoicesPage() {
                   </button>
                 </>
               )}
+              <button onClick={openRevertModal} style={btnStyle('#dc2626', false)}>
+                ↩ Remettre en attente
+              </button>
               {pendingCount > 0 && (
                 <button onClick={exportAll} disabled={exportingAll} style={btnStyle('#059669', exportingAll)}>
                   {exportingAll ? '⏳ Génération en cours...' : `📤 Tout générer (${pendingCount} prestations)`}
@@ -646,6 +730,87 @@ export default function GenerateInvoicesPage() {
           </main>
         </div>
       </div>
+
+      {/* ── Revert-to-billing modal ───────────────────────────────────────── */}
+      {revertModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1700 }}
+          onClick={() => !reverting && setRevertModalOpen(false)}>
+          <div style={{ background: '#fff', borderRadius: 14, width: '95%', maxWidth: 520, padding: '28px 32px', boxShadow: '0 24px 64px rgba(0,0,0,0.3)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>↩ Remettre en attente</h2>
+              <button onClick={() => setRevertModalOpen(false)} disabled={reverting}
+                style={{ border: 'none', background: '#f3f4f6', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 15, color: '#6b7280' }}>✕</button>
+            </div>
+
+            <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, marginBottom: 20, fontSize: 13, color: '#991b1b' }}>
+              ⚠️ Cette action remet les prestations en statut <strong>"Envoyé à la facturation"</strong> et efface les PDFs et numéros de factures associés. Vous pourrez ensuite regénérer les factures avec les bons taux.
+            </div>
+
+            {revertLoadingInvoices ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: '#6b7280' }}>⏳ Chargement des factures...</div>
+            ) : revertInvoices.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: 13 }}>Aucune prestation facturée disponible</div>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>DE LA FACTURE</label>
+                    <select value={revertFrom} onChange={e => setRevertFrom(e.target.value)} style={inputStyle}>
+                      {revertInvoices.map(i => (
+                        <option key={i.invoice_number} value={i.invoice_number}>
+                          {i.invoice_number} ({i.count} prest.)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>À LA FACTURE</label>
+                    <select value={revertTo} onChange={e => setRevertTo(e.target.value)} style={inputStyle}>
+                      {revertInvoices.map(i => (
+                        <option key={i.invoice_number} value={i.invoice_number}>
+                          {i.invoice_number} ({i.count} prest.)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Preview */}
+                {(() => {
+                  const sel = getSelectedRevertInvoices()
+                  const total = sel.reduce((s, i) => s + i.count, 0)
+                  return sel.length > 0 ? (
+                    <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 14px', marginBottom: 20 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 8 }}>
+                        📋 Sélection : {sel.length} facture(s) — {total} prestation(s)
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {sel.map(i => (
+                          <span key={i.invoice_number} style={{ background: '#fee2e2', color: '#991b1b', padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
+                            {i.invoice_number} × {i.count}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null
+                })()}
+              </>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setRevertModalOpen(false)} disabled={reverting}
+                style={{ padding: '10px 20px', background: '#f3f4f6', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 14, color: '#374151' }}>
+                Annuler
+              </button>
+              <button onClick={submitRevert} disabled={reverting || revertLoadingInvoices || getSelectedRevertInvoices().length === 0}
+                style={btnStyle('#dc2626', reverting || revertLoadingInvoices || getSelectedRevertInvoices().length === 0)}>
+                {reverting ? '⏳ En cours...' : `↩ Remettre en attente (${getSelectedRevertInvoices().reduce((s, i) => s + i.count, 0)} prest.)`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Settings modal ───────────────────────────────────────────── */}
       {settingsOpen && (
