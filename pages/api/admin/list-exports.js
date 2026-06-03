@@ -22,7 +22,7 @@ export default function handler(req, res) {
         const stat = fs.statSync(path.join(exportsDir, f))
         return {
           filename: f,
-          url: `/exports/${f}`,
+          url: `/api/exports/download?file=${encodeURIComponent(f)}`,
           size: stat.size,
           created_at: stat.mtime.toISOString(),
         }

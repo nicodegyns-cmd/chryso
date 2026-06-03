@@ -22,6 +22,15 @@ export default function GenerateInvoicesPage() {
   // Export state
   const [exportingAll, setExportingAll] = useState(false)
   const [exportingIds, setExportingIds] = useState({})
+
+  // Export progress modal
+  const [exportProgressOpen, setExportProgressOpen] = useState(false)
+  const [exportProgressTotal, setExportProgressTotal] = useState(0)
+  const [exportProgressCurrent, setExportProgressCurrent] = useState(0)
+  const [exportProgressCurrentName, setExportProgressCurrentName] = useState('')
+  const [exportProgressError, setExportProgressError] = useState(null)
+  const [exportProgressDownloadUrl, setExportProgressDownloadUrl] = useState(null)
+  const [exportProgressFilename, setExportProgressFilename] = useState('')
   const [recompiling, setRecompiling] = useState(false)
   const [recompilingByAnalytic, setRecompilingByAnalytic] = useState(false)
   const [recompilingAll, setRecompilingAll] = useState(false)
@@ -159,6 +168,65 @@ export default function GenerateInvoicesPage() {
   const pendingCount = filteredPrestations.filter(p => p.status === 'sent_to_billing' || p.status === 'Envoyé à la facturation').length
   const pendingAmount = filteredPrestations.reduce((s, p) => s + (parseFloat(p.remuneration) || 0), 0)
 
+  // Helper : exporte un groupe de prestations par utilisateur avec barre de progression
+  async function exportWithProgress(groups, allIds, analyticName) {
+    setExportProgressOpen(true)
+    setExportProgressTotal(groups.length)
+    setExportProgressCurrent(0)
+    setExportProgressCurrentName('')
+    setExportProgressError(null)
+    setExportProgressDownloadUrl(null)
+    setExportProgressFilename('')
+
+    try {
+      const filenames = []
+      for (let i = 0; i < groups.length; i++) {
+        const userPrestations = groups[i]
+        const f = userPrestations[0]
+        const name = f.company_name ||
+          [f.first_name, f.last_name].filter(Boolean).join(' ') ||
+          f.email || `Utilisateur ${i + 1}`
+        setExportProgressCurrent(i + 1)
+        setExportProgressCurrentName(name)
+
+        const res = await fetch('/api/comptabilite/export-single-invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prestation_ids: userPrestations.map(p => p.id) }),
+        })
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}))
+          throw new Error(e.error || `Erreur pour ${name}`)
+        }
+        const data = await res.json()
+        filenames.push(data.filename)
+      }
+
+      setExportProgressCurrentName('Compilation en cours...')
+
+      const finalRes = await fetch('/api/comptabilite/finalize-export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pdf_filenames: filenames,
+          all_prestation_ids: allIds,
+          analytic_name: analyticName || '',
+        }),
+      })
+      if (!finalRes.ok) {
+        const e = await finalRes.json().catch(() => ({}))
+        throw new Error(e.error || 'Erreur lors de la finalisation')
+      }
+      const finalData = await finalRes.json()
+      setExportProgressDownloadUrl(finalData.download_url)
+      setExportProgressFilename(finalData.compilation_filename)
+      await fetchExportFiles()
+      await fetchPrestations()
+    } catch (err) {
+      setExportProgressError(err.message)
+    }
+  }
+
   // Export all pending prestations
   async function exportAll() {
     const pending = filteredPrestations.filter(p => p.status === 'sent_to_billing' || p.status === 'Envoyé à la facturation')
@@ -168,26 +236,14 @@ export default function GenerateInvoicesPage() {
 
     setExportingAll(true)
     try {
-      const res = await fetch('/api/comptabilite/export-all-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prestation_ids: pending.map(p => p.id) }),
-      })
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}))
-        throw new Error(e.error || 'Erreur export')
+      // Grouper par (user_id, analytic_id) — un PDF par combinaison
+      const groupMap = new Map()
+      for (const p of pending) {
+        const key = `${p.user_id}-${p.analytic_id ?? 'null'}`
+        if (!groupMap.has(key)) groupMap.set(key, [])
+        groupMap.get(key).push(p)
       }
-      const compilationUrl = res.headers.get('X-Compilation-Url')
-      const blob = await res.blob()
-      downloadBlob(blob, `Compilation_Factures_${new Date().toISOString().split('T')[0]}.pdf`)
-      await fetchExportFiles()
-      await fetchPrestations()
-      if (compilationUrl) {
-        const filename = compilationUrl.split('/').pop()
-        openSendEmail({ url: compilationUrl, filename })
-      }
-    } catch (err) {
-      alert('❌ ' + err.message)
+      await exportWithProgress([...groupMap.values()], pending.map(p => p.id), null)
     } finally {
       setExportingAll(false)
     }
@@ -199,26 +255,13 @@ export default function GenerateInvoicesPage() {
     if (!confirm(`📄 Exporter ${items.length} prestation(s) pour « ${analyticName} » ?\n\nElles seront marquées « Facturé ».`)) return
     setExportingIds(p => ({ ...p, [analyticId]: true }))
     try {
-      const res = await fetch('/api/comptabilite/export-all-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prestation_ids: items.map(p => p.id), analyticName }),
-      })
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}))
-        throw new Error(e.error || 'Erreur export')
+      // Grouper par user_id (toutes les prestations sont déjà pour la même analytique)
+      const groupMap = new Map()
+      for (const p of items) {
+        if (!groupMap.has(p.user_id)) groupMap.set(p.user_id, [])
+        groupMap.get(p.user_id).push(p)
       }
-      const compilationUrl = res.headers.get('X-Compilation-Url')
-      const blob = await res.blob()
-      downloadBlob(blob, `Factures_${analyticName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`)
-      await fetchExportFiles()
-      await fetchPrestations()
-      if (compilationUrl) {
-        const filename = compilationUrl.split('/').pop()
-        openSendEmail({ url: compilationUrl, filename })
-      }
-    } catch (err) {
-      alert('❌ ' + err.message)
+      await exportWithProgress([...groupMap.values()], items.map(p => p.id), analyticName)
     } finally {
       setExportingIds(p => { const n = { ...p }; delete n[analyticId]; return n })
     }
@@ -956,6 +999,73 @@ export default function GenerateInvoicesPage() {
                 {sendingEmail ? '⏳ Envoi...' : '✉️ Envoyer'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Export progress modal ─────────────────────────────────────── */}
+      {exportProgressOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2100 }}>
+          <div style={{ background: 'white', borderRadius: 14, padding: '32px', width: '95%', maxWidth: 480, boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}>
+            <h2 style={{ margin: '0 0 20px', fontSize: 20, fontWeight: 700, color: '#111827' }}>📄 Génération des factures</h2>
+
+            {!exportProgressError && !exportProgressDownloadUrl && (
+              <>
+                <div style={{ marginBottom: 14, fontSize: 14, color: '#374151' }}>
+                  {exportProgressCurrentName
+                    ? `⏳ Traitement : ${exportProgressCurrentName}`
+                    : '⏳ Initialisation...'}
+                </div>
+                <div style={{ background: '#f3f4f6', borderRadius: 6, height: 14, overflow: 'hidden', marginBottom: 10 }}>
+                  <div style={{
+                    background: '#4f46e5',
+                    height: '100%',
+                    width: `${exportProgressTotal > 0 ? Math.round((exportProgressCurrent / exportProgressTotal) * 100) : 0}%`,
+                    transition: 'width 0.35s ease',
+                    borderRadius: 6,
+                  }} />
+                </div>
+                <div style={{ fontSize: 13, color: '#6b7280', textAlign: 'right' }}>
+                  {exportProgressCurrent} / {exportProgressTotal} prestataire(s)
+                </div>
+              </>
+            )}
+
+            {exportProgressError && (
+              <>
+                <div style={{ padding: '14px', background: '#fee2e2', borderRadius: 8, marginBottom: 20, color: '#991b1b', fontSize: 13 }}>
+                  ❌ {exportProgressError}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button onClick={() => setExportProgressOpen(false)}
+                    style={{ padding: '10px 22px', background: '#111827', color: 'white', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                    Fermer
+                  </button>
+                </div>
+              </>
+            )}
+
+            {exportProgressDownloadUrl && (
+              <>
+                <div style={{ padding: '14px', background: '#dcfce7', borderRadius: 8, marginBottom: 20, color: '#166534', fontSize: 13, fontWeight: 600 }}>
+                  ✅ {exportProgressTotal} facture(s) générée(s) avec succès !
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <button onClick={() => setExportProgressOpen(false)}
+                    style={{ padding: '10px 20px', background: '#f3f4f6', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 14, color: '#374151' }}>
+                    Fermer
+                  </button>
+                  <a href={exportProgressDownloadUrl} download
+                    style={{ padding: '10px 20px', background: '#4f46e5', color: 'white', borderRadius: 7, textDecoration: 'none', fontSize: 14, fontWeight: 700, display: 'inline-block' }}>
+                    ⬇️ Télécharger
+                  </a>
+                  <button onClick={() => { openSendEmail({ url: exportProgressDownloadUrl, filename: exportProgressFilename }); setExportProgressOpen(false) }}
+                    style={{ padding: '10px 20px', background: '#059669', color: 'white', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+                    ✉️ Envoyer
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
