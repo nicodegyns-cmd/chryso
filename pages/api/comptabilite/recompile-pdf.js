@@ -39,9 +39,10 @@ function buildTableBody(userPrestations, invoiceDate) {
         ? Number(p.remuneration_med || p.remuneration_infi || 0)
         : Number(p.remuneration_infi || p.remuneration_med || 0)
       // sortieRate = taux horaire de sortie (stocké depuis l'activité, non multiplié par les heures)
+      // Fallback sur act_sortie_infi/med si remuneration_sortie non renseigné sur la prestation
       const sortieRate = isMed
-        ? Number(p.remuneration_sortie_med || p.remuneration_sortie_infi || 0)
-        : Number(p.remuneration_sortie_infi || p.remuneration_sortie_med || 0)
+        ? (Number(p.remuneration_sortie_med) || Number(p.act_sortie_med) || Number(p.remuneration_sortie_infi) || Number(p.act_sortie_infi) || 0)
+        : (Number(p.remuneration_sortie_infi) || Number(p.act_sortie_infi) || Number(p.remuneration_sortie_med) || Number(p.act_sortie_med) || 0)
       const gardeH = Number(p.garde_hours || 0)
       const sortieH = Number(p.sortie_hours || 0)
       const overtimeH = Number(p.overtime_hours || 0)
@@ -155,10 +156,20 @@ export default async function handler(req, res) {
           u.bce AS user_bce, u.company AS company_name, u.account AS user_account,
           an.name AS analytic_name, an.code AS analytic_code,
           an.entite AS analytic_entite, an.analytic_type AS analytic_identifier,
-          an.account_number AS analytic_account_number
+          an.account_number AS analytic_account_number,
+          COALESCE(act_r.remuneration_sortie_infi, 0) AS act_sortie_infi,
+          COALESCE(act_r.remuneration_sortie_med,  0) AS act_sortie_med
         FROM prestations p
         LEFT JOIN users u ON p.user_id = u.id
         LEFT JOIN analytics an ON p.analytic_id = an.id
+        LEFT JOIN LATERAL (
+          SELECT remuneration_sortie_infi, remuneration_sortie_med
+          FROM activities
+          WHERE (p.activity_id IS NOT NULL AND id = p.activity_id)
+             OR (p.activity_id IS NULL AND analytic_id = p.analytic_id)
+          ORDER BY date DESC NULLS LAST
+          LIMIT 1
+        ) act_r ON true
         WHERE p.id = ANY($1)
         ORDER BY p.user_id, p.analytic_id NULLS LAST, p.date ASC
       `, [prestation_ids])
