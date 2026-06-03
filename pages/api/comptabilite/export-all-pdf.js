@@ -165,12 +165,12 @@ export default async function handler(req, res) {
 
         for (const p of ag.items) {
           const isMed = (p.user_role || '').toUpperCase().includes('MED')
-          // gardeTotal = montant total pour les heures de garde (variable par prestation)
-          const gardeTotal = isMed
+          // combinedTotal = montant stocké = (garde_h × taux_garde) + (sortie_h × taux_sortie)
+          const combinedTotal = isMed
             ? Number(p.remuneration_med || p.remuneration_infi || 0)
             : Number(p.remuneration_infi || p.remuneration_med || 0)
-          // sortieHourlyRate = taux horaire fixe pour les sorties (52,50€/h infi, 75€/h med)
-          const sortieHourlyRate = isMed
+          // sortieRate = taux horaire de sortie (stocké depuis l'activité, non multiplié par les heures)
+          const sortieRate = isMed
             ? Number(p.remuneration_sortie_med || p.remuneration_sortie_infi || 0)
             : Number(p.remuneration_sortie_infi || p.remuneration_sortie_med || 0)
 
@@ -186,27 +186,30 @@ export default async function handler(req, res) {
           const ebrigadeSuffix = ebrigadeName ? ` | ${ebrigadeName}` : ''
 
           // AVOIR: ligne de correction négative
-          if ((p.pay_type || '').toUpperCase() === 'AVOIR' || gardeTotal < 0) {
-            const avoirAmt = +gardeTotal.toFixed(2)
+          if ((p.pay_type || '').toUpperCase() === 'AVOIR' || combinedTotal < 0) {
+            const avoirAmt = +combinedTotal.toFixed(2)
             const avoirLabel = escHtml(p.comments || 'Avoir — correction')
             tableBodyHtml += `<tr style="color:#dc2626"><td><strong>AVOIR</strong> — ${avoirLabel}</td><td></td><td></td><td style="color:#dc2626;font-weight:700">${fmt(avoirAmt)}€</td></tr>`
             analyticTotal += avoirAmt
             continue
           }
 
-          const gardeUnitPrice = gardeH > 0 ? Number((gardeTotal / gardeH).toFixed(2)) : 0
+          // Part sortie du total : taux_sortie × sortie_h
+          const sAmtCalc = +(sortieRate * sortieH).toFixed(2)
+          // Part garde du total : combinedTotal - sAmtCalc (évite le double comptage)
+          const gAmtCalc = +(combinedTotal - sAmtCalc).toFixed(2)
+          const gardeUnitPrice = gardeH > 0 ? Number((gAmtCalc / gardeH).toFixed(2)) : 0
           const baseH = Number(p.hours_actual || 0)
-          const fallbackUnitPrice = baseH > 0 ? Number((gardeTotal / baseH).toFixed(2)) : 0
+          const fallbackUnitPrice = baseH > 0 ? Number((combinedTotal / baseH).toFixed(2)) : 0
 
           if (gardeH > 0 || sortieH > 0) {
             if (gardeH > 0) {
-              tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Garde</td><td>${gardeH}</td><td>${fmt(gardeUnitPrice)}€</td><td>${fmt(gardeTotal)}€</td></tr>`
-              analyticTotal += gardeTotal
+              tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Garde</td><td>${gardeH}</td><td>${fmt(gardeUnitPrice)}€</td><td>${fmt(gAmtCalc)}€</td></tr>`
+              analyticTotal += gAmtCalc
             }
             if (sortieH > 0) {
-              const sAmt = +(sortieHourlyRate * sortieH).toFixed(2)
-              tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Sortie</td><td>${sortieH}</td><td>${fmt(sortieHourlyRate)}€</td><td>${fmt(sAmt)}€</td></tr>`
-              analyticTotal += sAmt
+              tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix} / Sortie</td><td>${sortieH}</td><td>${fmt(sortieRate)}€</td><td>${fmt(sAmtCalc)}€</td></tr>`
+              analyticTotal += sAmtCalc
             }
             if (overtimeH > 0) {
               const oAmt = +(gardeUnitPrice * overtimeH).toFixed(2)
@@ -214,7 +217,7 @@ export default async function handler(req, res) {
               analyticTotal += oAmt
             }
           } else {
-            const lineAmt = +gardeTotal.toFixed(2)
+            const lineAmt = +combinedTotal.toFixed(2)
             if (baseH > 0) {
               tableBodyHtml += `<tr><td>Prestation — ${prestDate} — ${codeRef}${ebrigadeSuffix}${payType ? ' / ' + payType : ''}</td><td>${baseH}</td><td>${fmt(fallbackUnitPrice)}€</td><td>${fmt(lineAmt)}€</td></tr>`
             } else {
