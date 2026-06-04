@@ -130,7 +130,7 @@ export default async function handler(req, res) {
 
     // Mark prestation as sent
     await pool.query(
-      `UPDATE prestations SET status = 'Envoyé à la facturation', sent_at = NOW() WHERE id = $1`,
+      `UPDATE prestations SET status = 'Envoyé à la facturation' WHERE id = $1`,
       [prestation_id]
     )
 
