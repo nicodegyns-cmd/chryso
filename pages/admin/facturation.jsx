@@ -28,6 +28,14 @@ export default function FacturationPage() {
   const [correctionReason, setCorrectionReason] = useState('')
   const [correctionSubmitting, setCorrectionSubmitting] = useState(false)
 
+  // Send individual invoice by email
+  const [sendInvOpen, setSendInvOpen] = useState(false)
+  const [sendInvPrestation, setSendInvPrestation] = useState(null) // { id, invoice_number, pdf_url }
+  const [sendInvEmailTo, setSendInvEmailTo] = useState('')
+  const [sendInvSubject, setSendInvSubject] = useState('')
+  const [sendInvSending, setSendInvSending] = useState(false)
+  const [sendInvSavedEmails, setSendInvSavedEmails] = useState([])
+
   // Manual invoice modal
   const [manualInvoiceOpen, setManualInvoiceOpen] = useState(false)
   const [manualInvoiceSubmitting, setManualInvoiceSubmitting] = useState(false)
@@ -284,6 +292,47 @@ export default function FacturationPage() {
       fetchInvoices()
     } catch (err) {
       alert('Erreur : ' + err.message)
+    }
+  }
+
+  function openSendInvoice(inv) {
+    setSendInvPrestation(inv)
+    const stored = (() => { try { return JSON.parse(localStorage.getItem('gi_saved_emails') || '[]') } catch(e) { return [] } })()
+    const list = Array.isArray(stored) ? stored : []
+    setSendInvSavedEmails(list)
+    setSendInvEmailTo(list.join('; '))
+    setSendInvSubject(`Facture ${inv.invoice_number || '#' + inv.id} — ${inv.analytic_name || ''}`.trim().replace(/ —\s*$/, '') + ` — ${new Date().toLocaleDateString('fr-FR')}`)
+    setSendInvOpen(true)
+  }
+
+  async function sendInvoiceEmail() {
+    if (!sendInvPrestation) return
+    const emailList = sendInvEmailTo.split(';').map(e => e.trim()).filter(Boolean)
+    if (emailList.length === 0) return alert('Saisissez au moins une adresse email')
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    for (const e of emailList) {
+      if (!emailRegex.test(e)) return alert(`Adresse invalide : ${e}`)
+    }
+    setSendInvSending(true)
+    try {
+      const res = await fetch('/api/admin/send-invoice-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prestation_id: sendInvPrestation.id,
+          email_to: sendInvEmailTo.trim(),
+          subject: sendInvSubject,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erreur serveur')
+      alert(`✅ ${data.message}`)
+      setSendInvOpen(false)
+      fetchInvoices()
+    } catch (err) {
+      alert('❌ ' + err.message)
+    } finally {
+      setSendInvSending(false)
     }
   }
 
@@ -590,6 +639,13 @@ export default function FacturationPage() {
                                 <>
                                   <a href={inv.pdf_url} target="_blank" rel="noreferrer" style={{padding:'6px 10px',background:'#3b82f6',color:'#fff',borderRadius:4,textDecoration:'none',fontSize:11,fontWeight:600}}>Voir</a>
                                   <a href={inv.pdf_url} download style={{padding:'6px 10px',background:'#6b7280',color:'#fff',borderRadius:4,textDecoration:'none',fontSize:11,fontWeight:600}}>Télécharger</a>
+                                  <button
+                                    onClick={() => inv.id && openSendInvoice(inv)}
+                                    title="Envoyer par email"
+                                    style={{padding:'6px 10px',background:'#059669',color:'#fff',border:'none',borderRadius:4,cursor:inv.id?'pointer':'not-allowed',fontSize:11,fontWeight:600}}
+                                    onMouseEnter={e => { if (inv.id) e.currentTarget.style.background='#047857' }}
+                                    onMouseLeave={e => { if (inv.id) e.currentTarget.style.background='#059669' }}
+                                  >✉️ Envoyer</button>
                                 </>
                               ) : <span style={{color:'#9ca3af',fontSize:11}}>Pas de PDF</span>}
                               <button
@@ -643,6 +699,77 @@ export default function FacturationPage() {
         </main>
       </div>
     </div>
+
+      {/* Send Individual Invoice Modal */}
+      {sendInvOpen && sendInvPrestation && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1600}}
+          onClick={() => !sendInvSending && setSendInvOpen(false)}>
+          <div style={{background:'#fff',borderRadius:14,width:'95%',maxWidth:480,padding:'28px 32px',boxShadow:'0 24px 64px rgba(0,0,0,0.3)'}}
+            onClick={e => e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:22}}>
+              <h2 style={{margin:0,fontSize:18,fontWeight:700,color:'#111827'}}>✉️ Envoyer la facture</h2>
+              <button onClick={() => setSendInvOpen(false)} disabled={sendInvSending}
+                style={{border:'none',background:'#f3f4f6',borderRadius:8,width:32,height:32,cursor:'pointer',fontSize:15,color:'#6b7280'}}>✕</button>
+            </div>
+
+            <div style={{padding:'10px 14px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:8,marginBottom:20,fontSize:13,color:'#065f46'}}>
+              📄 <strong>Facture {sendInvPrestation.invoice_number || '#' + sendInvPrestation.id}</strong>
+              {sendInvPrestation.analytic_name ? ` — ${sendInvPrestation.analytic_name}` : ''}
+            </div>
+
+            <div style={{marginBottom:16}}>
+              <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:6}}>
+                DESTINATAIRE(S) <span style={{color:'#dc2626'}}>*</span>
+              </label>
+              {sendInvSavedEmails.length > 0 && (
+                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
+                  {sendInvSavedEmails.map(em => {
+                    const active = sendInvEmailTo.split(';').map(s => s.trim()).includes(em)
+                    return (
+                      <button key={em} onClick={() => {
+                        const current = sendInvEmailTo.split(';').map(s => s.trim()).filter(Boolean)
+                        setSendInvEmailTo(active ? current.filter(e => e !== em).join('; ') : [...current, em].join('; '))
+                      }} style={{padding:'4px 10px',borderRadius:20,border:`1px solid ${active?'#2563eb':'#d1d5db'}`,background:active?'#dbeafe':'#f9fafb',color:active?'#1e40af':'#6b7280',fontSize:11,fontWeight:600,cursor:'pointer'}}>
+                        {active ? '✓ ' : '+ '}{em}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              <input
+                type="text"
+                placeholder="email@exemple.com ; autre@exemple.com"
+                value={sendInvEmailTo}
+                onChange={e => setSendInvEmailTo(e.target.value)}
+                autoFocus
+                style={{width:'100%',padding:'11px 14px',border:'2px solid #e5e7eb',borderRadius:8,fontSize:14,boxSizing:'border-box'}}
+              />
+              <div style={{fontSize:11,color:'#9ca3af',marginTop:4}}>Séparez plusieurs adresses par des points-virgules</div>
+            </div>
+
+            <div style={{marginBottom:24}}>
+              <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:6}}>OBJET</label>
+              <input
+                type="text"
+                value={sendInvSubject}
+                onChange={e => setSendInvSubject(e.target.value)}
+                style={{width:'100%',padding:'11px 14px',border:'1px solid #e5e7eb',borderRadius:8,fontSize:14,boxSizing:'border-box'}}
+              />
+            </div>
+
+            <div style={{display:'flex',justifyContent:'flex-end',gap:10}}>
+              <button onClick={() => setSendInvOpen(false)} disabled={sendInvSending}
+                style={{padding:'10px 20px',background:'#f3f4f6',border:'none',borderRadius:7,cursor:'pointer',fontSize:14,color:'#374151'}}>
+                Annuler
+              </button>
+              <button onClick={sendInvoiceEmail} disabled={sendInvSending || !sendInvEmailTo.trim()}
+                style={{padding:'10px 20px',background:sendInvSending||!sendInvEmailTo.trim()?'#9ca3af':'#059669',color:'#fff',border:'none',borderRadius:7,cursor:sendInvSending||!sendInvEmailTo.trim()?'not-allowed':'pointer',fontSize:14,fontWeight:700}}>
+                {sendInvSending ? '⏳ Envoi...' : '✉️ Envoyer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Correction Wizard Modal */}
       {correctionWizardOpen && (
