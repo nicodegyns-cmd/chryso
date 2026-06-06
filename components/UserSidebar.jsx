@@ -17,6 +17,7 @@ export default function UserSidebar({ open, onClose }) {
   }, [])
 
   const isCompta = role === 'comptabilite'
+  const isModerator = role === 'moderator' || role === 'modérateur'
   const canViewStatistics = typeof window !== 'undefined' ? localStorage.getItem('can_view_statistics') === '1' : false
 
   return (
@@ -41,6 +42,9 @@ export default function UserSidebar({ open, onClose }) {
             )}
             {canViewStatistics && (
               <li><Link href="/admin/statistics" className={`sidebar-btn ${path.startsWith('/admin/statistics') ? 'active' : ''}`}>Statistiques</Link></li>
+            )}
+            {isModerator && (
+              <li><Link href="/admin/manual-entry" className={`sidebar-btn ${path.startsWith('/admin/manual-entry') ? 'active' : ''}`}>Encodage Manuel</Link></li>
             )}
           </ul>
         </nav>
