@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import AdminHeader from '../components/AdminHeader'
+import UserSidebar from '../components/UserSidebar'
 import AdminPrestationsSummary from '../components/AdminPrestationsSummary'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 
 export default function ModeratorPage() {
   const router = useRouter()
   const [checking, setChecking] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const userEmail = useLocalStorage('email', '')
   const role = useLocalStorage('role', null)
   const [filterAnalyticIds, setFilterAnalyticIds] = useState(null)
@@ -70,15 +72,18 @@ export default function ModeratorPage() {
   if (checking) return <div style={{padding:20}}>Vérification des droits…</div>
 
   return (
-    <div style={{padding:20}}>
-      <AdminHeader />
-      <header style={{margin:'20px 0 8px'}}>
-        <h1 style={{margin:0}}>Accueil — Modérateur</h1>
-        <p style={{margin:0,color:'#6b7280'}}>Valider les demandes de prestations</p>
-      </header>
+    <div className="admin-page-root">
+      <AdminHeader onToggleSidebar={() => setSidebarOpen(v => !v)} />
+      <UserSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <main className="admin-content" onClick={() => { if (sidebarOpen) setSidebarOpen(false) }}>
+        <header style={{margin:'20px 0 8px'}}>
+          <h1 style={{margin:0}}>Accueil — Modérateur</h1>
+          <p style={{margin:0,color:'#6b7280'}}>Valider les demandes de prestations</p>
+        </header>
 
-      <main style={{marginTop:16}}>
-        <AdminPrestationsSummary filterAnalyticIds={filterAnalyticIds} />
+        <div style={{marginTop:16}}>
+          <AdminPrestationsSummary filterAnalyticIds={filterAnalyticIds} />
+        </div>
       </main>
     </div>
   )
