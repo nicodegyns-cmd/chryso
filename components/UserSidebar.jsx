@@ -19,6 +19,9 @@ export default function UserSidebar({ open, onClose }) {
   const isCompta = role === 'comptabilite'
   const isModerator = role === 'moderator' || role === 'modérateur'
   const canViewStatistics = typeof window !== 'undefined' ? localStorage.getItem('can_view_statistics') === '1' : false
+  
+  // Home link depends on role
+  const homeLink = isModerator ? '/moderator' : '/dashboard'
 
   return (
     <>
@@ -27,7 +30,7 @@ export default function UserSidebar({ open, onClose }) {
       <aside className={`admin-sidebar user-sidebar ${open ? 'open' : ''}`} role="navigation" aria-label="Navigation utilisateur">
         <nav>
           <ul className="sidebar-list">
-            <li><Link href="/dashboard" className={`sidebar-btn ${path === '/dashboard' ? 'active' : ''}`}>Accueil</Link></li>
+            <li><Link href={homeLink} className={`sidebar-btn ${path === homeLink ? 'active' : ''}`}>Accueil</Link></li>
             <li><Link href="/profile" className={`sidebar-btn ${path === '/profile' ? 'active' : ''}`}>Mon profil</Link></li>
             {isCompta ? (
               <>
