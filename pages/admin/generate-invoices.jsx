@@ -639,11 +639,6 @@ export default function GenerateInvoicesPage() {
               <button onClick={openRevertModal} style={btnStyle('#dc2626', false)}>
                 ↩ Remettre en attente
               </button>
-              {pendingCount > 0 && (
-                <button onClick={exportAll} disabled={exportingAll} style={btnStyle('#059669', exportingAll)}>
-                  {exportingAll ? '⏳ Génération en cours...' : `📤 Tout générer (${pendingCount} prestations)`}
-                </button>
-              )}
             </div>
 
             {/* Prestations grouped by analytic */}
