@@ -70,8 +70,9 @@ export default function InvoiceStatistics() {
       const role = p.user_role
       // Montant : utiliser le champ remuneration calculé côté SQL (même logique que comptabilité)
       let amount = parseFloat(p.remuneration || 0)
-      // Ajouter la note de frais au montant total
+      // Ajouter la note de frais et le forfait déplacement au montant total
       amount += parseFloat(p.expense_amount || 0)
+      amount += parseFloat(p.travel_allowance || 0)
 
       // Heures : si garde/sortie existent → ce sont LES heures réelles (pas hours_actual en plus)
       const gardeH = parseFloat(p.garde_hours || 0)
