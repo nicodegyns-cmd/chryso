@@ -1312,10 +1312,32 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                       </label>
                       {/* Forfait déplacement for APS */}
                       {editingIsAPS && (
-                        <label style={{display:'flex',flexDirection:'column'}}>
+                        <div style={{display:'flex',flexDirection:'column'}}>
                           <div style={{fontSize:12,color:'#0891b2',fontWeight:600,marginBottom:6}}>🚗 FORFAIT DÉPLACEMENT</div>
-                          <input type="number" step="0.01" value={editing.travel_allowance ?? ''} onChange={e=>setEditing({...editing, travel_allowance: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #a5f3fc',fontSize:16}} placeholder="0.00" />
-                        </label>
+                          <select
+                            value={editing.travel_zone ?? ''}
+                            onChange={e => {
+                              const zoneValue = e.target.value
+                              const zones = [
+                                { value: '', label: '— Sélectionner une zone —', amount: null },
+                                { value: 'brabant_wallon', label: 'Brabant Wallon', amount: 30 },
+                                { value: 'liege_hainaut_namur', label: 'Liège / Hainaut / Namur', amount: 60 },
+                                { value: 'luxembourg', label: 'Luxembourg', amount: 100 },
+                              ]
+                              const zone = zones.find(z => z.value === zoneValue)
+                              setEditing({...editing, travel_zone: zoneValue, travel_allowance: zone?.amount ?? 0})
+                            }}
+                            style={{padding:'8px 10px',borderRadius:6,border:'1px solid #a5f3fc',fontSize:14,background:'#fff',color:'#1e3a8a',fontWeight:500}}
+                          >
+                            <option value="">— Sélectionner une zone —</option>
+                            <option value="brabant_wallon">Brabant Wallon — 30 €</option>
+                            <option value="liege_hainaut_namur">Liège / Hainaut / Namur — 60 €</option>
+                            <option value="luxembourg">Luxembourg — 100 €</option>
+                          </select>
+                          {editing.travel_zone && editing.travel_allowance > 0 && (
+                            <div style={{marginTop:6,fontSize:13,color:'#1d4ed8',fontWeight:600}}>✅ Forfait déplacement : {editing.travel_allowance} €</div>
+                          )}
+                        </div>
                       )}
                       {/* If not garde and not permanence and not APS, allow optional garde_hours input */}
                       {!editingIsPermanence && !editingIsAPS && (
