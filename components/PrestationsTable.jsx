@@ -386,6 +386,12 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                 migratedData.sortie_hours = migratedData.hours_actual
                 migratedData.hours_actual = null
               }
+              // For APS/RMP/REG: pre-populate hours_actual from eBrigade duration if empty
+              const isSimpleApi = apiPayTypeLower.includes('aps') || apiPayTypeLower.includes('rmp') || apiPayTypeLower.includes('reg')
+              if (isSimpleApi && (migratedData.hours_actual === null || migratedData.hours_actual === undefined)) {
+                const ebDur = resolveEbrigadeDurationHours(p)
+                if (ebDur) migratedData.hours_actual = ebDur
+              }
               
               setEditing({
                 ...migratedData,
@@ -433,6 +439,12 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           console.log('[openEdit] 🔄 Migrating hours_actual → sortie_hours for Garde')
           migratedPrestation.sortie_hours = migratedPrestation.hours_actual
           migratedPrestation.hours_actual = null
+        }
+        // For APS/RMP/REG: pre-populate hours_actual from eBrigade duration if empty
+        const isSimpleItems = prestPayTypeLower.includes('aps') || prestPayTypeLower.includes('rmp') || prestPayTypeLower.includes('reg')
+        if (isSimpleItems && (migratedPrestation.hours_actual === null || migratedPrestation.hours_actual === undefined)) {
+          const ebDur = resolveEbrigadeDurationHours(p)
+          if (ebDur) migratedPrestation.hours_actual = ebDur
         }
         
         setEditing({
@@ -650,11 +662,11 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         const isMedSource = roleLowSource.includes('med') || roleLowSource.includes('médec') || roleLowSource.includes('doctor') || roleLowSource.includes('doc')
         const isInfiSource = roleLowSource.includes('infi') || roleLowSource.includes('infir') || roleLowSource.includes('infirm') || roleLowSource.includes('nurs')
         if (isMedSource) {
-          preview.estimated_total = Math.round(((preview.estimated_med + Number(preview.expense_amount || 0)) + Number.EPSILON) * 100) / 100
+          preview.estimated_total = Math.round(((preview.estimated_med + Number(preview.expense_amount || 0) + Number(editing.travel_allowance || 0)) + Number.EPSILON) * 100) / 100
         } else if (isInfiSource) {
-          preview.estimated_total = Math.round(((preview.estimated_infi + Number(preview.expense_amount || 0)) + Number.EPSILON) * 100) / 100
+          preview.estimated_total = Math.round(((preview.estimated_infi + Number(preview.expense_amount || 0) + Number(editing.travel_allowance || 0)) + Number.EPSILON) * 100) / 100
         } else {
-          preview.estimated_total = Math.round(((preview.estimated_infi + preview.estimated_med + Number(preview.expense_amount || 0)) + Number.EPSILON) * 100) / 100
+          preview.estimated_total = Math.round(((preview.estimated_infi + preview.estimated_med + Number(preview.expense_amount || 0) + Number(editing.travel_allowance || 0)) + Number.EPSILON) * 100) / 100
         }
         setConfirmPreview(preview)
         setConfirmOpen(true)
@@ -713,9 +725,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           const isMedLocal = roleLowLocal.includes('med') || roleLowLocal.includes('médec') || roleLowLocal.includes('doctor') || roleLowLocal.includes('doc')
           const isInfiLocal = roleLowLocal.includes('infi') || roleLowLocal.includes('infir') || roleLowLocal.includes('infirm') || roleLowLocal.includes('nurs')
           if (isMedLocal) {
-            preview.estimated_total = Math.round(((Number(preview.estimated_med || 0) + Number(preview.expense_amount || 0)) + Number.EPSILON) * 100) / 100
+            preview.estimated_total = Math.round(((Number(preview.estimated_med || 0) + Number(preview.expense_amount || 0) + Number(editing.travel_allowance || 0)) + Number.EPSILON) * 100) / 100
           } else if (isInfiLocal) {
-            preview.estimated_total = Math.round(((Number(preview.estimated_infi || 0) + Number(preview.expense_amount || 0)) + Number.EPSILON) * 100) / 100
+            preview.estimated_total = Math.round(((Number(preview.estimated_infi || 0) + Number(preview.expense_amount || 0) + Number(editing.travel_allowance || 0)) + Number.EPSILON) * 100) / 100
           } else {
             preview.estimated_total = data.estimated_total
           }
