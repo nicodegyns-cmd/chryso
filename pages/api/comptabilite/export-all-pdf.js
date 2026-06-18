@@ -189,6 +189,7 @@ export default async function handler(req, res) {
           const sortieH = Number(p.sortie_hours || 0)
           const overtimeH = Number(p.overtime_hours || 0)
           const expenses = Number(p.expense_amount || 0)
+          const travelAllowance = Number(p.travel_allowance || 0)
           const prestDate = p.date ? new Date(p.date).toLocaleDateString('fr-FR') : invoiceDate
           const codeRef = escHtml(p.ebrigade_activity_code || p.request_ref || ('#' + p.id))
           const payType = escHtml(p.pay_type || '')
@@ -254,6 +255,11 @@ export default async function handler(req, res) {
             }
             tableBodyHtml += `<tr><td>${expLabel}</td><td></td><td></td><td>${fmt(expenses)}\u20ac</td></tr>`
             analyticTotal += expenses
+          }
+          if (travelAllowance > 0) {
+            const zoneLabel = p.travel_zone ? ` \u2014 ${escHtml(p.travel_zone)}` : ''
+            tableBodyHtml += `<tr><td>Forfait d\u00e9placement${zoneLabel}</td><td></td><td></td><td>${fmt(travelAllowance)}\u20ac</td></tr>`
+            analyticTotal += travelAllowance
           }
         }
 

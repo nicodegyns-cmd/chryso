@@ -60,7 +60,7 @@ export default async function handler(req, res) {
                   * COALESCE(act_direct.remuneration_infi, act_analytic.remuneration_infi, 20)
             END
           ELSE 0
-        END AS remuneration,
+        END + COALESCE(p.travel_allowance, 0) AS remuneration,
         p.date,
         p.status,
         p.created_at,

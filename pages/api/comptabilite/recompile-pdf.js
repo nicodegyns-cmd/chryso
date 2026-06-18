@@ -47,6 +47,7 @@ function buildTableBody(userPrestations, invoiceDate) {
       const sortieH = Number(p.sortie_hours || 0)
       const overtimeH = Number(p.overtime_hours || 0)
       const expenses = Number(p.expense_amount || 0)
+      const travelAllowance = Number(p.travel_allowance || 0)
       const prestDate = p.date ? new Date(p.date).toLocaleDateString('fr-FR') : invoiceDate
       const codeRef = escHtml(p.ebrigade_activity_code || p.request_ref || ('#' + p.id))
       const ebrigadeSuffix = p.ebrigade_activity_name ? ` | ${escHtml(p.ebrigade_activity_name)}` : ''
@@ -83,6 +84,11 @@ function buildTableBody(userPrestations, invoiceDate) {
         const expLabel = isTravelZone ? `Forfait déplacement${expComment.includes(' - ') ? ' — ' + expComment.split(' - ').slice(1).join(' - ') : ''}` : `Note de frais${expComment ? ' — ' + expComment : ''}`
         tableBodyHtml += `<tr><td>${expLabel}</td><td></td><td></td><td>${fmt(expenses)}€</td></tr>`
         analyticTotal += expenses
+      }
+      if (travelAllowance > 0) {
+        const zoneLabel = p.travel_zone ? ` — ${escHtml(p.travel_zone)}` : ''
+        tableBodyHtml += `<tr><td>Forfait déplacement${zoneLabel}</td><td></td><td></td><td>${fmt(travelAllowance)}€</td></tr>`
+        analyticTotal += travelAllowance
       }
     }
     grandTotal += analyticTotal
