@@ -134,17 +134,19 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   const editingIsGarde = editing
     ? editing.hour_entry_type === 'simple' ? false
       : editing.hour_entry_type === 'garde' ? true
-      : (
-          // Exclude APS and RMP from auto-detection as Garde
-          !_editPayTypeLower.includes('aps') &&
-          !_editPayTypeLower.includes('rmp') &&
-          (
+      : (() => {
+          // FORCE simple mode for APS and RMP - never use garde form
+          if (_editPayTypeLower.includes('aps') || _editPayTypeLower.includes('rmp')) {
+            return false
+          }
+          // Auto-detect garde for other types
+          return (
             _editPayTypeLower.includes('garde') ||
             editing.ebrigade_duration_hours ||
             editing.ebrigade_activity_type ||
             editing.sortie_hours != null
           )
-        )
+        })()
     : false
   
   // DEBUG: Log guard detection
