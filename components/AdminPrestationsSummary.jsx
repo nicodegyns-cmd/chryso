@@ -161,7 +161,8 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                 analytic_code: p.analytic_code || null,
                 analytic_name: p.ebrigade_activity_name || p.analytic_name || null,
                 user_email: p.user_email,
-                expense_amount: p.expense_amount || 0
+                expense_amount: p.expense_amount || 0,
+                travel_allowance: p.travel_allowance || 0
               })
             })
             if (r.ok) {
