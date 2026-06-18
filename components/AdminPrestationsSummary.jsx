@@ -438,8 +438,9 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                     const isInfi = rc.includes('INFI')
                     const isMed = rc.includes('MED') && !isInfi
                     const amt = isMed ? it.remuneration_med : it.remuneration_infi
+                    const travelAmt = Number(it.travel_allowance || 0)
                     if (estimatedAmounts[it.id]) return `${estimatedAmounts[it.id]} \u20ac`
-                    if (amt != null && amt > 0) return `${amt}\u20ac`
+                    if (amt != null && amt > 0) return `${Math.round((Number(amt) + travelAmt + Number.EPSILON) * 100) / 100}\u20ac`
                     return '-'
                   })()}
                 </td>
@@ -781,22 +782,28 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                           )}
                         </div>
                       )}
-                      {viewing.expense_amount > 0 && (
+                      {(viewing.expense_amount > 0 || Number(viewing.travel_allowance || 0) > 0) && (
                         <div style={{marginTop:6,paddingTop:6,borderTop:'1px dashed #fcd34d'}}>
-                          <div>Note de frais: {Number(viewing.expense_amount)} €{viewing.expense_comment ? ` (${viewing.expense_comment})` : ''}</div>
+                          {viewing.expense_amount > 0 && (
+                            <div>Note de frais: {Number(viewing.expense_amount)} €{viewing.expense_comment ? ` (${viewing.expense_comment})` : ''}</div>
+                          )}
+                          {Number(viewing.travel_allowance || 0) > 0 && (
+                            <div>Forfait déplacement: {Number(viewing.travel_allowance)} €{viewing.travel_zone ? ` (${viewing.travel_zone})` : ''}</div>
+                          )}
                           <div style={{fontWeight:700,color:'#b45309',marginTop:4,borderTop:'1px solid #fcd34d',paddingTop:4}}>= Total: {(() => {
                             const exp = Number(viewing.expense_amount || 0)
+                            const travel = Number(viewing.travel_allowance || 0)
                             if (showInfiDetail && d.garde_infi != null) {
                               if (normalizedViewing.garde_hours || normalizedViewing.sortie_hours) {
                                 const garde = (normalizedViewing.garde_hours || 0) * (d.garde_infi || 0)
                                 const sortie = (normalizedViewing.sortie_hours || 0) * (d.sortie_infi || 0)
                                 const otRate = !normalizedViewing.garde_hours ? (d.sortie_infi || d.garde_infi || 0) : (d.garde_infi || 0)
                                 const ot = (normalizedViewing.overtime_hours || 0) * otRate
-                                return Math.round((garde + sortie + ot + exp + Number.EPSILON) * 100) / 100
+                                return Math.round((garde + sortie + ot + exp + travel + Number.EPSILON) * 100) / 100
                               } else {
                                 const total = (normalizedViewing.hours_actual || 0) * (d.garde_infi || 0)
                                 const ot = (normalizedViewing.overtime_hours || 0) * (d.garde_infi || 0)
-                                return Math.round((total + ot + exp + Number.EPSILON) * 100) / 100
+                                return Math.round((total + ot + exp + travel + Number.EPSILON) * 100) / 100
                               }
                             } else if (showMedDetail && d.garde_med != null) {
                               if (normalizedViewing.garde_hours || normalizedViewing.sortie_hours) {
@@ -804,14 +811,14 @@ export default function AdminPrestationsSummary({ limit = 8, filterAnalyticIds =
                                 const sortie = (normalizedViewing.sortie_hours || 0) * (d.sortie_med || 0)
                                 const otRate = !normalizedViewing.garde_hours ? (d.sortie_med || d.garde_med || 0) : (d.garde_med || 0)
                                 const ot = (normalizedViewing.overtime_hours || 0) * otRate
-                                return Math.round((garde + sortie + ot + exp + Number.EPSILON) * 100) / 100
+                                return Math.round((garde + sortie + ot + exp + travel + Number.EPSILON) * 100) / 100
                               } else {
                                 const total = (normalizedViewing.hours_actual || 0) * (d.garde_med || 0)
                                 const ot = (normalizedViewing.overtime_hours || 0) * (d.garde_med || 0)
-                                return Math.round((total + ot + exp + Number.EPSILON) * 100) / 100
+                                return Math.round((total + ot + exp + travel + Number.EPSILON) * 100) / 100
                               }
                             }
-                            return exp
+                            return exp + travel
                           })()} €</div>
                         </div>
                       )}
