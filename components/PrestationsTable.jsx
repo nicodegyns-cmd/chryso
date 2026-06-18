@@ -558,7 +558,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     // Validate that at least some hours have been entered before submission
     if (role !== 'admin' && role !== 'moderator') {
       const payLowerCheck = (editing.ebrigade_activity_type || editing.analytic_name || editing.pay_type || '').toLowerCase()
-      const isGardeCheck = editing.hour_entry_type === 'garde' || (editing.hour_entry_type !== 'simple' && (payLowerCheck.includes('garde') || editing.ebrigade_duration_hours))
+      const payDirectCheck = (editing.pay_type || '').toLowerCase()
+      const isSimpleType = payLowerCheck.includes('aps') || payLowerCheck.includes('rmp') || payLowerCheck.includes('reg') ||
+                           payDirectCheck.includes('aps') || payDirectCheck.includes('rmp') || payDirectCheck.includes('reg')
+      const isGardeCheck = !isSimpleType && (editing.hour_entry_type === 'garde' || (editing.hour_entry_type !== 'simple' && (payLowerCheck.includes('garde') || editing.ebrigade_duration_hours)))
       if (isGardeCheck) {
         // For garde: sortie_hours must be explicitly set (can be 0, but not null/undefined/"")
         if (editing.sortie_hours === null || editing.sortie_hours === undefined || editing.sortie_hours === '') {
