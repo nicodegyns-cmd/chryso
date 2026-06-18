@@ -101,6 +101,7 @@ export default async function handler(req, res) {
         proof_image,
         expenses_json,
         status,
+        travel_allowance,
         // eBrigade data
         ebrigade_id,
         ebrigade_personnel_id,
@@ -370,11 +371,11 @@ export default async function handler(req, res) {
           hours_actual, garde_hours, sortie_hours, overtime_hours,
           remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med,
           comments, expense_amount, expense_comment, proof_image, expenses_json,
-          status, created_at, updated_at,
+          status, created_at, updated_at, travel_allowance,
           ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code,
           ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours,
           ebrigade_start_time, ebrigade_end_time
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NOW(), $19, $20, $21, $22, $23, $24, $25, $26, $27) 
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NOW(), $19, $20, $21, $22, $23, $24, $25, $26, $27, $28) 
         RETURNING *`,
         [
           userId,
@@ -395,6 +396,7 @@ export default async function handler(req, res) {
           finalProofImage,
           finalExpensesJson,
           effectiveStatus || 'À saisir',
+          travel_allowance || null,
           ebrigade_id || null,
           ebrigade_personnel_id || null,
           ebrigade_personnel_name || null,
@@ -510,10 +512,11 @@ export default async function handler(req, res) {
            ebrigade_start_time = COALESCE($22, ebrigade_start_time),
            ebrigade_end_time = COALESCE($23, ebrigade_end_time),
            expenses_json = COALESCE($25, expenses_json),
+           travel_allowance = COALESCE($26::numeric, travel_allowance),
            updated_at = NOW()
          WHERE id = $14
          RETURNING *`,
-        [pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, patchFinalExpenseAmount, patchFinalExpenseComment, patchFinalProofImage, analytic_id, status, id, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, analytic_name || ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validaterId, patchFinalExpensesJson]
+        [pay_type, hours_actual, garde_hours, sortie_hours, overtime_hours, remuneration_infi, remuneration_med, comments, patchFinalExpenseAmount, patchFinalExpenseComment, patchFinalProofImage, analytic_id, status, id, ebrigade_id, ebrigade_personnel_id, ebrigade_personnel_name, ebrigade_activity_code, analytic_name || ebrigade_activity_name, ebrigade_activity_type, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, validaterId, patchFinalExpensesJson, travel_allowance]
       )
 
       const rows = (q && q.rows) ? q.rows : []

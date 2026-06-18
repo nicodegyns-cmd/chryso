@@ -68,14 +68,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   // read role from localStorage into reactive state so updates are picked up
   const [clientRole, setClientRole] = useState(typeof window !== 'undefined' ? localStorage.getItem('role') : null)
 
-  // pharmacien session modal
-  const [pharmacienModal, setPharmacienModal] = useState(false)
-  const [pharmacienDate, setPharmacienDate] = useState('')
-  const [pharmacienHours, setPharmacienHours] = useState('')
-  const [pharmacienComment, setPharmacienComment] = useState('')
-  const [pharmacienSaving, setPharmacienSaving] = useState(false)
-  const [pharmacienError, setPharmacienError] = useState('')
-
   // Ref to store openEdit function for imperative access
   const openEditRef = useRef(null)
 
@@ -123,7 +115,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   }, [])
   // keep existing code using `role` working by aliasing to `clientRole`
   const role = clientRole || null
-  const isPharmacien = role && (role === 'pharmacien' || role.split(',').some(r => r.trim() === 'pharmacien'))
 
   // Derived flags for the edit modal rendering
   // Always use ANALYTIQUE if available (from eBrigade or local activity)
@@ -144,10 +135,15 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     ? editing.hour_entry_type === 'simple' ? false
       : editing.hour_entry_type === 'garde' ? true
       : (
-          _editPayTypeLower.includes('garde') ||
-          editing.ebrigade_duration_hours ||
-          editing.ebrigade_activity_type ||
-          editing.sortie_hours != null
+          // Exclude APS and RMP from auto-detection as Garde
+          !_editPayTypeLower.includes('aps') &&
+          !_editPayTypeLower.includes('rmp') &&
+          (
+            _editPayTypeLower.includes('garde') ||
+            editing.ebrigade_duration_hours ||
+            editing.ebrigade_activity_type ||
+            editing.sortie_hours != null
+          )
         )
     : false
   
@@ -175,27 +171,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   const editingIsPermanence = _editPayTypeLower.includes('permanence')
   const editingIsAPS = _editPayTypeLower.includes('aps')
   const editingIsRMP = _editPayTypeLower.includes('rmp')
-
-  const APS_TRAVEL_ZONES = [
-    { value: '', label: '— Sélectionner une zone —', amount: null },
-    { value: 'brabant_wallon', label: 'Brabant Wallon', amount: 30 },
-    { value: 'liege_hainaut_namur', label: 'Liège / Hainaut / Namur', amount: 60 },
-    { value: 'luxembourg', label: 'Luxembourg', amount: 100 },
-  ]
-
-  function handleTravelZoneChange(zoneValue) {
-    const zone = APS_TRAVEL_ZONES.find(z => z.value === zoneValue)
-    // Remove any existing travel zone expense
-    const otherExpenses = (editing.expenses || []).filter(e => !e.is_travel_zone)
-    let newExpenses = otherExpenses
-    if (zone && zone.amount > 0) {
-      newExpenses = [
-        { amount: zone.amount, comment: `Forfait déplacement - ${zone.label}`, proof_image: null, is_travel_zone: true },
-        ...otherExpenses
-      ]
-    }
-    setEditing({ ...editing, travel_zone: zoneValue, expenses: newExpenses })
-  }
 
   useEffect(() => {
     // Fetch both prestations and available activities
@@ -263,7 +238,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     "En attente d'approbation",
     "En attente d'envoie",
     'Envoyé à la facturation',
-    'Facturé',
     'Annulé'
   ], [])
 
@@ -276,7 +250,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     const label = s || '-'
     const color = (
       s === "Envoyé à la facturation" ? '#16a34a' :
-      s === 'Facturé' ? '#14532d' :
       s === "En attente d'envoie" ? '#0366d6' :
       s === "En attente d'approbation" ? '#f59e0b' :
       s === 'À saisir' ? '#9ca3af' :
@@ -466,13 +439,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       }
       
       // No existing prestation found, create new one from activity
-      // Pre-fill hours from eBrigade theoretical duration
-      const _ebrigadeDuration = resolveEbrigadeDurationHours(p)
-      const _payTypeLowerPrefill = String(p.ebrigade_activity_type || p.pay_type || p.analytic_name || '').toLowerCase()
-      // Mirror the same garde-detection logic as editingIsGarde
-      const _willBeGardeMode = p.hour_entry_type === 'simple' ? false
-        : p.hour_entry_type === 'garde' ? true
-        : (_payTypeLowerPrefill.includes('garde') || !!_ebrigadeDuration || !!p.ebrigade_activity_type)
       const editingState = {
         id: null,
         analytic_id: p.analytic_id,
@@ -482,12 +448,9 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         date: p.date,
         remuneration_infi: p.remuneration_infi,
         remuneration_med: p.remuneration_med,
-        // Pre-fill theoretical hours from eBrigade:
-        // - Non-garde (hour_entry_type='simple'): fill hours_actual
-        // - Garde mode: fill sortie_hours=0 so garde_hours = full duration by default
-        hours_actual: !_willBeGardeMode && _ebrigadeDuration ? _ebrigadeDuration : null,
+        hours_actual: null,
         garde_hours: null,
-        sortie_hours: _willBeGardeMode && _ebrigadeDuration != null ? 0 : null,
+        sortie_hours: null,
         overtime_hours: null,
         // eBrigade data for Garde/activity hours
         ebrigade_duration_hours: resolveEbrigadeDurationHours(p),
@@ -543,27 +506,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
   // Update ref for imperative access to openEdit
   openEditRef.current = openEdit
 
-  async function submitPharmacienSession() {
-    if (!pharmacienDate) { setPharmacienError('Veuillez sélectionner une date.'); return }
-    if (!pharmacienHours || Number(pharmacienHours) <= 0) { setPharmacienError("Veuillez entrer un nombre d'heures valide."); return }
-    setPharmacienSaving(true); setPharmacienError('')
-    try {
-      const payload = {
-        user_email: email, email,
-        date: pharmacienDate,
-        pay_type: 'Pharmacien',
-        hours_actual: parseFloat(pharmacienHours),
-        comments: pharmacienComment || null,
-        status: "En attente d'approbation",
-      }
-      const res = await fetch('/api/admin/prestations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || `Erreur ${res.status}`) }
-      setPharmacienModal(false); setPharmacienDate(''); setPharmacienHours(''); setPharmacienComment('')
-      const prestRes = await fetch(`/api/prestations?email=${encodeURIComponent(email)}`)
-      if (prestRes.ok) { const d = await prestRes.json(); setItems(d.prestations || []) }
-    } catch (err) { setPharmacienError(err.message || "Erreur lors de l'enregistrement") } finally { setPharmacienSaving(false) }
-  }
-
   // responsive: detect mobile width to render simplified cards
   const [isMobile, setIsMobile] = useState(false)
   useEffect(()=>{
@@ -599,9 +541,8 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     }
 
     // Prevent saving if status is locked (submitted or approved)
-    // Only for existing prestations — new ones get their status set just before this check
-    const lockedStatuses = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation', 'Facturé']
-    if (!isNewPrestation && lockedStatuses.includes(editing.status)) {
+    const lockedStatuses = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation']
+    if (lockedStatuses.includes(editing.status)) {
       alert('Cette prestation ne peut plus être modifiée.')
       return
     }
@@ -636,7 +577,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
             alert(`⚠️ Note de frais #${i+1}: veuillez renseigner une raison.`)
             return
           }
-          if (!exp.proof_image && !exp.is_travel_zone) {
+          if (!exp.proof_image) {
             alert(`⚠️ Note de frais #${i+1}: veuillez joindre une pièce justificative.`)
             return
           }
@@ -718,6 +659,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           analytic_name: editing.analytic_name || null,
           ebrigade_activity_code: editing.ebrigade_activity_code || editing.activityCode || null,
           ebrigade_activity_name: editing.ebrigade_activity_name || null,
+          travel_allowance: editing.travel_allowance || 0,
           // Do not send the literal 'user' role — let server resolve by email when role is non-canonical
           user_role: (clientRole && clientRole !== 'user') ? clientRole : (editing.user_role || null),
           user_email: (typeof window !== 'undefined' ? localStorage.getItem('email') : null) || editing.user_email || editing.email || null,
@@ -856,15 +798,10 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       }
 
       // Always set status to "En attente d'approbation" for non-admin/moderator users
-      // Pharmacien entries bypass approval workflow — pure stats tracking
-      const payLower = (effective.pay_type || '').toLowerCase()
       if (!role || (role !== 'admin' && role !== 'moderator')){
-        if (payLower.includes('pharmacien')) {
-          effective.status = 'Validé'
-        } else {
-          effective.status = "En attente d'approbation"
-        }
+        effective.status = "En attente d'approbation"
       }
+      const payLower = (effective.pay_type || '').toLowerCase()
       if (payLower.includes('permanence')){
         delete effective.remuneration_infi
         delete effective.remuneration_med
@@ -969,6 +906,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
           pay_type: editing.pay_type || '',
           analytic_id: editing.analytic_id || null,
           analytic_name: editing.analytic_name || null,
+          travel_allowance: editing.travel_allowance || 0,
           user_role: (clientRole && clientRole !== 'user') ? clientRole : (editing.user_role || null),
           user_email: (typeof window !== 'undefined' ? localStorage.getItem('email') : null) || editing.user_email || editing.email || null,
           expense_amount: (editing.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0)
@@ -1030,17 +968,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       </div>
 
       <div className="card">
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-          <h3 style={{margin:0}}>Mes prestations</h3>
-          {isPharmacien && (
-            <button
-              onClick={() => { setPharmacienModal(true); setPharmacienDate(today); setPharmacienHours(''); setPharmacienComment(''); setPharmacienError('') }}
-              style={{padding:'6px 14px',background:'#7e22ce',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:600,cursor:'pointer'}}
-            >
-              + Ajouter une session
-            </button>
-          )}
-        </div>
+        <h3>Mes prestations</h3>
         {filtered.length === 0 ? (
           <div className="small-muted">Aucune prestation trouvée.</div>
         ) : (
@@ -1140,44 +1068,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         )}
       </div>
 
-      {/* Pharmacien session modal */}
-      {pharmacienModal && (
-        <div onClick={() => setPharmacienModal(false)} style={{position:'fixed',left:0,top:0,right:0,bottom:0,background:'rgba(0,0,0,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1100,padding:20}}>
-          <div onClick={e => e.stopPropagation()} style={{background:'#fff',borderRadius:12,padding:24,width:'100%',maxWidth:440,boxShadow:'0 20px 25px -5px rgba(0,0,0,0.15)'}}>
-            <h3 style={{margin:'0 0 16px',color:'#7e22ce',display:'flex',alignItems:'center',gap:8}}>💊 Nouvelle session pharmacien</h3>
-            <div style={{display:'grid',gap:12}}>
-              <label>
-                <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:4}}>DATE DE TRAVAIL *</div>
-                <input type="date" value={pharmacienDate} onChange={e=>setPharmacienDate(e.target.value)}
-                  max={today} style={{width:'100%',padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}} />
-              </label>
-              <label>
-                <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:4}}>HEURES TRAVAILLÉES *</div>
-                <input type="number" step="0.25" min="0.25" max="24" value={pharmacienHours} onChange={e=>setPharmacienHours(e.target.value)}
-                  placeholder="ex: 8" style={{width:'100%',padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}} />
-              </label>
-              <label>
-                <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:4}}>COMMENTAIRE (optionnel)</div>
-                <textarea value={pharmacienComment} onChange={e=>setPharmacienComment(e.target.value)}
-                  placeholder="Remarques éventuelles..." rows={2}
-                  style={{width:'100%',padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,resize:'vertical'}} />
-              </label>
-              {pharmacienError && <div style={{padding:'8px 12px',background:'#fee2e2',color:'#991b1b',borderRadius:6,fontSize:13}}>{pharmacienError}</div>}
-              <div style={{padding:'8px 12px',background:'#faf5ff',border:'1px solid #d8b4fe',borderRadius:6,fontSize:12,color:'#7e22ce'}}>
-                💡 Les heures sont enregistrées pour le suivi. La facturation se fait sous forme d'un <strong>forfait de 400€ par demi-mois</strong>.
-              </div>
-              <div style={{display:'flex',gap:10,justifyContent:'flex-end',paddingTop:8}}>
-                <button onClick={() => setPharmacienModal(false)} style={{padding:'8px 16px',borderRadius:6,border:'1px solid #d1d5db',background:'#f9fafb',cursor:'pointer',fontSize:13}}>Annuler</button>
-                <button onClick={submitPharmacienSession} disabled={pharmacienSaving}
-                  style={{padding:'8px 20px',borderRadius:6,border:'none',background:pharmacienSaving?'#9ca3af':'#7e22ce',color:'white',fontWeight:600,cursor:pharmacienSaving?'not-allowed':'pointer',fontSize:13}}>
-                  {pharmacienSaving ? '⏳ Envoi...' : '✅ Enregistrer'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Edit / View modal */}
       {editing && (
         <>
@@ -1206,7 +1096,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   // Prefer showing the prestation reference (`request_ref`) as a 5-digit code when available
                   const ref = '#' + editing.id
                   if (role === 'admin') return `📋 Détails demande ${ref}`
-                  if (editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation' || editing.status === 'Facturé') return `👁️ Consulter prestation ${ref}`
+                  if (editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation') return `👁️ Consulter prestation ${ref}`
                   return `✏️ Modifier prestation ${ref}`
                 })()
               }</h3>
@@ -1214,13 +1104,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
             <div style={{padding:24}}>
 
-            {(editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation' || editing.status === 'Facturé') && role !== 'admin' && (
-              <div style={{padding:12,background: editing.status === 'Facturé' ? '#bbf7d0' : editing.status === 'Envoyé à la facturation' ? '#dcfce7' : editing.status === "En attente d'approbation" ? '#ede9fe' : '#fef3c7',border:`1px solid ${editing.status === 'Facturé' ? '#6ee7b7' : editing.status === 'Envoyé à la facturation' ? '#86efac' : editing.status === "En attente d'approbation" ? '#c4b5fd' : '#fcd34d'}`,borderRadius:6,marginBottom:12,color: editing.status === 'Facturé' ? '#14532d' : editing.status === 'Envoyé à la facturation' ? '#166534' : editing.status === "En attente d'approbation" ? '#5b21b6' : '#92400e',fontSize:13}}>
-                <strong>{editing.status === 'Facturé' ? '✅ Cette prestation a été facturée' : editing.status === 'Envoyé à la facturation' ? '✅ Cette prestation a été envoyée à la facturation' : editing.status === "En attente d'approbation" ? "🔒 Cette prestation est en attente d'approbation" : "🔒 Cette demande est en attente d'envoie"}</strong> — Vous pouvez consulter les informations mais vous ne pouvez plus les modifier.
+            {(editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation') && role !== 'admin' && (
+              <div style={{padding:12,background: editing.status === 'Envoyé à la facturation' ? '#dcfce7' : editing.status === "En attente d'approbation" ? '#ede9fe' : '#fef3c7',border:`1px solid ${editing.status === 'Envoyé à la facturation' ? '#86efac' : editing.status === "En attente d'approbation" ? '#c4b5fd' : '#fcd34d'}`,borderRadius:6,marginBottom:12,color: editing.status === 'Envoyé à la facturation' ? '#166534' : editing.status === "En attente d'approbation" ? '#5b21b6' : '#92400e',fontSize:13}}>
+                <strong>{editing.status === 'Envoyé à la facturation' ? '✅ Cette prestation a été envoyée à la facturation' : editing.status === "En attente d'approbation" ? "🔒 Cette prestation est en attente d'approbation" : "🔒 Cette demande est en attente d'envoie"}</strong> — Vous pouvez consulter les informations mais vous ne pouvez plus les modifier.
               </div>
             )}
 
-            {(editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation' || editing.status === 'Facturé') && role !== 'admin' ? (
+            {(editing.status === "En attente d'envoie" || editing.status === "En attente d'approbation" || editing.status === 'Envoyé à la facturation') && role !== 'admin' ? (
               // User read-only view for blocked prestations: show submitted values with styled sections
               <div className="edit-grid" style={{gridTemplateColumns:'1fr',gap:16}}>
                 {console.log('[PrestationsTable] Rendering READ-ONLY view for blocked prestation. role:', role)}
@@ -1316,70 +1206,50 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   </div>
                 )}
 
-                {/* Section Notes de frais + Forfait déplacement (view-only) */}
+                {/* Section Notes de frais (view-only) */}
                 {(() => {
-                  const allExpenses = editing.expenses && editing.expenses.length > 0
+                  const viewExpenses = editing.expenses && editing.expenses.length > 0
                     ? editing.expenses.filter(e => Number(e.amount||0) > 0)
                     : (editing.expense_amount || editing.expense_comment || editing.proof_image)
                       ? [{amount: editing.expense_amount, comment: editing.expense_comment, proof_image: editing.proof_image}]
                       : []
-                  if (allExpenses.length === 0) return null
-                  const travelExpenses = allExpenses.filter(e => e.is_travel_zone || (e.comment && e.comment.startsWith('Forfait déplacement')))
-                  const regularExpenses = allExpenses.filter(e => !e.is_travel_zone && !(e.comment && e.comment.startsWith('Forfait déplacement')))
+                  if (viewExpenses.length === 0) return null
                   return (
-                    <>
-                      {travelExpenses.length > 0 && (
-                        <div style={{padding:12,border:'2px solid #93c5fd',borderRadius:8,background:'#eff6ff',marginBottom:8}}>
-                          <div style={{fontWeight:700,marginBottom:8,fontSize:14,color:'#1e40af'}}>🚗 Forfait déplacement</div>
-                          {travelExpenses.map((exp, idx) => {
-                            const zonePart = exp.comment ? exp.comment.replace(/^Forfait d.placement\s*-\s*/i, '') : ''
-                            return (
-                              <div key={idx} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 8px',background:'#dbeafe',borderRadius:6}}>
-                                <span style={{fontSize:13,color:'#1d4ed8',fontWeight:600}}>{zonePart || exp.comment || '—'}</span>
-                                <span style={{fontSize:15,fontWeight:700,color:'#1e40af'}}>{exp.amount} €</span>
+                    <div style={{padding:12,border:'1px solid #f59e0b',borderRadius:8,background:'#fffbeb'}}>
+                      <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>🧾 Notes de frais</div>
+                      {viewExpenses.map((exp, idx) => (
+                        <div key={idx} style={{marginBottom:10,paddingBottom:10,borderBottom: idx<viewExpenses.length-1?'1px dashed #fcd34d':'none'}}>
+                          <div style={{fontSize:12,fontWeight:700,color:'#b45309',marginBottom:6}}>Note #{idx+1}</div>
+                          <div style={{display:'grid',gap:8}}>
+                            {exp.amount && (
+                              <div>
+                                <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>MONTANT</div>
+                                <div style={{fontSize:15,fontWeight:600,color:'#d97706'}}>{exp.amount} €</div>
                               </div>
-                            )
-                          })}
+                            )}
+                            {exp.comment && (
+                              <div>
+                                <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>COMMENTAIRE</div>
+                                <div style={{fontSize:14,color:'#92400e'}}>{exp.comment}</div>
+                              </div>
+                            )}
+                            {exp.proof_image && (
+                              <div>
+                                <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>📸 JUSTIFICATIF</div>
+                                <a href={exp.proof_image} target="_blank" rel="noopener noreferrer">
+                                  <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:220,border:'2px solid #fcd34d',borderRadius:6,display:'block',cursor:'pointer'}} />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {viewExpenses.length > 1 && (
+                        <div style={{textAlign:'right',fontWeight:700,color:'#b45309',fontSize:13,marginTop:4}}>
+                          Total: {viewExpenses.reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
                         </div>
                       )}
-                      {regularExpenses.length > 0 && (
-                        <div style={{padding:12,border:'1px solid #f59e0b',borderRadius:8,background:'#fffbeb'}}>
-                          <div style={{fontWeight:700,marginBottom:12,fontSize:14,color:'#92400e'}}>🧾 Notes de frais</div>
-                          {regularExpenses.map((exp, idx) => (
-                            <div key={idx} style={{marginBottom:10,paddingBottom:10,borderBottom: idx<regularExpenses.length-1?'1px dashed #fcd34d':'none'}}>
-                              <div style={{fontSize:12,fontWeight:700,color:'#b45309',marginBottom:6}}>Note #{idx+1}</div>
-                              <div style={{display:'grid',gap:8}}>
-                                {exp.amount && (
-                                  <div>
-                                    <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>MONTANT</div>
-                                    <div style={{fontSize:15,fontWeight:600,color:'#d97706'}}>{exp.amount} €</div>
-                                  </div>
-                                )}
-                                {exp.comment && (
-                                  <div>
-                                    <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>COMMENTAIRE</div>
-                                    <div style={{fontSize:14,color:'#92400e'}}>{exp.comment}</div>
-                                  </div>
-                                )}
-                                {exp.proof_image && (
-                                  <div>
-                                    <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>📸 JUSTIFICATIF</div>
-                                    <a href={exp.proof_image} target="_blank" rel="noopener noreferrer">
-                                      <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:220,border:'2px solid #fcd34d',borderRadius:6,display:'block',cursor:'pointer'}} />
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                          {regularExpenses.length > 1 && (
-                            <div style={{textAlign:'right',fontWeight:700,color:'#b45309',fontSize:13,marginTop:4}}>
-                              Total: {regularExpenses.reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </>
+                    </div>
                   )
                 })()}
               </div>
@@ -1425,13 +1295,20 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   {!editingIsGarde && (
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                       <label style={{display:'flex',flexDirection:'column'}}>
-                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES</div>
+                        <div style={{fontSize:12,color:'#6b7280',fontWeight:600,marginBottom:6}}>HEURES RÉELLES</div>
                         <input type="number" value={editing.hours_actual ?? ''} onChange={e=>setEditing({...editing, hours_actual: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #d1d5db',fontSize:16}} />
                       </label>
                       <label style={{display:'flex',flexDirection:'column'}}>
                         <div style={{fontSize:12,color:'#f97316',fontWeight:600,marginBottom:6}}>HEURES SUPPLÉMENTAIRES</div>
                         <input type="number" value={editing.overtime_hours ?? ''} onChange={e=>setEditing({...editing, overtime_hours: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #fed7aa',fontSize:16}} />
                       </label>
+                      {/* Forfait déplacement for APS */}
+                      {editingIsAPS && (
+                        <label style={{display:'flex',flexDirection:'column'}}>
+                          <div style={{fontSize:12,color:'#0891b2',fontWeight:600,marginBottom:6}}>🚗 FORFAIT DÉPLACEMENT</div>
+                          <input type="number" step="0.01" value={editing.travel_allowance ?? ''} onChange={e=>setEditing({...editing, travel_allowance: e.target.value ? Number(e.target.value) : null})} style={{padding:'8px 10px',borderRadius:6,border:'1px solid #a5f3fc',fontSize:16}} placeholder="0.00" />
+                        </label>
+                      )}
                       {/* If not garde and not permanence and not APS, allow optional garde_hours input */}
                       {!editingIsPermanence && !editingIsAPS && (
                         <label style={{display:'flex',flexDirection:'column'}}>
@@ -1473,33 +1350,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                   </label>
                 </div>
 
-                {/* Forfait déplacement APS */}
-                {editingIsAPS && (
-                  <div style={{padding:12,border:'1px solid #3b82f6',borderRadius:8,background:'#eff6ff'}}>
-                    <div style={{fontWeight:700,marginBottom:10,fontSize:14,color:'#1e40af'}}>🚗 Forfait déplacement</div>
-                    <select
-                      value={editing.travel_zone || ''}
-                      onChange={e => handleTravelZoneChange(e.target.value)}
-                      style={{width:'100%',padding:'9px 12px',borderRadius:6,border:'1px solid #93c5fd',fontSize:15,background:'#fff',color:'#1e3a8a',fontWeight:500}}
-                    >
-                      {APS_TRAVEL_ZONES.map(z => (
-                        <option key={z.value} value={z.value}>
-                          {z.label}{z.amount != null && z.value ? ` — ${z.amount} €` : ''}
-                        </option>
-                      ))}
-                    </select>
-                    {editing.travel_zone && (
-                      <div style={{marginTop:8,fontSize:13,color:'#1d4ed8',fontWeight:600}}>
-                        {(() => {
-                          const z = APS_TRAVEL_ZONES.find(x => x.value === editing.travel_zone)
-                          if (!z || z.amount === null) return null
-                          return `✅ Forfait déplacement ajouté : ${z.amount} €`
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {/* Section Notes de frais (multiple) */}
                 <div style={{padding:12,border:'1px solid #f59e0b',borderRadius:8,background:'#fffbeb'}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
@@ -1511,15 +1361,14 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                     >+ Ajouter une note</button>
                   </div>
 
-                  {(!editing.expenses || editing.expenses.filter(e=>!e.is_travel_zone).length === 0) && (
+                  {(!editing.expenses || editing.expenses.length === 0) && (
                     <div style={{fontSize:13,color:'#b45309',fontStyle:'italic'}}>Aucune note de frais. Cliquez sur « + Ajouter une note » si nécessaire.</div>
                   )}
 
-                  {(editing.expenses||[]).map((exp, idx) => exp.is_travel_zone ? null : (
+                  {(editing.expenses||[]).map((exp, idx) => (
                     <div key={idx} style={{padding:10,background:'#fff',borderRadius:6,border:'1px solid #fcd34d',marginBottom:10,position:'relative'}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                         <div style={{fontSize:12,fontWeight:700,color:'#92400e'}}>Note #{idx+1}</div>
-                        {!exp.is_travel_zone && (
                         <button
                           type="button"
                           onClick={()=>{
@@ -1528,7 +1377,6 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                           }}
                           style={{padding:'3px 8px',background:'#fee2e2',color:'#991b1b',border:'1px solid #fca5a5',borderRadius:4,cursor:'pointer',fontSize:12,fontWeight:600}}
                         >✕ Supprimer</button>
-                        )}
                       </div>
                       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:8}}>
                         <label style={{display:'flex',flexDirection:'column'}}>
@@ -1536,82 +1384,72 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
                           <input
                             type="number" step="0.01"
                             value={exp.amount ?? ''}
-                            readOnly={!!exp.is_travel_zone}
-                            onChange={exp.is_travel_zone ? undefined : e=>{
+                            onChange={e=>{
                               const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,amount:e.target.value?Number(e.target.value):''}:x)
                               setEditing({...editing, expenses: next})
                             }}
-                            style={{padding:'7px 9px',borderRadius:6,border:'1px solid #fcd34d',fontSize:16,background:exp.is_travel_zone?'#f0f9ff':'',color:exp.is_travel_zone?'#1e40af':'',cursor:exp.is_travel_zone?'not-allowed':''}}
+                            style={{padding:'7px 9px',borderRadius:6,border:'1px solid #fcd34d',fontSize:16}}
                             placeholder="0.00"
                           />
                         </label>
                         <label style={{display:'flex',flexDirection:'column'}}>
-                          <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>RAISON / COMMENTAIRE {Number(exp.amount||0)>0 && !exp.is_travel_zone && <span style={{color:'#dc2626'}}>*</span>}</div>
+                          <div style={{fontSize:12,color:'#92400e',fontWeight:600,marginBottom:4}}>RAISON / COMMENTAIRE {Number(exp.amount||0)>0 && <span style={{color:'#dc2626'}}>*</span>}</div>
                           <input
                             value={exp.comment||''}
-                            readOnly={!!exp.is_travel_zone}
-                            onChange={exp.is_travel_zone ? undefined : e=>{
+                            onChange={e=>{
                               const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,comment:e.target.value}:x)
                               setEditing({...editing, expenses: next})
                             }}
-                            style={{padding:'7px 9px',borderRadius:6,border: !exp.is_travel_zone&&Number(exp.amount||0)>0&&!exp.comment?.trim()?'1px solid #dc2626':'1px solid #fcd34d',fontSize:16,background:exp.is_travel_zone?'#f0f9ff':'',color:exp.is_travel_zone?'#1e40af':'',cursor:exp.is_travel_zone?'not-allowed':''}}
+                            style={{padding:'7px 9px',borderRadius:6,border: Number(exp.amount||0)>0&&!exp.comment?.trim()?'1px solid #dc2626':'1px solid #fcd34d',fontSize:16}}
                             placeholder="Ex: Transport, fournitures..."
                           />
-                          {!exp.is_travel_zone&&Number(exp.amount||0)>0&&!exp.comment?.trim()&&<div style={{fontSize:11,color:'#dc2626',marginTop:3}}>Obligatoire</div>}
+                          {Number(exp.amount||0)>0&&!exp.comment?.trim()&&<div style={{fontSize:11,color:'#dc2626',marginTop:3}}>Obligatoire</div>}
                         </label>
                       </div>
                       <div>
-                        {exp.is_travel_zone ? (
-                          <div style={{fontSize:13,color:'#1d4ed8',fontWeight:500,padding:'6px 10px',background:'#eff6ff',borderRadius:6,border:'1px solid #93c5fd'}}>
-                            🚗 Forfait déplacement officiel — aucun justificatif requis
-                          </div>
-                        ) : (
-                          <>
-                            <div style={{fontWeight:600,marginBottom:4,fontSize:12,color:'#92400e'}}>  JUSTIFICATIF {Number(exp.amount||0)>0 && <span style={{color:'#dc2626'}}>*</span>}</div>
-                            {!exp.proof_image && (
-                              <input type="file" accept="image/*,application/pdf" style={{fontSize:14}} onChange={async (e)=>{
-                                const f = e.target.files && e.target.files[0]
-                                if (!f) return
-                                const data = await new Promise((res,rej)=>{
-                                  const reader = new FileReader()
-                                  reader.onload = ()=>res(reader.result)
-                                  reader.onerror = rej
-                                  reader.readAsDataURL(f)
-                                })
-                                const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,proof_image:data,proof_name:f.name}:x)
-                                setEditing({...editing, expenses: next})
-                              }} />
-                            )}
-                            {Number(exp.amount||0)>0&&!exp.proof_image&&<div style={{fontSize:11,color:'#dc2626',marginTop:3}}>Obligatoire si montant renseigné</div>}
-                            {exp.proof_image && (
-                              <div style={{marginTop:6}}>
-                                {exp.proof_image.startsWith('data:application/pdf') ? (
-                                  <div style={{padding:'10px 12px',background:'#fff7ed',border:'2px solid #fcd34d',borderRadius:6,display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                                    <span style={{fontSize:20}}>📄</span>
-                                    <span style={{fontSize:13,color:'#92400e',fontWeight:600,wordBreak:'break-all'}}>{exp.proof_name || 'document.pdf'}</span>
-                                  </div>
-                                ) : (
-                                  <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:160,border:'2px solid #fcd34d',borderRadius:6,display:'block',marginBottom:6}} />
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={()=>{
-                                    const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,proof_image:null,proof_name:null}:x)
-                                    setEditing({...editing, expenses: next})
-                                  }}
-                                  style={{padding:'5px 10px',background:'#fee2e2',color:'#991b1b',borderRadius:5,border:'1px solid #fca5a5',cursor:'pointer',fontWeight:600,fontSize:12}}
-                                > Supprimer</button>
+                        <div style={{fontWeight:600,marginBottom:4,fontSize:12,color:'#92400e'}}>� JUSTIFICATIF {Number(exp.amount||0)>0 && <span style={{color:'#dc2626'}}>*</span>}</div>
+                        {!exp.proof_image && (
+                          <input type="file" accept="image/*,application/pdf" style={{fontSize:14}} onChange={async (e)=>{
+                            const f = e.target.files && e.target.files[0]
+                            if (!f) return
+                            const data = await new Promise((res,rej)=>{
+                              const reader = new FileReader()
+                              reader.onload = ()=>res(reader.result)
+                              reader.onerror = rej
+                              reader.readAsDataURL(f)
+                            })
+                            const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,proof_image:data,proof_name:f.name}:x)
+                            setEditing({...editing, expenses: next})
+                          }} />
+                        )}
+                        {Number(exp.amount||0)>0&&!exp.proof_image&&<div style={{fontSize:11,color:'#dc2626',marginTop:3}}>Obligatoire si montant renseigné</div>}
+                        {exp.proof_image && (
+                          <div style={{marginTop:6}}>
+                            {exp.proof_image.startsWith('data:application/pdf') ? (
+                              <div style={{padding:'10px 12px',background:'#fff7ed',border:'2px solid #fcd34d',borderRadius:6,display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                                <span style={{fontSize:20}}>📄</span>
+                                <span style={{fontSize:13,color:'#92400e',fontWeight:600,wordBreak:'break-all'}}>{exp.proof_name || 'document.pdf'}</span>
                               </div>
+                            ) : (
+                              <img src={exp.proof_image} alt="ticket" style={{maxWidth:'100%',maxHeight:160,border:'2px solid #fcd34d',borderRadius:6,display:'block',marginBottom:6}} />
                             )}
-                          </>
+                            <button
+                              type="button"
+                              onClick={()=>{
+                                const next = (editing.expenses||[]).map((x,i)=>i===idx?{...x,proof_image:null,proof_name:null}:x)
+                                setEditing({...editing, expenses: next})
+                              }}
+                              style={{padding:'5px 10px',background:'#fee2e2',color:'#991b1b',borderRadius:5,border:'1px solid #fca5a5',cursor:'pointer',fontWeight:600,fontSize:12}}
+                            >🗑️ Supprimer</button>
+                          </div>
                         )}
                       </div>
                     </div>
                   ))}
 
-                  {(editing.expenses||[]).filter(e=>!e.is_travel_zone).length > 0 && (
+                  {(editing.expenses||[]).length > 0 && (
                     <div style={{textAlign:'right',fontSize:13,fontWeight:700,color:'#b45309',marginTop:4}}>
-                      Total notes de frais: {(editing.expenses||[]).filter(e=>!e.is_travel_zone).reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
+                      Total notes de frais: {(editing.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)} €
                     </div>
                   )}
                 </div>
@@ -1620,7 +1458,7 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
 
                 <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:12}}>
               {(() => {
-                const locked = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation', 'Facturé'].includes(editing.status)
+                const locked = ["En attente d'envoie", "En attente d'approbation", 'Envoyé à la facturation'].includes(editing.status)
                 return (
                   <>
                     {role === 'admin' && editing.id && (

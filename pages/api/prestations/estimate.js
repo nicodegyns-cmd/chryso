@@ -19,7 +19,8 @@ export default async function handler(req, res){
       analytic_name = null,
       user_role = '' ,
       user_email = null,
-      expense_amount = 0
+      expense_amount = 0,
+      travel_allowance = 0
     } = body
 
     console.log('[estimate] RECEIVED INPUT:', { garde_hours, sortie_hours, overtime_hours, hours_actual, ebrigade_duration_hours, ebrigade_start_time, ebrigade_end_time, pay_type, analytic_name: body.analytic_name, analytic_id, analytic_code })
@@ -268,7 +269,7 @@ export default async function handler(req, res){
     if (isInfi) estMed = 0
     console.log('[estimate] FINAL CALC:', { estimated_infi: estInfi, estimated_med: estMed })
 
-    const estimated_total = round2(estInfi + estMed + Number(expense_amount || 0))
+    const estimated_total = round2(estInfi + estMed + Number(expense_amount || 0) + Number(travel_allowance || 0))
 
     // Provide simplified display rates (infi/med) and detailed breakdown (garde/sortie)
     const displayInfi = rateGardeInfi || rateSortieInfi || FALLBACK_INF
