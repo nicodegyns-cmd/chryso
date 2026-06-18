@@ -105,6 +105,7 @@ export default async function handler(req, res){
     // try to resolve rates from activities via eBrigade mapping or classic analytic_id
     let rateGardeInfi = null, rateGardeMed = null
     let rateSortieInfi = null, rateSortieMed = null
+    let rateOvertimeInfi = null, rateOvertimeMed = null
     const FALLBACK_INF = 20
     const FALLBACK_MED = 30
 
@@ -119,20 +120,19 @@ export default async function handler(req, res){
           console.log('[estimate] Looking up eBrigade name pattern:', namePrefix)
           // Query new name-based mapping table - TRY EXACT MATCH FIRST
           let [mappings] = await pool.query(
-            `SELECT DISTINCT a.id, a.analytic_name, a.pay_type, a.remuneration_infi, a.remuneration_med, a.remuneration_sortie_infi, a.remuneration_sortie_med, a.date 
-             FROM activities a
-             INNER JOIN activity_ebrigade_name_mappings am ON a.id = am.activity_id
-             WHERE am.ebrigade_analytic_name_pattern = $1
-             ORDER BY a.date DESC`,
-            [namePrefix]
-          )
-          
-          // If exact match fails, try partial match - check if extracted PREFIX starts with stored PATTERN
-          if (!mappings || mappings.length === 0) {
-            console.log('[estimate] Exact pattern match failed, trying prefix match for:', namePrefix)
-            [mappings] = await pool.query(
-              `SELECT DISTINCT a.id, a.analytic_name, a.pay_type, a.remuneration_infi, a.remuneration_med, a.remuneration_sortie_infi, a.remuneration_sortie_med, a.date 
+              `SELECT DISTINCT a.id, a.analytic_name, a.pay_type, a.remuneration_infi, a.remuneration_med, a.remuneration_sortie_infi, a.remuneration_sortie_med, a.remuneration_overtime_infi, a.remuneration_overtime_med, a.date 
                FROM activities a
+               INNER JOIN activity_ebrigade_name_mappings am ON a.id = am.activity_id
+               WHERE am.ebrigade_analytic_name_pattern = $1
+               ORDER BY a.date DESC`,
+              [namePrefix]
+            )
+            
+            // If exact match fails, try partial match - check if extracted PREFIX starts with stored PATTERN
+            if (!mappings || mappings.length === 0) {
+              console.log('[estimate] Exact pattern match failed, trying prefix match for:', namePrefix)
+              [mappings] = await pool.query(
+                `SELECT DISTINCT a.id, a.analytic_name, a.pay_type, a.remuneration_infi, a.remuneration_med, a.remuneration_sortie_infi, a.remuneration_sortie_med, a.remuneration_overtime_infi, a.remuneration_overtime_med, a.date 
                INNER JOIN activity_ebrigade_name_mappings am ON a.id = am.activity_id
                WHERE $1 ILIKE am.ebrigade_analytic_name_pattern || '%'
                ORDER BY a.date DESC`,
@@ -153,10 +153,10 @@ export default async function handler(req, res){
     // Fallback: try classic analytic_id if no eBrigade mapping found
     if (allActs.length === 0 && analytic_id) {
       try{
-        let [acts] = await pool.query('SELECT id, analytic_name, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
+        let [acts] = await pool.query('SELECT id, analytic_name, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, date FROM activities WHERE analytic_id = $1 ORDER BY date DESC', [analytic_id])
         // If no exact match, try ILIKE pattern
         if (!acts || acts.length === 0) {
-          [acts] = await pool.query('SELECT id, analytic_name, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE $1::text ILIKE analytic_id || \'%\' ORDER BY date DESC', [analytic_id])
+          [acts] = await pool.query('SELECT id, analytic_name, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, date FROM activities WHERE $1::text ILIKE analytic_id || \'%\' ORDER BY date DESC', [analytic_id])
         }
         allActs = acts || []
         console.log('[estimate] Found via analytic_id:', allActs.length)
@@ -166,10 +166,10 @@ export default async function handler(req, res){
     // Fallback 2: try analytic_code if still no activities found
     if (allActs.length === 0 && analytic_code) {
       try{
-        let [acts] = await pool.query('SELECT id, analytic_name, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE analytic_code = $1 ORDER BY date DESC', [analytic_code])
+        let [acts] = await pool.query('SELECT id, analytic_name, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, date FROM activities WHERE analytic_code = $1 ORDER BY date DESC', [analytic_code])
         // If no exact match, try ILIKE pattern
         if (!acts || acts.length === 0) {
-          [acts] = await pool.query('SELECT id, analytic_name, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, date FROM activities WHERE $1::text ILIKE analytic_code || \'%\' ORDER BY date DESC', [analytic_code])
+          [acts] = await pool.query('SELECT id, analytic_name, pay_type, remuneration_infi, remuneration_med, remuneration_sortie_infi, remuneration_sortie_med, remuneration_overtime_infi, remuneration_overtime_med, date FROM activities WHERE $1::text ILIKE analytic_code || \'%\' ORDER BY date DESC', [analytic_code])
         }
         allActs = acts || []
         console.log('[estimate] Found via analytic_code:', allActs.length)
@@ -195,15 +195,22 @@ export default async function handler(req, res){
           rateSortieInfi = a.remuneration_sortie_infi != null ? Number(a.remuneration_sortie_infi) : (a.remuneration_infi != null ? Number(a.remuneration_infi) : rateSortieInfi)
           rateSortieMed = a.remuneration_sortie_med != null ? Number(a.remuneration_sortie_med) : (a.remuneration_med != null ? Number(a.remuneration_med) : rateSortieMed)
         }
+        // For APS/RMP/REG, extract the overtime (hourly) rate
+        if ((rateOvertimeInfi == null || rateOvertimeMed == null) && (pt.includes('aps') || pt.includes('rmp') || pt.includes('reg'))){
+          rateOvertimeInfi = a.remuneration_overtime_infi != null ? Number(a.remuneration_overtime_infi) : rateOvertimeInfi
+          rateOvertimeMed = a.remuneration_overtime_med != null ? Number(a.remuneration_overtime_med) : rateOvertimeMed
+        }
         if (rateGardeInfi != null && rateGardeMed != null && rateSortieInfi != null && rateSortieMed != null) break
       }
-      if ((rateGardeInfi == null || rateGardeMed == null || rateSortieInfi == null || rateSortieMed == null) && allActs.length > 0){
+      if ((rateGardeInfi == null || rateGardeMed == null || rateSortieInfi == null || rateSortieMed == null || rateOvertimeInfi == null || rateOvertimeMed == null) && allActs.length > 0){
         const a = allActs[0]
         if (rateGardeInfi == null) rateGardeInfi = a.remuneration_infi != null ? Number(a.remuneration_infi) : null
         if (rateGardeMed == null) rateGardeMed = a.remuneration_med != null ? Number(a.remuneration_med) : null
         // For sortie, prefer remuneration_sortie_* columns, fallback to remuneration_infi/med
         if (rateSortieInfi == null) rateSortieInfi = a.remuneration_sortie_infi != null ? Number(a.remuneration_sortie_infi) : (a.remuneration_infi != null ? Number(a.remuneration_infi) : null)
         if (rateSortieMed == null) rateSortieMed = a.remuneration_sortie_med != null ? Number(a.remuneration_sortie_med) : (a.remuneration_med != null ? Number(a.remuneration_med) : null)
+        if (rateOvertimeInfi == null) rateOvertimeInfi = a.remuneration_overtime_infi != null ? Number(a.remuneration_overtime_infi) : null
+        if (rateOvertimeMed == null) rateOvertimeMed = a.remuneration_overtime_med != null ? Number(a.remuneration_overtime_med) : null
       }
     }
 
@@ -211,6 +218,8 @@ export default async function handler(req, res){
     if (rateGardeMed == null) rateGardeMed = FALLBACK_MED
     if (rateSortieInfi == null) rateSortieInfi = FALLBACK_INF
     if (rateSortieMed == null) rateSortieMed = FALLBACK_MED
+    if (rateOvertimeInfi == null) rateOvertimeInfi = FALLBACK_INF
+    if (rateOvertimeMed == null) rateOvertimeMed = FALLBACK_MED
 
     // compute based on pay_type
     const payLower = (pay_type || '').toLowerCase()
@@ -233,6 +242,10 @@ export default async function handler(req, res){
       const otRateMed = (effectiveGarde === 0 && sH > 0) ? rateSortieMed : rateGardeMed
       estInfi = (effectiveGarde * rateGardeInfi) + (sH * rateSortieInfi) + (oH * otRateInfi * OT_MULT)
       estMed = (effectiveGarde * rateGardeMed) + (sH * rateSortieMed) + (oH * otRateMed * OT_MULT)
+    } else if (payLower.includes('aps') || payLower.includes('rmp') || payLower.includes('reg')) {
+      // APS/RMP/REG: hourly pay using the overtime (H. supp.) rate configured on the activity
+      estInfi = (normalizedBreakdown.hours_actual * rateOvertimeInfi) + (normalizedBreakdown.overtime_hours * rateOvertimeInfi * OT_MULT)
+      estMed = (normalizedBreakdown.hours_actual * rateOvertimeMed) + (normalizedBreakdown.overtime_hours * rateOvertimeMed * OT_MULT)
     } else if (payLower.includes('permanence') || payLower.includes('sortie') || payLower.includes('astreinte')) {
       // For permanence-type activities use the sortie/permanence rates
       estInfi = (normalizedBreakdown.hours_actual * rateSortieInfi) + (normalizedBreakdown.overtime_hours * rateSortieInfi * OT_MULT)

@@ -456,7 +456,13 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
         date: p.date,
         remuneration_infi: p.remuneration_infi,
         remuneration_med: p.remuneration_med,
-        hours_actual: null,
+        hours_actual: (() => {
+          const _pt = (p.ebrigade_activity_type || p.pay_type || '').toLowerCase()
+          if (_pt.includes('aps') || _pt.includes('rmp') || _pt.includes('reg')) {
+            return resolveEbrigadeDurationHours(p) || null
+          }
+          return null
+        })(),
         garde_hours: null,
         sortie_hours: null,
         overtime_hours: null,
