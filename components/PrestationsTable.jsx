@@ -129,14 +129,21 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
       ).toLowerCase()
     : ''
   
+  // Also check pay_type directly (in case ebrigade_activity_type overrides _editPayTypeLower)
+  const _editPayTypeDirect = editing ? String(editing.pay_type || '').toLowerCase() : ''
+
   // Check if it's a Garde type that requires sortie_hours
   // hour_entry_type (from activity config) takes precedence over auto-detection
   const editingIsGarde = editing
     ? editing.hour_entry_type === 'simple' ? false
       : editing.hour_entry_type === 'garde' ? true
       : (() => {
-          // FORCE simple mode for APS and RMP - never use garde form
-          if (_editPayTypeLower.includes('aps') || _editPayTypeLower.includes('rmp')) {
+          // FORCE simple mode for APS and RMP - check BOTH _editPayTypeLower AND direct pay_type
+          // (ebrigade_activity_type can override _editPayTypeLower, so we check pay_type separately)
+          if (
+            _editPayTypeLower.includes('aps') || _editPayTypeLower.includes('rmp') ||
+            _editPayTypeDirect.includes('aps') || _editPayTypeDirect.includes('rmp')
+          ) {
             return false
           }
           // Auto-detect garde for other types
@@ -171,8 +178,8 @@ const PrestationsTable = forwardRef(function PrestationsTable({ email }, ref) {
     }
   }, [editing, editingIsGarde])
   const editingIsPermanence = _editPayTypeLower.includes('permanence')
-  const editingIsAPS = _editPayTypeLower.includes('aps')
-  const editingIsRMP = _editPayTypeLower.includes('rmp')
+  const editingIsAPS = _editPayTypeLower.includes('aps') || _editPayTypeDirect.includes('aps')
+  const editingIsRMP = _editPayTypeLower.includes('rmp') || _editPayTypeDirect.includes('rmp')
 
   useEffect(() => {
     // Fetch both prestations and available activities
